@@ -2,6 +2,17 @@
 *.o
 *.rdb
 *.log
+*.IAB
+*.IAD
+*.IMB
+*.IMD
+*.PFI
+*.PO
+*.PR
+*.PRI
+*.PS
+*.WK3
+*.SearchResults
 redis-*
 doc-tools
 release
@@ -21,3 +32,4 @@ deps/lua/src/liblua.a
 .prerequisites
 *.dSYM
 tags
+
