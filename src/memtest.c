@@ -57,7 +57,8 @@ static struct winsize ws;
 size_t progress_printed; /* Printed chars in screen-wide progress bar. */
 size_t progress_full; /* How many chars to write to fill the progress bar. */
 
-void memtest_progress_start(char *title, int pass) {
+void memtest_progress_start(char *title, int pass)
+{
     int j;
 
     printf("\x1b[H\x1b[2J");    /* Cursor home, clear screen. */
@@ -72,14 +73,17 @@ void memtest_progress_start(char *title, int pass) {
     fflush(stdout);
 }
 
-void memtest_progress_end(void) {
+void memtest_progress_end(void)
+{
     printf("\x1b[H\x1b[2J");    /* Cursor home, clear screen. */
 }
 
-void memtest_progress_step(size_t curr, size_t size, char c) {
+void memtest_progress_step(size_t curr, size_t size, char c)
+{
     size_t chars = ((unsigned long long)curr*progress_full)/size, j;
 
-    for (j = 0; j < chars-progress_printed; j++) {
+    for (j = 0; j < chars-progress_printed; j++)
+    {
         printf("%c",c);
         progress_printed++;
     }
@@ -89,23 +93,27 @@ void memtest_progress_step(size_t curr, size_t size, char c) {
 /* Test that addressing is fine. Every location is populated with its own
  * address, and finally verified. This test is very fast but may detect
  * ASAP big issues with the memory subsystem. */
-void memtest_addressing(unsigned long *l, size_t bytes) {
+void memtest_addressing(unsigned long *l, size_t bytes)
+{
     unsigned long words = bytes/sizeof(unsigned long);
     unsigned long j, *p;
 
     /* Fill */
     p = l;
-    for (j = 0; j < words; j++) {
+    for (j = 0; j < words; j++)
+    {
         *p = (unsigned long)p;
         p++;
         if ((j & 0xffff) == 0) memtest_progress_step(j,words*2,'A');
     }
     /* Test */
     p = l;
-    for (j = 0; j < words; j++) {
-        if (*p != (unsigned long)p) {
+    for (j = 0; j < words; j++)
+    {
+        if (*p != (unsigned long)p)
+        {
             printf("\n*** MEMORY ADDRESSING ERROR: %p contains %lu\n",
-                (void*) p, *p);
+                   (void*) p, *p);
             exit(1);
         }
         p++;
@@ -117,17 +125,20 @@ void memtest_addressing(unsigned long *l, size_t bytes) {
  * touch all the pages in the smallest amount of time reducing the
  * effectiveness of caches, and making it hard for the OS to transfer
  * pages on the swap. */
-void memtest_fill_random(unsigned long *l, size_t bytes) {
+void memtest_fill_random(unsigned long *l, size_t bytes)
+{
     unsigned long step = 4096/sizeof(unsigned long);
     unsigned long words = bytes/sizeof(unsigned long)/2;
     unsigned long iwords = words/step;  /* words per iteration */
     unsigned long off, w, *l1, *l2;
 
     assert((bytes & 4095) == 0);
-    for (off = 0; off < step; off++) {
+    for (off = 0; off < step; off++)
+    {
         l1 = l+off;
         l2 = l1+words;
-        for (w = 0; w < iwords; w++) {
+        for (w = 0; w < iwords; w++)
+        {
 #ifdef MEMTEST_32BIT
             *l1 = *l2 = ((unsigned long)     (rand()&0xffff)) |
                         (((unsigned long)    (rand()&0xffff)) << 16);
@@ -156,11 +167,13 @@ void memtest_fill_value(unsigned long *l, size_t bytes, unsigned long v1,
     unsigned long off, w, *l1, *l2, v;
 
     assert((bytes & 4095) == 0);
-    for (off = 0; off < step; off++) {
+    for (off = 0; off < step; off++)
+    {
         l1 = l+off;
         l2 = l1+words;
         v = (off & 1) ? v2 : v1;
-        for (w = 0; w < iwords; w++) {
+        for (w = 0; w < iwords; w++)
+        {
 #ifdef MEMTEST_32BIT
             *l1 = *l2 = ((unsigned long)     v) |
                         (((unsigned long)    v) << 16);
@@ -178,17 +191,20 @@ void memtest_fill_value(unsigned long *l, size_t bytes, unsigned long v1,
     }
 }
 
-void memtest_compare(unsigned long *l, size_t bytes) {
+void memtest_compare(unsigned long *l, size_t bytes)
+{
     unsigned long words = bytes/sizeof(unsigned long)/2;
     unsigned long w, *l1, *l2;
 
     assert((bytes & 4095) == 0);
     l1 = l;
     l2 = l1+words;
-    for (w = 0; w < words; w++) {
-        if (*l1 != *l2) {
+    for (w = 0; w < words; w++)
+    {
+        if (*l1 != *l2)
+        {
             printf("\n*** MEMORY ERROR DETECTED: %p != %p (%lu vs %lu)\n",
-                (void*)l1, (void*)l2, *l1, *l2);
+                   (void*)l1, (void*)l2, *l1, *l2);
             exit(1);
         }
         l1 ++;
@@ -197,27 +213,32 @@ void memtest_compare(unsigned long *l, size_t bytes) {
     }
 }
 
-void memtest_compare_times(unsigned long *m, size_t bytes, int pass, int times) {
+void memtest_compare_times(unsigned long *m, size_t bytes, int pass, int times)
+{
     int j;
 
-    for (j = 0; j < times; j++) {
+    for (j = 0; j < times; j++)
+    {
         memtest_progress_start("Compare",pass);
         memtest_compare(m,bytes);
         memtest_progress_end();
     }
 }
 
-void memtest_test(size_t megabytes, int passes) {
+void memtest_test(size_t megabytes, int passes)
+{
     size_t bytes = megabytes*1024*1024;
     unsigned long *m = malloc(bytes);
     int pass = 0;
 
-    if (m == NULL) {
+    if (m == NULL)
+    {
         fprintf(stderr,"Unable to allocate %zu megabytes: %s",
-            megabytes, strerror(errno));
+                megabytes, strerror(errno));
         exit(1);
     }
-    while (pass != passes) {
+    while (pass != passes)
+    {
         pass++;
 
         memtest_progress_start("Addressing test",pass);
@@ -241,7 +262,8 @@ void memtest_test(size_t megabytes, int passes) {
     }
 }
 
-void memtest_non_destructive_invert(void *addr, size_t size) {
+void memtest_non_destructive_invert(void *addr, size_t size)
+{
     volatile unsigned long *p = addr;
     size_t words = size / sizeof(unsigned long);
     size_t j;
@@ -251,13 +273,15 @@ void memtest_non_destructive_invert(void *addr, size_t size) {
         p[j] = ~p[j];
 }
 
-void memtest_non_destructive_swap(void *addr, size_t size) {
+void memtest_non_destructive_swap(void *addr, size_t size)
+{
     volatile unsigned long *p = addr;
     size_t words = size / sizeof(unsigned long);
     size_t j;
 
     /* Swap */
-    for (j = 0; j < words; j += 2) {
+    for (j = 0; j < words; j += 2)
+    {
         unsigned long a, b;
 
         a = p[j];
@@ -267,8 +291,10 @@ void memtest_non_destructive_swap(void *addr, size_t size) {
     }
 }
 
-void memtest(size_t megabytes, int passes) {
-    if (ioctl(1, TIOCGWINSZ, &ws) == -1) {
+void memtest(size_t megabytes, int passes)
+{
+    if (ioctl(1, TIOCGWINSZ, &ws) == -1)
+    {
         ws.ws_col = 80;
         ws.ws_row = 20;
     }

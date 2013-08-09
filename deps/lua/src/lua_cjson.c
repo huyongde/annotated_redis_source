@@ -58,7 +58,8 @@
 #define DEFAULT_DECODE_REFUSE_BADNUM 0
 #define DEFAULT_ENCODE_KEEP_BUFFER 1
 
-typedef enum {
+typedef enum
+{
     T_OBJ_BEGIN,
     T_OBJ_END,
     T_ARR_BEGIN,
@@ -75,7 +76,8 @@ typedef enum {
     T_UNKNOWN
 } json_token_type_t;
 
-static const char *json_token_type_name[] = {
+static const char *json_token_type_name[] =
+{
     "T_OBJ_BEGIN",
     "T_OBJ_END",
     "T_ARR_BEGIN",
@@ -93,7 +95,8 @@ static const char *json_token_type_name[] = {
     NULL
 };
 
-typedef struct {
+typedef struct
+{
     json_token_type_t ch2token[256];
     char escape2char[256];  /* Decoding */
 #if 0
@@ -114,17 +117,20 @@ typedef struct {
     int encode_number_precision;
 } json_config_t;
 
-typedef struct {
+typedef struct
+{
     const char *data;
     int index;
     strbuf_t *tmp;    /* Temporary storage for strings */
     json_config_t *cfg;
 } json_parse_t;
 
-typedef struct {
+typedef struct
+{
     json_token_type_t type;
     int index;
-    union {
+    union
+    {
         const char *string;
         double number;
         int boolean;
@@ -132,7 +138,8 @@ typedef struct {
     int string_len;
 } json_token_t;
 
-static const char *char2escape[256] = {
+static const char *char2escape[256] =
+{
     "\\u0000", "\\u0001", "\\u0002", "\\u0003",
     "\\u0004", "\\u0005", "\\u0006", "\\u0007",
     "\\b", "\\t", "\\n", "\\u000b",
@@ -208,7 +215,8 @@ static int json_cfg_encode_sparse_array(lua_State *l)
     json_verify_arg_count(l, 3);
     cfg = json_fetch_config(l);
 
-    switch (lua_gettop(l)) {
+    switch (lua_gettop(l))
+    {
     case 3:
         val = luaL_checkinteger(l, 3);
         luaL_argcheck(l, val >= 0, 3, "expected integer >= 0");
@@ -239,7 +247,8 @@ static int json_cfg_encode_max_depth(lua_State *l)
     json_verify_arg_count(l, 1);
     cfg = json_fetch_config(l);
 
-    if (lua_gettop(l)) {
+    if (lua_gettop(l))
+    {
         depth = luaL_checkinteger(l, 1);
         luaL_argcheck(l, depth > 0, 1, "expected positive integer");
         cfg->encode_max_depth = depth;
@@ -265,7 +274,8 @@ static int json_cfg_encode_number_precision(lua_State *l)
     json_verify_arg_count(l, 1);
     cfg = json_fetch_config(l);
 
-    if (lua_gettop(l)) {
+    if (lua_gettop(l))
+    {
         precision = luaL_checkinteger(l, 1);
         luaL_argcheck(l, 1 <= precision && precision <= 14, 1,
                       "expected integer between 1 and 14");
@@ -285,7 +295,8 @@ static int json_cfg_encode_keep_buffer(lua_State *l)
     json_verify_arg_count(l, 1);
     cfg = json_fetch_config(l);
 
-    if (lua_gettop(l)) {
+    if (lua_gettop(l))
+    {
         luaL_checktype(l, 1, LUA_TBOOLEAN);
         cfg->encode_keep_buffer = lua_toboolean(l, 1);
     }
@@ -303,7 +314,8 @@ static void json_enum_option(lua_State *l, const char **options,
 {
     int setting;
 
-    if (lua_gettop(l)) {
+    if (lua_gettop(l))
+    {
         if (lua_isboolean(l, 1))
             setting = lua_toboolean(l, 1) * 3;
         else
@@ -311,7 +323,9 @@ static void json_enum_option(lua_State *l, const char **options,
 
         *opt1 = setting & 1 ? 1 : 0;
         *opt2 = setting & 2 ? 1 : 0;
-    } else {
+    }
+    else
+    {
         setting = *opt1 | (*opt2 << 1);
     }
 
@@ -326,7 +340,8 @@ static void json_enum_option(lua_State *l, const char **options,
 static int json_cfg_refuse_invalid_numbers(lua_State *l)
 {
     static const char *options_enc_dec[] = { "none", "encode", "decode",
-                                             "both", NULL };
+                                           "both", NULL
+                                           };
     json_config_t *cfg;
 
     json_verify_arg_count(l, 1);
@@ -455,7 +470,7 @@ static void json_encode_exception(lua_State *l, json_config_t *cfg, int lindex,
     if (!cfg->encode_keep_buffer)
         strbuf_free(&cfg->encode_buf);
     luaL_error(l, "Cannot serialise %s: %s",
-                  lua_typename(l, lua_type(l, lindex)), reason);
+               lua_typename(l, lua_type(l, lindex)), reason);
 }
 
 /* json_append_string args:
@@ -480,7 +495,8 @@ static void json_append_string(lua_State *l, strbuf_t *json, int lindex)
     strbuf_ensure_empty_length(json, len * 6 + 2);
 
     strbuf_append_char_unsafe(json, '\"');
-    for (i = 0; i < len; i++) {
+    for (i = 0; i < len; i++)
+    {
         escstr = char2escape[(unsigned char)str[i]];
         if (escstr)
             strbuf_append_string(json, escstr);
@@ -505,12 +521,15 @@ static int lua_array_length(lua_State *l, json_config_t *cfg)
 
     lua_pushnil(l);
     /* table, startkey */
-    while (lua_next(l, -2) != 0) {
+    while (lua_next(l, -2) != 0)
+    {
         /* table, key, value */
         if (lua_type(l, -2) == LUA_TNUMBER &&
-            (k = lua_tonumber(l, -2))) {
+                (k = lua_tonumber(l, -2)))
+        {
             /* Integer >= 1 ? */
-            if (floor(k) == k && k >= 1) {
+            if (floor(k) == k && k >= 1)
+            {
                 if (k > max)
                     max = k;
                 items++;
@@ -526,8 +545,9 @@ static int lua_array_length(lua_State *l, json_config_t *cfg)
 
     /* Encode excessively sparse arrays as objects (if enabled) */
     if (cfg->encode_sparse_ratio > 0 &&
-        max > items * cfg->encode_sparse_ratio &&
-        max > cfg->encode_sparse_safe) {
+            max > items * cfg->encode_sparse_ratio &&
+            max > cfg->encode_sparse_safe)
+    {
         if (!cfg->encode_sparse_convert)
             json_encode_exception(l, cfg, -1, "excessively sparse array");
 
@@ -541,7 +561,8 @@ static void json_encode_descend(lua_State *l, json_config_t *cfg)
 {
     cfg->current_depth++;
 
-    if (cfg->current_depth > cfg->encode_max_depth) {
+    if (cfg->current_depth > cfg->encode_max_depth)
+    {
         if (!cfg->encode_keep_buffer)
             strbuf_free(&cfg->encode_buf);
         luaL_error(l, "Cannot serialise, excessive nesting (%d)",
@@ -565,7 +586,8 @@ static void json_append_array(lua_State *l, json_config_t *cfg, strbuf_t *json,
     strbuf_append_char(json, '[');
 
     comma = 0;
-    for (i = 1; i <= array_length; i++) {
+    for (i = 1; i <= array_length; i++)
+    {
         if (comma)
             strbuf_append_char(json, ',');
         else
@@ -610,7 +632,8 @@ static void json_append_object(lua_State *l, json_config_t *cfg,
     lua_pushnil(l);
     /* table, startkey */
     comma = 0;
-    while (lua_next(l, -2) != 0) {
+    while (lua_next(l, -2) != 0)
+    {
         if (comma)
             strbuf_append_char(json, ',');
         else
@@ -618,14 +641,19 @@ static void json_append_object(lua_State *l, json_config_t *cfg,
 
         /* table, key, value */
         keytype = lua_type(l, -2);
-        if (keytype == LUA_TNUMBER) {
+        if (keytype == LUA_TNUMBER)
+        {
             strbuf_append_char(json, '"');
             json_append_number(l, json, -2, cfg);
             strbuf_append_mem(json, "\":", 2);
-        } else if (keytype == LUA_TSTRING) {
+        }
+        else if (keytype == LUA_TSTRING)
+        {
             json_append_string(l, json, -2);
             strbuf_append_char(json, ':');
-        } else {
+        }
+        else
+        {
             json_encode_exception(l, cfg, -2,
                                   "table key must be a number or string");
             /* never returns */
@@ -647,7 +675,8 @@ static void json_append_data(lua_State *l, json_config_t *cfg, strbuf_t *json)
 {
     int len;
 
-    switch (lua_type(l, -1)) {
+    switch (lua_type(l, -1))
+    {
     case LUA_TSTRING:
         json_append_string(l, json, -1);
         break;
@@ -671,7 +700,8 @@ static void json_append_data(lua_State *l, json_config_t *cfg, strbuf_t *json)
         strbuf_append_mem(json, "null", 4);
         break;
     case LUA_TLIGHTUSERDATA:
-        if (lua_touserdata(l, -1) == NULL) {
+        if (lua_touserdata(l, -1) == NULL)
+        {
             strbuf_append_mem(json, "null", 4);
             break;
         }
@@ -740,9 +770,11 @@ static int decode_hex4(const char *hex)
     /* Convert ASCII hex digit to numeric digit
      * Note: this returns an error for invalid hex digits, including
      *       NULL */
-    for (i = 0; i < 4; i++) {
+    for (i = 0; i < 4; i++)
+    {
         digit[i] = hexdigit2int(hex[i]);
-        if (digit[i] < 0) {
+        if (digit[i] < 0)
+        {
             return -1;
         }
     }
@@ -750,7 +782,7 @@ static int decode_hex4(const char *hex)
     return (digit[0] << 12) +
            (digit[1] << 8) +
            (digit[2] << 4) +
-            digit[3];
+           digit[3];
 }
 
 /* Converts a Unicode codepoint to UTF-8.
@@ -758,20 +790,23 @@ static int decode_hex4(const char *hex)
 static int codepoint_to_utf8(char *utf8, int codepoint)
 {
     /* 0xxxxxxx */
-    if (codepoint <= 0x7F) {
+    if (codepoint <= 0x7F)
+    {
         utf8[0] = codepoint;
         return 1;
     }
 
     /* 110xxxxx 10xxxxxx */
-    if (codepoint <= 0x7FF) {
+    if (codepoint <= 0x7FF)
+    {
         utf8[0] = (codepoint >> 6) | 0xC0;
         utf8[1] = (codepoint & 0x3F) | 0x80;
         return 2;
     }
 
     /* 1110xxxx 10xxxxxx 10xxxxxx */
-    if (codepoint <= 0xFFFF) {
+    if (codepoint <= 0xFFFF)
+    {
         utf8[0] = (codepoint >> 12) | 0xE0;
         utf8[1] = ((codepoint >> 6) & 0x3F) | 0x80;
         utf8[2] = (codepoint & 0x3F) | 0x80;
@@ -779,7 +814,8 @@ static int codepoint_to_utf8(char *utf8, int codepoint)
     }
 
     /* 11110xxx 10xxxxxx 10xxxxxx 10xxxxxx */
-    if (codepoint <= 0x1FFFFF) {
+    if (codepoint <= 0x1FFFFF)
+    {
         utf8[0] = (codepoint >> 18) | 0xF0;
         utf8[1] = ((codepoint >> 12) & 0x3F) | 0x80;
         utf8[2] = ((codepoint >> 6) & 0x3F) | 0x80;
@@ -818,14 +854,16 @@ static int json_append_unicode_escape(json_parse_t *json)
      *      x = 1: y is the low 10 bits of the codepoint
      *
      * Check for a surrogate pair (high or low) */
-    if ((codepoint & 0xF800) == 0xD800) {
+    if ((codepoint & 0xF800) == 0xD800)
+    {
         /* Error if the 1st surrogate is not high */
         if (codepoint & 0x400)
             return -1;
 
         /* Ensure the next code is a unicode escape */
         if (json->data[json->index + escape_len] != '\\' ||
-            json->data[json->index + escape_len + 1] != 'u') {
+                json->data[json->index + escape_len + 1] != 'u')
+        {
             return -1;
         }
 
@@ -879,21 +917,25 @@ static void json_next_string_token(json_parse_t *json, json_token_t *token)
     /* json->tmp is the temporary strbuf used to accumulate the
      * decoded string value. */
     strbuf_reset(json->tmp);
-    while ((ch = json->data[json->index]) != '"') {
-        if (!ch) {
+    while ((ch = json->data[json->index]) != '"')
+    {
+        if (!ch)
+        {
             /* Premature end of the string */
             json_set_token_error(token, json, "unexpected end of string");
             return;
         }
 
         /* Handle escapes */
-        if (ch == '\\') {
+        if (ch == '\\')
+        {
             /* Fetch escape character */
             ch = json->data[json->index + 1];
 
             /* Translate escape code and append to tmp string */
             ch = escape2char[(unsigned char)ch];
-            if (ch == 'u') {
+            if (ch == 'u')
+            {
                 if (json_append_unicode_escape(json) == 0)
                     continue;
 
@@ -901,7 +943,8 @@ static void json_next_string_token(json_parse_t *json, json_token_t *token)
                                      "invalid unicode escape code");
                 return;
             }
-            if (!ch) {
+            if (!ch)
+            {
                 json_set_token_error(token, json, "invalid escape code");
                 return;
             }
@@ -950,15 +993,18 @@ static int json_is_invalid_number(json_parse_t *json)
         i++;
 
     /* Reject numbers starting with 0x, or leading zeros */
-    if (json->data[i] == '0') {
+    if (json->data[i] == '0')
+    {
         int ch2 = json->data[i + 1];
 
         if ((ch2 | 0x20) == 'x' ||          /* Hex */
-            ('0' <= ch2 && ch2 <= '9'))     /* Leading zero */
+                ('0' <= ch2 && ch2 <= '9'))     /* Leading zero */
             return 1;
 
         return 0;
-    } else if (json->data[i] <= '9') {
+    }
+    else if (json->data[i] <= '9')
+    {
         return 0;                           /* Ordinary number */
     }
 
@@ -1007,17 +1053,20 @@ static void json_next_token(json_parse_t *json, json_token_t *token)
     token->index = json->index;
 
     /* Don't advance the pointer for an error or the end */
-    if (token->type == T_ERROR) {
+    if (token->type == T_ERROR)
+    {
         json_set_token_error(token, json, "invalid token");
         return;
     }
 
-    if (token->type == T_END) {
+    if (token->type == T_END)
+    {
         return;
     }
 
     /* Found a known single character token, advance index and return */
-    if (token->type != T_UNKNOWN) {
+    if (token->type != T_UNKNOWN)
+    {
         json->index++;
         return;
     }
@@ -1029,32 +1078,44 @@ static void json_next_token(json_parse_t *json, json_token_t *token)
      * JSON identifier must be lowercase.
      * When strict_numbers if disabled, either case is allowed for
      * Infinity/NaN (since we are no longer following the spec..) */
-    if (ch == '"') {
+    if (ch == '"')
+    {
         json_next_string_token(json, token);
         return;
-    } else if (ch == '-' || ('0' <= ch && ch <= '9')) {
-        if (json->cfg->decode_refuse_badnum && json_is_invalid_number(json)) {
+    }
+    else if (ch == '-' || ('0' <= ch && ch <= '9'))
+    {
+        if (json->cfg->decode_refuse_badnum && json_is_invalid_number(json))
+        {
             json_set_token_error(token, json, "invalid number");
             return;
         }
         json_next_number_token(json, token);
         return;
-    } else if (!strncmp(&json->data[json->index], "true", 4)) {
+    }
+    else if (!strncmp(&json->data[json->index], "true", 4))
+    {
         token->type = T_BOOLEAN;
         token->value.boolean = 1;
         json->index += 4;
         return;
-    } else if (!strncmp(&json->data[json->index], "false", 5)) {
+    }
+    else if (!strncmp(&json->data[json->index], "false", 5))
+    {
         token->type = T_BOOLEAN;
         token->value.boolean = 0;
         json->index += 5;
         return;
-    } else if (!strncmp(&json->data[json->index], "null", 4)) {
+    }
+    else if (!strncmp(&json->data[json->index], "null", 4))
+    {
         token->type = T_NULL;
         json->index += 4;
         return;
-    } else if (!json->cfg->decode_refuse_badnum &&
-               json_is_invalid_number(json)) {
+    }
+    else if (!json->cfg->decode_refuse_badnum &&
+             json_is_invalid_number(json))
+    {
         /* When refuse_badnum is disabled, only attempt to process
          * numbers we know are invalid JSON (Inf, NaN, hex)
          * This is required to generate an appropriate token error,
@@ -1113,11 +1174,13 @@ static void json_parse_object_context(lua_State *l, json_parse_t *json)
     json_next_token(json, &token);
 
     /* Handle empty objects */
-    if (token.type == T_OBJ_END) {
+    if (token.type == T_OBJ_END)
+    {
         return;
     }
 
-    while (1) {
+    while (1)
+    {
         if (token.type != T_STRING)
             json_throw_parse_error(l, json, "object key string", &token);
 
@@ -1165,7 +1228,8 @@ static void json_parse_array_context(lua_State *l, json_parse_t *json)
     if (token.type == T_ARR_END)
         return;
 
-    for (i = 1; ; i++) {
+    for (i = 1; ; i++)
+    {
         json_process_value(l, json, &token);
         lua_rawseti(l, -2, i);            /* arr[i] = value */
 
@@ -1185,7 +1249,8 @@ static void json_parse_array_context(lua_State *l, json_parse_t *json)
 static void json_process_value(lua_State *l, json_parse_t *json,
                                json_token_t *token)
 {
-    switch (token->type) {
+    switch (token->type)
+    {
     case T_STRING:
         lua_pushlstring(l, token->value.string, token->string_len);
         break;;
@@ -1264,7 +1329,8 @@ static int json_decode(lua_State *l)
 
 int luaopen_cjson(lua_State *l)
 {
-    luaL_Reg reg[] = {
+    luaL_Reg reg[] =
+    {
         { "encode", json_encode },
         { "decode", json_decode },
         { "encode_sparse_array", json_cfg_encode_sparse_array },

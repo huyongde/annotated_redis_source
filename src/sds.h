@@ -36,34 +36,37 @@
 #include <sys/types.h>
 #include <stdarg.h>
 
-// sds ç±»åž‹
+// sds ÀàÐÍ
 typedef char *sds;
 
-// sdshdr ç»“æž„
-struct sdshdr {
+// sdshdr ½á¹¹
+struct sdshdr
+{
 
-    // buf å·²å ç”¨é•¿åº¦
+    // buf ÒÑÕ¼ÓÃ³¤¶È
     int len;
 
-    // buf å‰©ä½™å¯ç”¨é•¿åº¦
+    // buf Ê£Óà¿ÉÓÃ³¤¶È
     int free;
 
-    // å®žé™…ä¿å­˜å­—ç¬¦ä¸²æ•°æ®çš„åœ°æ–¹
+    // Êµ¼Ê±£´æ×Ö·û´®Êý¾ÝµÄµØ·½
     char buf[];
 };
 
 /*
- * è¿”å›ž sds buf çš„å·²å ç”¨é•¿åº¦
+ * ·µ»Ø sds buf µÄÒÑÕ¼ÓÃ³¤¶È
  */
-static inline size_t sdslen(const sds s) {
+static inline size_t sdslen(const sds s)
+{
     struct sdshdr *sh = (void*)(s-(sizeof(struct sdshdr)));
     return sh->len;
 }
 
 /*
- * è¿”å›ž sds buf çš„å¯ç”¨é•¿åº¦
+ * ·µ»Ø sds buf µÄ¿ÉÓÃ³¤¶È
  */
-static inline size_t sdsavail(const sds s) {
+static inline size_t sdsavail(const sds s)
+{
     struct sdshdr *sh = (void*)(s-(sizeof(struct sdshdr)));
     return sh->free;
 }
@@ -85,7 +88,7 @@ sds sdscpy(sds s, const char *t);
 sds sdscatvprintf(sds s, const char *fmt, va_list ap);
 #ifdef __GNUC__
 sds sdscatprintf(sds s, const char *fmt, ...)
-    __attribute__((format(printf, 2, 3)));
+__attribute__((format(printf, 2, 3)));
 #else
 sds sdscatprintf(sds s, const char *fmt, ...);
 #endif

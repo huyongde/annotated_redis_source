@@ -32,16 +32,17 @@
 #define __INTSET_H
 #include <stdint.h>
 
-typedef struct intset {
+typedef struct intset
+{
 
-    // ä¿å­˜å…ƒç´ æ‰€ä½¿ç”¨çš„ç±»å‹çš„é•¿åº¦
+    // ±£´æÔªËØËùÊ¹ÓÃµÄÀàĞÍµÄ³¤¶È
     uint32_t encoding;
 
-    // å…ƒç´ ä¸ªæ•°
-    uint32_t length;    
+    // ÔªËØ¸öÊı
+    uint32_t length;
 
-    // ä¿å­˜å…ƒç´ çš„æ•°ç»„
-    int8_t contents[];  
+    // ±£´æÔªËØµÄÊı×é
+    int8_t contents[];
 
 } intset;
 

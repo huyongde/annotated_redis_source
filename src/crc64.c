@@ -39,7 +39,8 @@
 
 #include <stdint.h>
 
-static const uint64_t crc64_tab[256] = {
+static const uint64_t crc64_tab[256] =
+{
     UINT64_C(0x0000000000000000), UINT64_C(0x7ad870c830358979),
     UINT64_C(0xf5b0e190606b12f2), UINT64_C(0x8f689158505e9b8b),
     UINT64_C(0xc038e5739841b68f), UINT64_C(0xbae095bba8743ff6),
@@ -170,10 +171,12 @@ static const uint64_t crc64_tab[256] = {
     UINT64_C(0x536fa08fdfd90e51), UINT64_C(0x29b7d047efec8728),
 };
 
-uint64_t crc64(uint64_t crc, const unsigned char *s, uint64_t l) {
+uint64_t crc64(uint64_t crc, const unsigned char *s, uint64_t l)
+{
     uint64_t j;
 
-    for (j = 0; j < l; j++) {
+    for (j = 0; j < l; j++)
+    {
         uint8_t byte = s[j];
         crc = crc64_tab[(uint8_t)crc ^ byte] ^ (crc >> 8);
     }
@@ -183,9 +186,10 @@ uint64_t crc64(uint64_t crc, const unsigned char *s, uint64_t l) {
 /* Test main */
 #ifdef TEST_MAIN
 #include <stdio.h>
-int main(void) {
+int main(void)
+{
     printf("e9c6d914c4b8d9ca == %016llx\n",
-        (unsigned long long) crc64(0,(unsigned char*)"123456789",9));
+           (unsigned long long) crc64(0,(unsigned char*)"123456789",9));
     return 0;
 }
 #endif

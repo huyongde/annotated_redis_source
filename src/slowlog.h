@@ -32,18 +32,19 @@
 
 /* This structure defines an entry inside the slow log list */
 /*
- * æ…¢æŸ¥è¯¢æ—¥å¿—
+ * Âı²éÑ¯ÈÕÖ¾
  */
-typedef struct slowlogEntry {
-    // å‘½ä»¤å‚æ•°
+typedef struct slowlogEntry
+{
+    // ÃüÁî²ÎÊı
     robj **argv;
-    // å‘½ä»¤å‚æ•°æ•°é‡
+    // ÃüÁî²ÎÊıÊıÁ¿
     int argc;
-    // å”¯ä¸€æ ‡è¯†ç¬¦
+    // Î¨Ò»±êÊ¶·û
     long long id;       /* Unique entry identifier. */
-    // æ‰§è¡Œå‘½ä»¤æ¶ˆè€—çš„æ—¶é—´ï¼Œä»¥çº³ç§’ï¼ˆ1 / 1,000,000,000 ç§’ï¼‰ä¸ºå•ä½
+    // Ö´ĞĞÃüÁîÏûºÄµÄÊ±¼ä£¬ÒÔÄÉÃë£¨1 / 1,000,000,000 Ãë£©Îªµ¥Î»
     long long duration; /* Time spent by the query, in nanoseconds. */
-    // å‘½ä»¤æ‰§è¡Œæ—¶çš„æ—¶é—´
+    // ÃüÁîÖ´ĞĞÊ±µÄÊ±¼ä
     time_t time;        /* Unix time at which the query was executed. */
 } slowlogEntry;
 

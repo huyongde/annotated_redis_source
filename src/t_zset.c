@@ -36,59 +36,61 @@
  * in order to get O(log(N)) INSERT and REMOVE operations into a sorted
  * data structure.
  *
- * Zset ä¸ºæœ‰åºé›†åˆï¼Œå®ƒä½¿ç”¨ä¸¤ç§æ•°æ®ç»“æ„ä¿å­˜åŒä¸€ä¸ªå¯¹è±¡ï¼Œ
- * ä½¿å¾—å¯ä»¥åœ¨æœ‰åºé›†åˆå†…ç”¨ O(log(N)) å¤æ‚åº¦å†…è¿›è¡Œæ·»åŠ å’Œåˆ é™¤æ“ä½œã€‚
+ * Zset ÎªÓĞĞò¼¯ºÏ£¬ËüÊ¹ÓÃÁ½ÖÖÊı¾İ½á¹¹±£´æÍ¬Ò»¸ö¶ÔÏó£¬
+ * Ê¹µÃ¿ÉÒÔÔÚÓĞĞò¼¯ºÏÄÚÓÃ O(log(N)) ¸´ÔÓ¶ÈÄÚ½øĞĞÌí¼ÓºÍÉ¾³ı²Ù×÷¡£
  *
  * The elements are added to an hash table mapping Redis objects to scores.
  * At the same time the elements are added to a skip list mapping scores
- * to Redis objects (so objects are sorted by scores in this "view"). 
+ * to Redis objects (so objects are sorted by scores in this "view").
  *
- * å“ˆå¸Œè¡¨ä»¥ Redis å¯¹è±¡ä¸ºé”®ï¼Œ score ä¸ºå€¼ã€‚
- * Skiplist é‡ŒåŒæ ·ä¿æŒç€ Redis å¯¹è±¡å’Œ score å€¼çš„æ˜ å°„ã€‚
+ * ¹şÏ£±íÒÔ Redis ¶ÔÏóÎª¼ü£¬ score ÎªÖµ¡£
+ * Skiplist ÀïÍ¬Ñù±£³Ö×Å Redis ¶ÔÏóºÍ score ÖµµÄÓ³Éä¡£
  */
 
 /* This skiplist implementation is almost a C translation of the original
  * algorithm described by William Pugh in "Skip Lists: A Probabilistic
  * Alternative to Balanced Trees", modified in three ways:
  *
- * è¿™é‡Œçš„ skiplist å®ç°å’Œ William Pugh åœ¨ "Skip Lists: A Probabilistic
- * Alternative to Balanced Trees" é‡Œæè¿°çš„å·®ä¸å¤šï¼Œåªæœ‰ä¸‰ä¸ªåœ°æ–¹è¿›è¡Œäº†ä¿®æ”¹ï¼š
+ * ÕâÀïµÄ skiplist ÊµÏÖºÍ William Pugh ÔÚ "Skip Lists: A Probabilistic
+ * Alternative to Balanced Trees" ÀïÃèÊöµÄ²î²»¶à£¬Ö»ÓĞÈı¸öµØ·½½øĞĞÁËĞŞ¸Ä£º
  *
  * a) this implementation allows for repeated scores.
- *    è¿™ä¸ªå®ç°å…è®¸é‡å¤å€¼
+ *    Õâ¸öÊµÏÖÔÊĞíÖØ¸´Öµ
  * b) the comparison is not just by key (our 'score') but by satellite data.
- *    ä¸ä»…å¯¹ score è¿›è¡Œæ¯”å¯¹ï¼Œè¿˜éœ€è¦å¯¹ Redis å¯¹è±¡é‡Œçš„ä¿¡æ¯è¿›è¡Œæ¯”å¯¹
+ *    ²»½ö¶Ô score ½øĞĞ±È¶Ô£¬»¹ĞèÒª¶Ô Redis ¶ÔÏóÀïµÄĞÅÏ¢½øĞĞ±È¶Ô
  * c) there is a back pointer, so it's a doubly linked list with the back
  * pointers being only at "level 1". This allows to traverse the list
- * from tail to head, useful for ZREVRANGE. 
- *    æ¯ä¸ªèŠ‚ç‚¹éƒ½å¸¦æœ‰ä¸€ä¸ªå‰é©±æŒ‡é’ˆï¼Œç”¨äºä»è¡¨å°¾å‘è¡¨å¤´è¿­ä»£ã€‚
+ * from tail to head, useful for ZREVRANGE.
+ *    Ã¿¸ö½Úµã¶¼´øÓĞÒ»¸öÇ°ÇıÖ¸Õë£¬ÓÃÓÚ´Ó±íÎ²Ïò±íÍ·µü´ú¡£
  */
 
 #include "redis.h"
 #include <math.h>
 
 /*
- * åˆ›å»ºå¹¶è¿”å›ä¸€ä¸ªè·³è·ƒè¡¨èŠ‚ç‚¹
+ * ´´½¨²¢·µ»ØÒ»¸öÌøÔ¾±í½Úµã
  *
  * T = O(1)
  */
-zskiplistNode *zslCreateNode(int level, double score, robj *obj) {
-    // åˆ†é…å±‚
+zskiplistNode *zslCreateNode(int level, double score, robj *obj)
+{
+    // ·ÖÅä²ã
     zskiplistNode *zn = zmalloc(sizeof(*zn)+level*sizeof(struct zskiplistLevel));
-    // ç‚¹æ•°
+    // µãÊı
     zn->score = score;
-    // å¯¹è±¡
+    // ¶ÔÏó
     zn->obj = obj;
 
     return zn;
 }
 
 /*
- * åˆ›å»ºä¸€ä¸ªè·³è·ƒè¡¨
+ * ´´½¨Ò»¸öÌøÔ¾±í
  *
  * T = O(N)
  */
-zskiplist *zslCreate(void) {
+zskiplist *zslCreate(void)
+{
     int j;
     zskiplist *zsl;
 
@@ -97,10 +99,11 @@ zskiplist *zslCreate(void) {
     zsl->level = 1;
     zsl->length = 0;
 
-    // åˆå§‹åŒ–å¤´èŠ‚ç‚¹ï¼Œ O(1)
+    // ³õÊ¼»¯Í·½Úµã£¬ O(1)
     zsl->header = zslCreateNode(ZSKIPLIST_MAXLEVEL,0,NULL);
-    // åˆå§‹åŒ–å±‚æŒ‡é’ˆï¼ŒO(N)
-    for (j = 0; j < ZSKIPLIST_MAXLEVEL; j++) {
+    // ³õÊ¼»¯²ãÖ¸Õë£¬O(N)
+    for (j = 0; j < ZSKIPLIST_MAXLEVEL; j++)
+    {
         zsl->header->level[j].forward = NULL;
         zsl->header->level[j].span = 0;
     }
@@ -112,29 +115,32 @@ zskiplist *zslCreate(void) {
 }
 
 /*
- * é‡Šæ”¾è·³è·ƒè¡¨èŠ‚ç‚¹
+ * ÊÍ·ÅÌøÔ¾±í½Úµã
  *
  * T = O(1)
  */
-void zslFreeNode(zskiplistNode *node) {
+void zslFreeNode(zskiplistNode *node)
+{
     decrRefCount(node->obj);
     zfree(node);
 }
 
 /*
- * é‡Šæ”¾æ•´ä¸ªè·³è·ƒè¡¨
+ * ÊÍ·ÅÕû¸öÌøÔ¾±í
  *
  * T = O(N)
  */
-void zslFree(zskiplist *zsl) {
-     
+void zslFree(zskiplist *zsl)
+{
+
     zskiplistNode *node = zsl->header->level[0].forward,
-                  *next;
+                   *next;
 
     zfree(zsl->header);
 
-    // éå†åˆ é™¤, O(N)
-    while(node) {
+    // ±éÀúÉ¾³ı, O(N)
+    while(node)
+    {
         next = node->level[0].forward;
         zslFreeNode(node);
         node = next;
@@ -146,15 +152,16 @@ void zslFree(zskiplist *zsl) {
 /* Returns a random level for the new skiplist node we are going to create.
  * The return value of this function is between 1 and ZSKIPLIST_MAXLEVEL
  * (both inclusive), with a powerlaw-alike distribution where higher
- * levels are less likely to be returned. 
+ * levels are less likely to be returned.
  *
- * è¿”å›ä¸€ä¸ªä»‹äº 1 å’Œ ZSKIPLIST_MAXLEVEL ä¹‹é—´çš„éšæœºå€¼ï¼Œä½œä¸ºèŠ‚ç‚¹çš„å±‚æ•°ã€‚
+ * ·µ»ØÒ»¸ö½éÓÚ 1 ºÍ ZSKIPLIST_MAXLEVEL Ö®¼äµÄËæ»úÖµ£¬×÷Îª½ÚµãµÄ²ãÊı¡£
  *
- * æ ¹æ®å¹‚æ¬¡å®šå¾‹(power law)ï¼Œæ•°å€¼è¶Šå¤§ï¼Œå‡½æ•°ç”Ÿæˆå®ƒçš„å‡ ç‡å°±è¶Šå°
+ * ¸ù¾İÃİ´Î¶¨ÂÉ(power law)£¬ÊıÖµÔ½´ó£¬º¯ÊıÉú³ÉËüµÄ¼¸ÂÊ¾ÍÔ½Ğ¡
  *
  * T = O(N)
  */
-int zslRandomLevel(void) {
+int zslRandomLevel(void)
+{
     int level = 1;
     while ((random()&0xFFFF) < (ZSKIPLIST_P * 0xFFFF))
         level += 1;
@@ -162,41 +169,44 @@ int zslRandomLevel(void) {
 }
 
 /*
- * å°†åŒ…å«ç»™å®š score çš„å¯¹è±¡ obj æ·»åŠ åˆ° skiplist é‡Œ
+ * ½«°üº¬¸ø¶¨ score µÄ¶ÔÏó obj Ìí¼Óµ½ skiplist Àï
  *
  * T_worst = O(N), T_average = O(log N)
  */
-zskiplistNode *zslInsert(zskiplist *zsl, double score, robj *obj) {
+zskiplistNode *zslInsert(zskiplist *zsl, double score, robj *obj)
+{
 
-    // è®°å½•å¯»æ‰¾å…ƒç´ è¿‡ç¨‹ä¸­ï¼Œæ¯å±‚èƒ½åˆ°è¾¾çš„æœ€å³èŠ‚ç‚¹
+    // ¼ÇÂ¼Ñ°ÕÒÔªËØ¹ı³ÌÖĞ£¬Ã¿²ãÄÜµ½´ïµÄ×îÓÒ½Úµã
     zskiplistNode *update[ZSKIPLIST_MAXLEVEL], *x;
 
-    // è®°å½•å¯»æ‰¾å…ƒç´ è¿‡ç¨‹ä¸­ï¼Œæ¯å±‚æ‰€è·¨è¶Šçš„èŠ‚ç‚¹æ•°
+    // ¼ÇÂ¼Ñ°ÕÒÔªËØ¹ı³ÌÖĞ£¬Ã¿²ãËù¿çÔ½µÄ½ÚµãÊı
     unsigned int rank[ZSKIPLIST_MAXLEVEL];
 
     int i, level;
 
     redisAssert(!isnan(score));
     x = zsl->header;
-    // è®°å½•æ²¿é€”è®¿é—®çš„èŠ‚ç‚¹ï¼Œå¹¶è®¡æ•° span ç­‰å±æ€§
-    // å¹³å‡ O(log N) ï¼Œæœ€å O(N)
-    for (i = zsl->level-1; i >= 0; i--) {
+    // ¼ÇÂ¼ÑØÍ¾·ÃÎÊµÄ½Úµã£¬²¢¼ÆÊı span µÈÊôĞÔ
+    // Æ½¾ù O(log N) £¬×î»µ O(N)
+    for (i = zsl->level-1; i >= 0; i--)
+    {
         /* store rank that is crossed to reach the insert position */
         rank[i] = i == (zsl->level-1) ? 0 : rank[i+1];
 
-        // å³èŠ‚ç‚¹ä¸ä¸ºç©º
-        while (x->level[i].forward &&                   
-            // å³èŠ‚ç‚¹çš„ score æ¯”ç»™å®š score å°
-            (x->level[i].forward->score < score ||      
-                // å³èŠ‚ç‚¹çš„ score ç›¸åŒï¼Œä½†èŠ‚ç‚¹çš„ member æ¯”è¾“å…¥ member è¦å°
-                (x->level[i].forward->score == score && 
-                compareStringObjects(x->level[i].forward->obj,obj) < 0))) {
-            // è®°å½•è·¨è¶Šäº†å¤šå°‘ä¸ªå…ƒç´ 
+        // ÓÒ½Úµã²»Îª¿Õ
+        while (x->level[i].forward &&
+                // ÓÒ½ÚµãµÄ score ±È¸ø¶¨ score Ğ¡
+                (x->level[i].forward->score < score ||
+                 // ÓÒ½ÚµãµÄ score ÏàÍ¬£¬µ«½ÚµãµÄ member ±ÈÊäÈë member ÒªĞ¡
+                 (x->level[i].forward->score == score &&
+                  compareStringObjects(x->level[i].forward->obj,obj) < 0)))
+        {
+            // ¼ÇÂ¼¿çÔ½ÁË¶àÉÙ¸öÔªËØ
             rank[i] += x->level[i].span;
-            // ç»§ç»­å‘å³å‰è¿›
+            // ¼ÌĞøÏòÓÒÇ°½ø
             x = x->level[i].forward;
         }
-        // ä¿å­˜è®¿é—®èŠ‚ç‚¹
+        // ±£´æ·ÃÎÊ½Úµã
         update[i] = x;
     }
 
@@ -204,16 +214,18 @@ zskiplistNode *zslInsert(zskiplist *zsl, double score, robj *obj) {
      * scores, and the re-insertion of score and redis object should never
      * happpen since the caller of zslInsert() should test in the hash table
      * if the element is already inside or not. */
-    // å› ä¸ºè¿™ä¸ªå‡½æ•°ä¸å¯èƒ½å¤„ç†ä¸¤ä¸ªå…ƒç´ çš„ member å’Œ score éƒ½ç›¸åŒçš„æƒ…å†µï¼Œ
-    // æ‰€ä»¥ç›´æ¥åˆ›å»ºæ–°èŠ‚ç‚¹ï¼Œä¸ç”¨æ£€æŸ¥å­˜åœ¨æ€§
+    // ÒòÎªÕâ¸öº¯Êı²»¿ÉÄÜ´¦ÀíÁ½¸öÔªËØµÄ member ºÍ score ¶¼ÏàÍ¬µÄÇé¿ö£¬
+    // ËùÒÔÖ±½Ó´´½¨ĞÂ½Úµã£¬²»ÓÃ¼ì²é´æÔÚĞÔ
 
-    // è®¡ç®—æ–°çš„éšæœºå±‚æ•°
+    // ¼ÆËãĞÂµÄËæ»ú²ãÊı
     level = zslRandomLevel();
-    // å¦‚æœ level æ¯”å½“å‰ skiplist çš„æœ€å¤§å±‚æ•°è¿˜è¦å¤§
-    // é‚£ä¹ˆæ›´æ–° zsl->level å‚æ•°
-    // å¹¶ä¸”åˆå§‹åŒ– update å’Œ rank å‚æ•°åœ¨ç›¸åº”çš„å±‚çš„æ•°æ®
-    if (level > zsl->level) {
-        for (i = zsl->level; i < level; i++) {
+    // Èç¹û level ±Èµ±Ç° skiplist µÄ×î´ó²ãÊı»¹Òª´ó
+    // ÄÇÃ´¸üĞÂ zsl->level ²ÎÊı
+    // ²¢ÇÒ³õÊ¼»¯ update ºÍ rank ²ÎÊıÔÚÏàÓ¦µÄ²ãµÄÊı¾İ
+    if (level > zsl->level)
+    {
+        for (i = zsl->level; i < level; i++)
+        {
             rank[i] = 0;
             update[i] = zsl->header;
             update[i]->level[i].span = zsl->length;
@@ -221,38 +233,40 @@ zskiplistNode *zslInsert(zskiplist *zsl, double score, robj *obj) {
         zsl->level = level;
     }
 
-    // åˆ›å»ºæ–°èŠ‚ç‚¹
+    // ´´½¨ĞÂ½Úµã
     x = zslCreateNode(level,score,obj);
-    // æ ¹æ® update å’Œ rank ä¸¤ä¸ªæ•°ç»„çš„èµ„æ–™ï¼Œåˆå§‹åŒ–æ–°èŠ‚ç‚¹
-    // å¹¶è®¾ç½®ç›¸åº”çš„æŒ‡é’ˆ
+    // ¸ù¾İ update ºÍ rank Á½¸öÊı×éµÄ×ÊÁÏ£¬³õÊ¼»¯ĞÂ½Úµã
+    // ²¢ÉèÖÃÏàÓ¦µÄÖ¸Õë
     // O(N)
-    for (i = 0; i < level; i++) {
-        // è®¾ç½®æŒ‡é’ˆ
+    for (i = 0; i < level; i++)
+    {
+        // ÉèÖÃÖ¸Õë
         x->level[i].forward = update[i]->level[i].forward;
         update[i]->level[i].forward = x;
 
         /* update span covered by update[i] as x is inserted here */
-        // è®¾ç½® span
+        // ÉèÖÃ span
         x->level[i].span = update[i]->level[i].span - (rank[0] - rank[i]);
         update[i]->level[i].span = (rank[0] - rank[i]) + 1;
     }
 
     /* increment span for untouched levels */
-    // æ›´æ–°æ²¿é€”è®¿é—®èŠ‚ç‚¹çš„ span å€¼
-    for (i = level; i < zsl->level; i++) {
+    // ¸üĞÂÑØÍ¾·ÃÎÊ½ÚµãµÄ span Öµ
+    for (i = level; i < zsl->level; i++)
+    {
         update[i]->level[i].span++;
     }
 
-    // è®¾ç½®åé€€æŒ‡é’ˆ
+    // ÉèÖÃºóÍËÖ¸Õë
     x->backward = (update[0] == zsl->header) ? NULL : update[0];
-    // è®¾ç½® x çš„å‰è¿›æŒ‡é’ˆ
+    // ÉèÖÃ x µÄÇ°½øÖ¸Õë
     if (x->level[0].forward)
         x->level[0].forward->backward = x;
     else
-        // è¿™ä¸ªæ˜¯æ–°çš„è¡¨å°¾èŠ‚ç‚¹
+        // Õâ¸öÊÇĞÂµÄ±íÎ²½Úµã
         zsl->tail = x;
 
-    // æ›´æ–°è·³è·ƒè¡¨èŠ‚ç‚¹æ•°é‡
+    // ¸üĞÂÌøÔ¾±í½ÚµãÊıÁ¿
     zsl->length++;
 
     return x;
@@ -260,31 +274,39 @@ zskiplistNode *zslInsert(zskiplist *zsl, double score, robj *obj) {
 
 /* Internal function used by zslDelete, zslDeleteByScore and zslDeleteByRank */
 /*
- * èŠ‚ç‚¹åˆ é™¤å‡½æ•°
+ * ½ÚµãÉ¾³ıº¯Êı
  *
  * T = O(N)
  */
-void zslDeleteNode(zskiplist *zsl, zskiplistNode *x, zskiplistNode **update) {
+void zslDeleteNode(zskiplist *zsl, zskiplistNode *x, zskiplistNode **update)
+{
     int i;
 
-    // ä¿®æ”¹ç›¸åº”çš„æŒ‡é’ˆå’Œ span , O(N)
-    for (i = 0; i < zsl->level; i++) {
-        if (update[i]->level[i].forward == x) {
+    // ĞŞ¸ÄÏàÓ¦µÄÖ¸ÕëºÍ span , O(N)
+    for (i = 0; i < zsl->level; i++)
+    {
+        if (update[i]->level[i].forward == x)
+        {
             update[i]->level[i].span += x->level[i].span - 1;
             update[i]->level[i].forward = x->level[i].forward;
-        } else {
+        }
+        else
+        {
             update[i]->level[i].span -= 1;
         }
     }
 
-    // å¤„ç†è¡¨å¤´å’Œè¡¨å°¾èŠ‚ç‚¹
-    if (x->level[0].forward) {
+    // ´¦Àí±íÍ·ºÍ±íÎ²½Úµã
+    if (x->level[0].forward)
+    {
         x->level[0].forward->backward = x->backward;
-    } else {
+    }
+    else
+    {
         zsl->tail = x->backward;
     }
 
-    // æ”¶ç¼© level çš„å€¼, O(N)
+    // ÊÕËõ level µÄÖµ, O(N)
     while(zsl->level > 1 && zsl->header->level[zsl->level-1].forward == NULL)
         zsl->level--;
 
@@ -293,64 +315,72 @@ void zslDeleteNode(zskiplist *zsl, zskiplistNode *x, zskiplistNode **update) {
 
 /* Delete an element with matching score/object from the skiplist. */
 /*
- * ä» skiplist ä¸­åˆ é™¤å’Œç»™å®š obj ä»¥åŠç»™å®š score åŒ¹é…çš„å…ƒç´ 
+ * ´Ó skiplist ÖĞÉ¾³ıºÍ¸ø¶¨ obj ÒÔ¼°¸ø¶¨ score Æ¥ÅäµÄÔªËØ
  *
  * T_worst = O(N), T_average = O(log N)
  */
-int zslDelete(zskiplist *zsl, double score, robj *obj) {
+int zslDelete(zskiplist *zsl, double score, robj *obj)
+{
     zskiplistNode *update[ZSKIPLIST_MAXLEVEL], *x;
     int i;
 
     x = zsl->header;
-    // éå†æ‰€æœ‰å±‚ï¼Œè®°å½•åˆ é™¤èŠ‚ç‚¹åéœ€è¦è¢«ä¿®æ”¹çš„èŠ‚ç‚¹åˆ° update æ•°ç»„
-    for (i = zsl->level-1; i >= 0; i--) {
+    // ±éÀúËùÓĞ²ã£¬¼ÇÂ¼É¾³ı½ÚµãºóĞèÒª±»ĞŞ¸ÄµÄ½Úµãµ½ update Êı×é
+    for (i = zsl->level-1; i >= 0; i--)
+    {
         while (x->level[i].forward &&
-            (x->level[i].forward->score < score ||
-                (x->level[i].forward->score == score &&
-                compareStringObjects(x->level[i].forward->obj,obj) < 0)))
+                (x->level[i].forward->score < score ||
+                 (x->level[i].forward->score == score &&
+                  compareStringObjects(x->level[i].forward->obj,obj) < 0)))
             x = x->level[i].forward;
         update[i] = x;
     }
     /* We may have multiple elements with the same score, what we need
      * is to find the element with both the right score and object. */
-    // å› ä¸ºå¤šä¸ªä¸åŒçš„ member å¯èƒ½æœ‰ç›¸åŒçš„ score 
-    // æ‰€ä»¥è¦ç¡®ä¿ x çš„ member å’Œ score éƒ½åŒ¹é…æ—¶ï¼Œæ‰è¿›è¡Œåˆ é™¤
+    // ÒòÎª¶à¸ö²»Í¬µÄ member ¿ÉÄÜÓĞÏàÍ¬µÄ score
+    // ËùÒÔÒªÈ·±£ x µÄ member ºÍ score ¶¼Æ¥ÅäÊ±£¬²Å½øĞĞÉ¾³ı
     x = x->level[0].forward;
-    if (x && score == x->score && equalStringObjects(x->obj,obj)) {
+    if (x && score == x->score && equalStringObjects(x->obj,obj))
+    {
         zslDeleteNode(zsl, x, update);
         zslFreeNode(x);
         return 1;
-    } else {
+    }
+    else
+    {
         return 0; /* not found */
     }
     return 0; /* not found */
 }
 
 /*
- * æ£€æŸ¥ value æ˜¯å¦å±äº spec æŒ‡å®šçš„èŒƒå›´å†…
+ * ¼ì²é value ÊÇ·ñÊôÓÚ spec Ö¸¶¨µÄ·¶Î§ÄÚ
  *
  * T = O(1)
  */
-static int zslValueGteMin(double value, zrangespec *spec) {
+static int zslValueGteMin(double value, zrangespec *spec)
+{
     return spec->minex ? (value > spec->min) : (value >= spec->min);
 }
 
 /*
- * æ£€æŸ¥ value æ˜¯å¦å±äº spec æŒ‡å®šçš„èŒƒå›´å†…
+ * ¼ì²é value ÊÇ·ñÊôÓÚ spec Ö¸¶¨µÄ·¶Î§ÄÚ
  *
  * T = O(1)
  */
-static int zslValueLteMax(double value, zrangespec *spec) {
+static int zslValueLteMax(double value, zrangespec *spec)
+{
     return spec->maxex ? (value < spec->max) : (value <= spec->max);
 }
 
 /* Returns if there is a part of the zset is in range. */
 /*
- * æ£€æŸ¥ zset ä¸­çš„å…ƒç´ æ˜¯å¦åœ¨ç»™å®šèŒƒå›´ä¹‹å†…
+ * ¼ì²é zset ÖĞµÄÔªËØÊÇ·ñÔÚ¸ø¶¨·¶Î§Ö®ÄÚ
  *
  * T = O(1)
  */
-int zslIsInRange(zskiplist *zsl, zrangespec *range) {
+int zslIsInRange(zskiplist *zsl, zrangespec *range)
+{
     zskiplistNode *x;
 
     /* Test for ranges that will always be empty. */
@@ -358,44 +388,46 @@ int zslIsInRange(zskiplist *zsl, zrangespec *range) {
             (range->min == range->max && (range->minex || range->maxex)))
         return 0;
 
-    // å¦‚æœ zset çš„æœ€å¤§èŠ‚ç‚¹çš„ score æ¯”èŒƒå›´çš„æœ€å°å€¼è¦å°
-    // é‚£ä¹ˆ zset ä¸åœ¨èŒƒå›´ä¹‹å†…
+    // Èç¹û zset µÄ×î´ó½ÚµãµÄ score ±È·¶Î§µÄ×îĞ¡ÖµÒªĞ¡
+    // ÄÇÃ´ zset ²»ÔÚ·¶Î§Ö®ÄÚ
     x = zsl->tail;
     if (x == NULL || !zslValueGteMin(x->score,range))
         return 0;
 
-    // å¦‚æœ zset çš„æœ€å°èŠ‚ç‚¹çš„ score æ¯”èŒƒå›´çš„æœ€å¤§å€¼è¦å¤§
-    // é‚£ä¹ˆ zset ä¸åœ¨èŒƒå›´ä¹‹å†…
+    // Èç¹û zset µÄ×îĞ¡½ÚµãµÄ score ±È·¶Î§µÄ×î´óÖµÒª´ó
+    // ÄÇÃ´ zset ²»ÔÚ·¶Î§Ö®ÄÚ
     x = zsl->header->level[0].forward;
     if (x == NULL || !zslValueLteMax(x->score,range))
         return 0;
 
-    // åœ¨èŒƒå›´å†…
+    // ÔÚ·¶Î§ÄÚ
     return 1;
 }
 
 /* Find the first node that is contained in the specified range.
  * Returns NULL when no element is contained in the range. */
 /*
- * æ‰¾åˆ°è·³è·ƒè¡¨ä¸­ç¬¬ä¸€ä¸ªç¬¦åˆç»™å®šèŒƒå›´çš„å…ƒç´ 
+ * ÕÒµ½ÌøÔ¾±íÖĞµÚÒ»¸ö·ûºÏ¸ø¶¨·¶Î§µÄÔªËØ
  *
  * T_worst = O(N) , T_average = O(log N)
  */
-zskiplistNode *zslFirstInRange(zskiplist *zsl, zrangespec range) {
+zskiplistNode *zslFirstInRange(zskiplist *zsl, zrangespec range)
+{
     zskiplistNode *x;
     int i;
 
     /* If everything is out of range, return early. */
     if (!zslIsInRange(zsl,&range)) return NULL;
 
-    // æ‰¾åˆ°ç¬¬ä¸€ä¸ª score å€¼å¤§äºç»™å®šèŒƒå›´æœ€å°å€¼çš„èŠ‚ç‚¹
+    // ÕÒµ½µÚÒ»¸ö score Öµ´óÓÚ¸ø¶¨·¶Î§×îĞ¡ÖµµÄ½Úµã
     // O(N)
     x = zsl->header;
-    for (i = zsl->level-1; i >= 0; i--) {
+    for (i = zsl->level-1; i >= 0; i--)
+    {
         /* Go forward while *OUT* of range. */
         while (x->level[i].forward &&
-            !zslValueGteMin(x->level[i].forward->score,&range))
-                x = x->level[i].forward;
+                !zslValueGteMin(x->level[i].forward->score,&range))
+            x = x->level[i].forward;
     }
 
     /* This is an inner range, so the next node cannot be NULL. */
@@ -411,11 +443,12 @@ zskiplistNode *zslFirstInRange(zskiplist *zsl, zrangespec range) {
 /* Find the last node that is contained in the specified range.
  * Returns NULL when no element is contained in the range. */
 /*
- * æ‰¾åˆ°è·³è·ƒè¡¨ä¸­æœ€åä¸€ä¸ªç¬¦åˆç»™å®šèŒƒå›´çš„å…ƒç´ 
+ * ÕÒµ½ÌøÔ¾±íÖĞ×îºóÒ»¸ö·ûºÏ¸ø¶¨·¶Î§µÄÔªËØ
  *
  * T_worst = O(N) , T_average = O(log N)
  */
-zskiplistNode *zslLastInRange(zskiplist *zsl, zrangespec range) {
+zskiplistNode *zslLastInRange(zskiplist *zsl, zrangespec range)
+{
     zskiplistNode *x;
     int i;
 
@@ -424,11 +457,12 @@ zskiplistNode *zslLastInRange(zskiplist *zsl, zrangespec range) {
 
     // O(N)
     x = zsl->header;
-    for (i = zsl->level-1; i >= 0; i--) {
+    for (i = zsl->level-1; i >= 0; i--)
+    {
         /* Go forward while *IN* range. */
         while (x->level[i].forward &&
-            zslValueLteMax(x->level[i].forward->score,&range))
-                x = x->level[i].forward;
+                zslValueLteMax(x->level[i].forward->score,&range))
+            x = x->level[i].forward;
     }
 
     /* This is an inner range, so this node cannot be NULL. */
@@ -443,24 +477,26 @@ zskiplistNode *zslLastInRange(zskiplist *zsl, zrangespec range) {
  * Min and mx are inclusive, so a score >= min || score <= max is deleted.
  * Note that this function takes the reference to the hash table view of the
  * sorted set, in order to remove the elements from the hash table too. */
- /*
-  * åˆ é™¤ç»™å®šèŒƒå›´å†…çš„ score çš„å…ƒç´ ã€‚
-  *
-  * T = O(N^2)
-  */
-unsigned long zslDeleteRangeByScore(zskiplist *zsl, zrangespec range, dict *dict) {
+/*
+ * É¾³ı¸ø¶¨·¶Î§ÄÚµÄ score µÄÔªËØ¡£
+ *
+ * T = O(N^2)
+ */
+unsigned long zslDeleteRangeByScore(zskiplist *zsl, zrangespec range, dict *dict)
+{
     zskiplistNode *update[ZSKIPLIST_MAXLEVEL], *x;
     unsigned long removed = 0;
     int i;
 
-    // è®°å½•æ²¿é€”çš„èŠ‚ç‚¹
+    // ¼ÇÂ¼ÑØÍ¾µÄ½Úµã
     // O(N)
     x = zsl->header;
-    for (i = zsl->level-1; i >= 0; i--) {
+    for (i = zsl->level-1; i >= 0; i--)
+    {
         while (x->level[i].forward && (range.minex ?
-            x->level[i].forward->score <= range.min :
-            x->level[i].forward->score < range.min))
-                x = x->level[i].forward;
+                                       x->level[i].forward->score <= range.min :
+                                       x->level[i].forward->score < range.min))
+            x = x->level[i].forward;
         update[i] = x;
     }
 
@@ -468,16 +504,17 @@ unsigned long zslDeleteRangeByScore(zskiplist *zsl, zrangespec range, dict *dict
     x = x->level[0].forward;
 
     /* Delete nodes while in range. */
-    // ä¸€ç›´å‘å³åˆ é™¤ï¼Œç›´åˆ°åˆ°è¾¾ range çš„åº•ä¸ºæ­¢
+    // Ò»Ö±ÏòÓÒÉ¾³ı£¬Ö±µ½µ½´ï range µÄµ×ÎªÖ¹
     // O(N^2)
-    while (x && (range.maxex ? x->score < range.max : x->score <= range.max)) {
-        // ä¿å­˜åç»§æŒ‡é’ˆ
+    while (x && (range.maxex ? x->score < range.max : x->score <= range.max))
+    {
+        // ±£´æºó¼ÌÖ¸Õë
         zskiplistNode *next = x->level[0].forward;
-        // åœ¨è·³è·ƒè¡¨ä¸­åˆ é™¤, O(N)
+        // ÔÚÌøÔ¾±íÖĞÉ¾³ı, O(N)
         zslDeleteNode(zsl,x,update);
-        // åœ¨å­—å…¸ä¸­åˆ é™¤ï¼ŒO(1)
+        // ÔÚ×ÖµäÖĞÉ¾³ı£¬O(1)
         dictDelete(dict,x->obj);
-        // é‡Šæ”¾
+        // ÊÍ·Å
         zslFreeNode(x);
 
         removed++;
@@ -491,41 +528,45 @@ unsigned long zslDeleteRangeByScore(zskiplist *zsl, zrangespec range, dict *dict
 /* Delete all the elements with rank between start and end from the skiplist.
  * Start and end are inclusive. Note that start and end need to be 1-based */
 /*
- * åˆ é™¤ç»™å®šæ’åºèŒƒå›´å†…çš„æ‰€æœ‰èŠ‚ç‚¹
+ * É¾³ı¸ø¶¨ÅÅĞò·¶Î§ÄÚµÄËùÓĞ½Úµã
  *
  * T = O(N^2)
  */
-unsigned long zslDeleteRangeByRank(zskiplist *zsl, unsigned int start, unsigned int end, dict *dict) {
+unsigned long zslDeleteRangeByRank(zskiplist *zsl, unsigned int start, unsigned int end, dict *dict)
+{
     zskiplistNode *update[ZSKIPLIST_MAXLEVEL], *x;
     unsigned long traversed = 0, removed = 0;
     int i;
 
-    // é€šè¿‡è®¡ç®— rank ï¼Œç§»åŠ¨åˆ°åˆ é™¤å¼€å§‹çš„åœ°æ–¹
+    // Í¨¹ı¼ÆËã rank £¬ÒÆ¶¯µ½É¾³ı¿ªÊ¼µÄµØ·½
     // O(N)
     x = zsl->header;
-    for (i = zsl->level-1; i >= 0; i--) {
-        while (x->level[i].forward && (traversed + x->level[i].span) < start) {
+    for (i = zsl->level-1; i >= 0; i--)
+    {
+        while (x->level[i].forward && (traversed + x->level[i].span) < start)
+        {
             traversed += x->level[i].span;
             x = x->level[i].forward;
         }
         update[i] = x;
     }
 
-    // ç®—ä¸Š start èŠ‚ç‚¹
+    // ËãÉÏ start ½Úµã
     traversed++;
-    // ä» start å¼€å§‹ï¼Œåˆ é™¤ç›´åˆ°åˆ°è¾¾ç´¢å¼• end ï¼Œæˆ–è€…æœ«å°¾
+    // ´Ó start ¿ªÊ¼£¬É¾³ıÖ±µ½µ½´ïË÷Òı end £¬»òÕßÄ©Î²
     // O(N^2)
     x = x->level[0].forward;
-    while (x && traversed <= end) {
-        // ä¿å­˜åä¸€èŠ‚ç‚¹çš„æŒ‡é’ˆ
+    while (x && traversed <= end)
+    {
+        // ±£´æºóÒ»½ÚµãµÄÖ¸Õë
         zskiplistNode *next = x->level[0].forward;
-        // åˆ é™¤ skiplist èŠ‚ç‚¹, O(N)
+        // É¾³ı skiplist ½Úµã, O(N)
         zslDeleteNode(zsl,x,update);
-        // åˆ é™¤ dict èŠ‚ç‚¹, O(1)
+        // É¾³ı dict ½Úµã, O(1)
         dictDelete(dict,x->obj);
-        // åˆ é™¤èŠ‚ç‚¹
+        // É¾³ı½Úµã
         zslFreeNode(x);
-        // åˆ é™¤è®¡æ•°
+        // É¾³ı¼ÆÊı
         removed++;
         traversed++;
         x = next;
@@ -537,35 +578,39 @@ unsigned long zslDeleteRangeByRank(zskiplist *zsl, unsigned int start, unsigned 
  * Returns 0 when the element cannot be found, rank otherwise.
  * Note that the rank is 1-based due to the span of zsl->header to the
  * first element. */
- /*
-  * è¿”å›ç›®æ ‡å…ƒç´ åœ¨æœ‰åºé›†ä¸­çš„ rank 
-  *
-  * å¦‚æœå…ƒç´ ä¸å­˜åœ¨äºæœ‰åºé›†ï¼Œé‚£ä¹ˆè¿”å› 0 ã€‚
-  *
-  * T = O(N)
-  */
-unsigned long zslGetRank(zskiplist *zsl, double score, robj *o) {
+/*
+ * ·µ»ØÄ¿±êÔªËØÔÚÓĞĞò¼¯ÖĞµÄ rank
+ *
+ * Èç¹ûÔªËØ²»´æÔÚÓÚÓĞĞò¼¯£¬ÄÇÃ´·µ»Ø 0 ¡£
+ *
+ * T = O(N)
+ */
+unsigned long zslGetRank(zskiplist *zsl, double score, robj *o)
+{
     zskiplistNode *x;
     unsigned long rank = 0;
     int i;
 
     x = zsl->header;
-    // éå† ziplist ï¼Œå¹¶ç´¯ç§¯æ²¿é€”çš„ span åˆ° rank ï¼Œæ‰¾åˆ°ç›®æ ‡å…ƒç´ æ—¶è¿”å› rank
+    // ±éÀú ziplist £¬²¢ÀÛ»ıÑØÍ¾µÄ span µ½ rank £¬ÕÒµ½Ä¿±êÔªËØÊ±·µ»Ø rank
     // O(N)
-    for (i = zsl->level-1; i >= 0; i--) {
+    for (i = zsl->level-1; i >= 0; i--)
+    {
         while (x->level[i].forward &&
-            (x->level[i].forward->score < score ||
-                (x->level[i].forward->score == score &&
-                compareStringObjects(x->level[i].forward->obj,o) <= 0))) {
-            // ç´¯ç§¯
+                (x->level[i].forward->score < score ||
+                 (x->level[i].forward->score == score &&
+                  compareStringObjects(x->level[i].forward->obj,o) <= 0)))
+        {
+            // ÀÛ»ı
             rank += x->level[i].span;
-            // å‰è¿›
+            // Ç°½ø
             x = x->level[i].forward;
         }
 
         /* x might be equal to zsl->header, so test if obj is non-NULL */
-        // æ‰¾åˆ°ç›®æ ‡å…ƒç´ 
-        if (x->obj && equalStringObjects(x->obj,o)) {
+        // ÕÒµ½Ä¿±êÔªËØ
+        if (x->obj && equalStringObjects(x->obj,o))
+        {
             return rank;
         }
     }
@@ -574,40 +619,44 @@ unsigned long zslGetRank(zskiplist *zsl, double score, robj *o) {
 
 /* Finds an element by its rank. The rank argument needs to be 1-based. */
 /*
- * æ ¹æ®ç»™å®šçš„ rank æŸ¥æ‰¾å…ƒç´ 
+ * ¸ù¾İ¸ø¶¨µÄ rank ²éÕÒÔªËØ
  *
  * T = O(N)
  */
-zskiplistNode* zslGetElementByRank(zskiplist *zsl, unsigned long rank) {
+zskiplistNode* zslGetElementByRank(zskiplist *zsl, unsigned long rank)
+{
     zskiplistNode *x;
     unsigned long traversed = 0;
     int i;
 
-    // æ²¿ç€æŒ‡é’ˆå‰è¿›ï¼Œç›´åˆ°ç´¯ç§¯çš„æ­¥æ•° traversed ç­‰äº rank ä¸ºæ­¢
+    // ÑØ×ÅÖ¸ÕëÇ°½ø£¬Ö±µ½ÀÛ»ıµÄ²½Êı traversed µÈÓÚ rank ÎªÖ¹
     // O(N)
     x = zsl->header;
-    for (i = zsl->level-1; i >= 0; i--) {
+    for (i = zsl->level-1; i >= 0; i--)
+    {
         while (x->level[i].forward && (traversed + x->level[i].span) <= rank)
         {
             traversed += x->level[i].span;
             x = x->level[i].forward;
         }
-        if (traversed == rank) {
+        if (traversed == rank)
+        {
             return x;
         }
     }
 
-    // æ²¡æ‰¾åˆ°
+    // Ã»ÕÒµ½
     return NULL;
 }
 
 /* Populate the rangespec according to the objects min and max. */
 /*
- * æ ¹æ® min å’Œ max å¯¹è±¡ï¼Œå°† range å€¼ä¿å­˜åˆ° spec ä¸Šã€‚
+ * ¸ù¾İ min ºÍ max ¶ÔÏó£¬½« range Öµ±£´æµ½ spec ÉÏ¡£
  *
  * T = O(1)
  */
-static int zslParseRange(robj *min, robj *max, zrangespec *spec) {
+static int zslParseRange(robj *min, robj *max, zrangespec *spec)
+{
     char *eptr;
     spec->minex = spec->maxex = 0;
 
@@ -615,26 +664,38 @@ static int zslParseRange(robj *min, robj *max, zrangespec *spec) {
      * by the "(" character, it's considered "open". For instance
      * ZRANGEBYSCORE zset (1.5 (2.5 will match min < x < max
      * ZRANGEBYSCORE zset 1.5 2.5 will instead match min <= x <= max */
-    if (min->encoding == REDIS_ENCODING_INT) {
+    if (min->encoding == REDIS_ENCODING_INT)
+    {
         spec->min = (long)min->ptr;
-    } else {
-        if (((char*)min->ptr)[0] == '(') {
+    }
+    else
+    {
+        if (((char*)min->ptr)[0] == '(')
+        {
             spec->min = strtod((char*)min->ptr+1,&eptr);
             if (eptr[0] != '\0' || isnan(spec->min)) return REDIS_ERR;
             spec->minex = 1;
-        } else {
+        }
+        else
+        {
             spec->min = strtod((char*)min->ptr,&eptr);
             if (eptr[0] != '\0' || isnan(spec->min)) return REDIS_ERR;
         }
     }
-    if (max->encoding == REDIS_ENCODING_INT) {
+    if (max->encoding == REDIS_ENCODING_INT)
+    {
         spec->max = (long)max->ptr;
-    } else {
-        if (((char*)max->ptr)[0] == '(') {
+    }
+    else
+    {
+        if (((char*)max->ptr)[0] == '(')
+        {
             spec->max = strtod((char*)max->ptr+1,&eptr);
             if (eptr[0] != '\0' || isnan(spec->max)) return REDIS_ERR;
             spec->maxex = 1;
-        } else {
+        }
+        else
+        {
             spec->max = strtod((char*)max->ptr,&eptr);
             if (eptr[0] != '\0' || isnan(spec->max)) return REDIS_ERR;
         }
@@ -648,11 +709,12 @@ static int zslParseRange(robj *min, robj *max, zrangespec *spec) {
  *----------------------------------------------------------------------------*/
 
 /*
- * å–å‡º sptr æ‰€æŒ‡å‘çš„ ziplist èŠ‚ç‚¹çš„ score å€¼
+ * È¡³ö sptr ËùÖ¸ÏòµÄ ziplist ½ÚµãµÄ score Öµ
  *
  * T = O(1)
  */
-double zzlGetScore(unsigned char *sptr) {
+double zzlGetScore(unsigned char *sptr)
+{
     unsigned char *vstr;
     unsigned int vlen;
     long long vlong;
@@ -661,17 +723,20 @@ double zzlGetScore(unsigned char *sptr) {
 
     redisAssert(sptr != NULL);
     redisAssert(ziplistGet(sptr,&vstr,&vlen,&vlong));
-    
-    if (vstr) {
-        // å­—ç¬¦ä¸²å€¼
-        // ç”¨åœ¨è¿™é‡Œè¡¨ç¤º score æ˜¯ä¸€ä¸ªéå¸¸å¤§çš„æ•´æ•°
-        // ï¼ˆè¶…è¿‡ long long ç±»å‹ï¼‰
-        // æˆ–è€…ä¸€ä¸ªæµ®ç‚¹æ•°
+
+    if (vstr)
+    {
+        // ×Ö·û´®Öµ
+        // ÓÃÔÚÕâÀï±íÊ¾ score ÊÇÒ»¸ö·Ç³£´óµÄÕûÊı
+        // £¨³¬¹ı long long ÀàĞÍ£©
+        // »òÕßÒ»¸ö¸¡µãÊı
         memcpy(buf,vstr,vlen);
         buf[vlen] = '\0';
         score = strtod(buf,NULL);
-    } else {
-        // æ•´æ•°å€¼
+    }
+    else
+    {
+        // ÕûÊıÖµ
         score = vlong;
     }
 
@@ -680,11 +745,12 @@ double zzlGetScore(unsigned char *sptr) {
 
 /* Compare element in sorted set with given element. */
 /*
- * åœ¨ eptr èŠ‚ç‚¹ä¿å­˜çš„å€¼å’Œ cstr ä¹‹é—´è¿›è¡Œå¯¹æ¯”
+ * ÔÚ eptr ½Úµã±£´æµÄÖµºÍ cstr Ö®¼ä½øĞĞ¶Ô±È
  *
  * T = O(N)
  */
-int zzlCompareElements(unsigned char *eptr, unsigned char *cstr, unsigned int clen) {
+int zzlCompareElements(unsigned char *eptr, unsigned char *cstr, unsigned int clen)
+{
     unsigned char *vstr;
     unsigned int vlen;
     long long vlong;
@@ -692,61 +758,67 @@ int zzlCompareElements(unsigned char *eptr, unsigned char *cstr, unsigned int cl
     int minlen, cmp;
 
     redisAssert(ziplistGet(eptr,&vstr,&vlen,&vlong));
-    if (vstr == NULL) {
+    if (vstr == NULL)
+    {
         /* Store string representation of long long in buf. */
-        // å¦‚æœèŠ‚ç‚¹ä¿å­˜çš„æ˜¯æ•´æ•°å€¼ï¼Œ
-        // é‚£ä¹ˆå°†å®ƒè½¬æ¢ä¸ºå­—ç¬¦ä¸²è¡¨ç¤º
+        // Èç¹û½Úµã±£´æµÄÊÇÕûÊıÖµ£¬
+        // ÄÇÃ´½«Ëü×ª»»Îª×Ö·û´®±íÊ¾
         vlen = ll2string((char*)vbuf,sizeof(vbuf),vlong);
         vstr = vbuf;
     }
 
-    // å¯¹æ¯”
-    // å°ä¼˜åŒ–ï¼ˆåªå¯¹æ¯”é•¿åº¦è¾ƒçŸ­çš„å­—ç¬¦ä¸²çš„é•¿åº¦ï¼‰
-    minlen = (vlen < clen) ? vlen : clen;   
+    // ¶Ô±È
+    // Ğ¡ÓÅ»¯£¨Ö»¶Ô±È³¤¶È½Ï¶ÌµÄ×Ö·û´®µÄ³¤¶È£©
+    minlen = (vlen < clen) ? vlen : clen;
     cmp = memcmp(vstr,cstr,minlen);
     if (cmp == 0) return vlen-clen;
     return cmp;
 }
 
 /*
- * è¿”å› ziplist è¡¨ç¤ºçš„æœ‰åºé›†çš„é•¿åº¦
+ * ·µ»Ø ziplist ±íÊ¾µÄÓĞĞò¼¯µÄ³¤¶È
  *
  * T = O(N)
  */
-unsigned int zzlLength(unsigned char *zl) {
-    // æ¯ä¸ªæœ‰åºé›†ç”¨ä¸¤ä¸ª ziplist èŠ‚ç‚¹è¡¨ç¤º
+unsigned int zzlLength(unsigned char *zl)
+{
+    // Ã¿¸öÓĞĞò¼¯ÓÃÁ½¸ö ziplist ½Úµã±íÊ¾
     // O(N)
     return ziplistLen(zl)/2;
 }
 
 /* Move to next entry based on the values in eptr and sptr. Both are set to
  * NULL when there is no next entry. */
- /*
-  * ç§»åŠ¨æŒ‡é’ˆæŒ‡å‘æœ‰åºé›†çš„ä¸‹ä¸ªèŠ‚ç‚¹
-  *
-  * å…¶ä¸­ eptr æŒ‡å‘ä¸‹ä¸ªèŠ‚ç‚¹çš„ member åŸŸï¼Œ
-  * sptr æŒ‡å‘ä¸‹ä¸ªèŠ‚ç‚¹çš„ score åŸŸã€‚
-  *
-  * å½“æ•´ä¸ª ziplist éå†å®Œæ—¶ï¼Œè¿”å› NULL
-  *
-  * T = O(1)
-  */
-void zzlNext(unsigned char *zl, unsigned char **eptr, unsigned char **sptr) {
+/*
+ * ÒÆ¶¯Ö¸ÕëÖ¸ÏòÓĞĞò¼¯µÄÏÂ¸ö½Úµã
+ *
+ * ÆäÖĞ eptr Ö¸ÏòÏÂ¸ö½ÚµãµÄ member Óò£¬
+ * sptr Ö¸ÏòÏÂ¸ö½ÚµãµÄ score Óò¡£
+ *
+ * µ±Õû¸ö ziplist ±éÀúÍêÊ±£¬·µ»Ø NULL
+ *
+ * T = O(1)
+ */
+void zzlNext(unsigned char *zl, unsigned char **eptr, unsigned char **sptr)
+{
     unsigned char *_eptr, *_sptr;
     redisAssert(*eptr != NULL && *sptr != NULL);
 
-    // æŒ‡å‘ä¸‹ä¸€èŠ‚ç‚¹çš„ member åŸŸ
+    // Ö¸ÏòÏÂÒ»½ÚµãµÄ member Óò
     _eptr = ziplistNext(zl,*sptr);
-    if (_eptr != NULL) {
-        // æŒ‡å‘ä¸‹ä¸€èŠ‚ç‚¹çš„ score åŸŸ
+    if (_eptr != NULL)
+    {
+        // Ö¸ÏòÏÂÒ»½ÚµãµÄ score Óò
         _sptr = ziplistNext(zl,_eptr);
         redisAssert(_sptr != NULL);
-    } else {
+    }
+    else
+    {
         /* No next entry. */
         _sptr = NULL;
     }
 
-    // æ›´æ–°æŒ‡é’ˆ
+    // ¸üĞÂÖ¸Õë
     *eptr = _eptr;
     *sptr = _sptr;
 }
@@ -754,29 +826,33 @@ void zzlNext(unsigned char *zl, unsigned char **eptr, unsigned char **sptr) {
 /* Move to the previous entry based on the values in eptr and sptr. Both are
  * set to NULL when there is no next entry. */
 /*
- * ç§»åŠ¨åˆ° eptr å’Œ sptr æ‰€æŒ‡å‘çš„èŠ‚ç‚¹çš„å‰ä¸€ä¸ªèŠ‚ç‚¹ï¼Œ
- * å¹¶å°†æ›´æ–°åçš„ä½ç½®ä¿å­˜å› eptr å’Œ sptr ã€‚
+ * ÒÆ¶¯µ½ eptr ºÍ sptr ËùÖ¸ÏòµÄ½ÚµãµÄÇ°Ò»¸ö½Úµã£¬
+ * ²¢½«¸üĞÂºóµÄÎ»ÖÃ±£´æ»Ø eptr ºÍ sptr ¡£
  *
- * å¦‚æœå·²ç»åˆ°è¾¾å°½å¤´ï¼Œå°†ä¸¤ä¸ªæŒ‡é’ˆéƒ½è®¾ä¸º NULL 
+ * Èç¹ûÒÑ¾­µ½´ï¾¡Í·£¬½«Á½¸öÖ¸Õë¶¼ÉèÎª NULL
  *
  * T = O(1)
  */
-void zzlPrev(unsigned char *zl, unsigned char **eptr, unsigned char **sptr) {
+void zzlPrev(unsigned char *zl, unsigned char **eptr, unsigned char **sptr)
+{
     unsigned char *_eptr, *_sptr;
     redisAssert(*eptr != NULL && *sptr != NULL);
 
-    // æŒ‡å‘å‰ä¸€èŠ‚ç‚¹çš„ score åŸŸ
+    // Ö¸ÏòÇ°Ò»½ÚµãµÄ score Óò
     _sptr = ziplistPrev(zl,*eptr);
-    if (_sptr != NULL) {
-        // æŒ‡å‘å‰ä¸€èŠ‚ç‚¹çš„ memeber åŸŸ
+    if (_sptr != NULL)
+    {
+        // Ö¸ÏòÇ°Ò»½ÚµãµÄ memeber Óò
         _eptr = ziplistPrev(zl,_sptr);
         redisAssert(_eptr != NULL);
-    } else {
+    }
+    else
+    {
         /* No previous entry. */
         _eptr = NULL;
     }
 
-    // æ›´æ–°æŒ‡é’ˆ
+    // ¸üĞÂÖ¸Õë
     *eptr = _eptr;
     *sptr = _sptr;
 }
@@ -784,11 +860,12 @@ void zzlPrev(unsigned char *zl, unsigned char **eptr, unsigned char **sptr) {
 /* Returns if there is a part of the zset is in range. Should only be used
  * internally by zzlFirstInRange and zzlLastInRange. */
 /*
- * æ£€æŸ¥æœ‰åºé›†çš„ score å€¼æ˜¯å¦åœ¨ç»™å®šçš„ range ä¹‹å†…
+ * ¼ì²éÓĞĞò¼¯µÄ score ÖµÊÇ·ñÔÚ¸ø¶¨µÄ range Ö®ÄÚ
  *
  * T = O(1)
  */
-int zzlIsInRange(unsigned char *zl, zrangespec *range) {
+int zzlIsInRange(unsigned char *zl, zrangespec *range)
+{
     unsigned char *p;
     double score;
 
@@ -797,19 +874,19 @@ int zzlIsInRange(unsigned char *zl, zrangespec *range) {
             (range->min == range->max && (range->minex || range->maxex)))
         return 0;
 
-    // å–å‡ºæœ‰åºé›†ä¸­æœ€å°çš„ score å€¼
+    // È¡³öÓĞĞò¼¯ÖĞ×îĞ¡µÄ score Öµ
     p = ziplistIndex(zl,-1); /* Last score. */
     if (p == NULL) return 0; /* Empty sorted set */
     score = zzlGetScore(p);
-    // å¦‚æœ score å€¼ä¸ä½äºç»™å®šè¾¹ç•Œä¹‹å†…ï¼Œè¿”å› 0
+    // Èç¹û score Öµ²»Î»ÓÚ¸ø¶¨±ß½çÖ®ÄÚ£¬·µ»Ø 0
     if (!zslValueGteMin(score,range))
         return 0;
 
-    // å–å‡ºæœ‰åºé›†ä¸­æœ€å¤§çš„ score å€¼
+    // È¡³öÓĞĞò¼¯ÖĞ×î´óµÄ score Öµ
     p = ziplistIndex(zl,1); /* First score. */
     redisAssert(p != NULL);
     score = zzlGetScore(p);
-    // å¦‚æœ score å€¼ä¸ä½äºç»™å®šè¾¹ç•Œä¹‹å†…ï¼Œè¿”å› 0
+    // Èç¹û score Öµ²»Î»ÓÚ¸ø¶¨±ß½çÖ®ÄÚ£¬·µ»Ø 0
     if (!zslValueLteMax(score,range))
         return 0;
 
@@ -819,29 +896,32 @@ int zzlIsInRange(unsigned char *zl, zrangespec *range) {
 /* Find pointer to the first element contained in the specified range.
  * Returns NULL when no element is contained in the range. */
 /*
- * è¿”å›ç¬¬ä¸€ä¸ª score å€¼åœ¨ç»™å®šèŒƒå›´å†…çš„èŠ‚ç‚¹
+ * ·µ»ØµÚÒ»¸ö score ÖµÔÚ¸ø¶¨·¶Î§ÄÚµÄ½Úµã
  *
- * å¦‚æœæ²¡æœ‰èŠ‚ç‚¹çš„ score å€¼åœ¨ç»™å®šèŒƒå›´ï¼Œè¿”å› NULL ã€‚
+ * Èç¹ûÃ»ÓĞ½ÚµãµÄ score ÖµÔÚ¸ø¶¨·¶Î§£¬·µ»Ø NULL ¡£
  *
  * T = O(N)
  */
-unsigned char *zzlFirstInRange(unsigned char *zl, zrangespec range) {
-    // ä»è¡¨å¤´å¼€å§‹éå†
+unsigned char *zzlFirstInRange(unsigned char *zl, zrangespec range)
+{
+    // ´Ó±íÍ·¿ªÊ¼±éÀú
     unsigned char *eptr = ziplistIndex(zl,0), *sptr;
     double score;
 
     /* If everything is out of range, return early. */
     if (!zzlIsInRange(zl,&range)) return NULL;
 
-    // ä»è¡¨å¤´å‘è¡¨å°¾éå†
-    while (eptr != NULL) {
+    // ´Ó±íÍ·Ïò±íÎ²±éÀú
+    while (eptr != NULL)
+    {
         sptr = ziplistNext(zl,eptr);
         redisAssert(sptr != NULL);
 
-        // è·å– score å€¼
+        // »ñÈ¡ score Öµ
         score = zzlGetScore(sptr);
-        // score å€¼åœ¨èŒƒå›´ä¹‹å†…ï¼Ÿ
-        if (zslValueGteMin(score,&range)) {
+        // score ÖµÔÚ·¶Î§Ö®ÄÚ£¿
+        if (zslValueGteMin(score,&range))
+        {
             /* Check if score <= max. */
             if (zslValueLteMax(score,&range))
                 return eptr;
@@ -849,7 +929,7 @@ unsigned char *zzlFirstInRange(unsigned char *zl, zrangespec range) {
         }
 
         /* Move to next element. */
-        // åç§»æŒ‡é’ˆ
+        // ºóÒÆÖ¸Õë
         eptr = ziplistNext(zl,sptr);
     }
 
@@ -859,29 +939,32 @@ unsigned char *zzlFirstInRange(unsigned char *zl, zrangespec range) {
 /* Find pointer to the last element contained in the specified range.
  * Returns NULL when no element is contained in the range. */
 /*
- * è¿”å› score å€¼åœ¨ç»™å®šèŒƒå›´å†…çš„æœ€åä¸€ä¸ªèŠ‚ç‚¹
+ * ·µ»Ø score ÖµÔÚ¸ø¶¨·¶Î§ÄÚµÄ×îºóÒ»¸ö½Úµã
  *
- * æ²¡æœ‰å…ƒç´ åŒ…å«å®ƒæ—¶ï¼Œè¿”å› NULL
+ * Ã»ÓĞÔªËØ°üº¬ËüÊ±£¬·µ»Ø NULL
  *
  * T = O(N)
  */
-unsigned char *zzlLastInRange(unsigned char *zl, zrangespec range) {
-    // ä»è¡¨å°¾å¼€å§‹éå†
+unsigned char *zzlLastInRange(unsigned char *zl, zrangespec range)
+{
+    // ´Ó±íÎ²¿ªÊ¼±éÀú
     unsigned char *eptr = ziplistIndex(zl,-2), *sptr;
     double score;
 
     /* If everything is out of range, return early. */
     if (!zzlIsInRange(zl,&range)) return NULL;
 
-    // åœ¨æœ‰åºçš„ ziplist é‡Œä»è¡¨å°¾åˆ°è¡¨å¤´éå†
-    while (eptr != NULL) {
+    // ÔÚÓĞĞòµÄ ziplist Àï´Ó±íÎ²µ½±íÍ·±éÀú
+    while (eptr != NULL)
+    {
         sptr = ziplistNext(zl,eptr);
         redisAssert(sptr != NULL);
 
-        // è·å–èŠ‚ç‚¹çš„ score å€¼
+        // »ñÈ¡½ÚµãµÄ score Öµ
         score = zzlGetScore(sptr);
-        // score åœ¨ç»™å®šçš„èŒƒå›´ä¹‹å†…ï¼Ÿ
-        if (zslValueLteMax(score,&range)) {
+        // score ÔÚ¸ø¶¨µÄ·¶Î§Ö®ÄÚ£¿
+        if (zslValueLteMax(score,&range))
+        {
             /* Check if score >= min. */
             if (zslValueGteMin(score,&range))
                 return eptr;
@@ -890,7 +973,7 @@ unsigned char *zzlLastInRange(unsigned char *zl, zrangespec range) {
 
         /* Move to previous element by moving to the score of previous element.
          * When this returns NULL, we know there also is no element. */
-        // å‰ç§»æŒ‡é’ˆ
+        // Ç°ÒÆÖ¸Õë
         sptr = ziplistPrev(zl,eptr);
         if (sptr != NULL)
             redisAssert((eptr = ziplistPrev(zl,sptr)) != NULL);
@@ -902,34 +985,37 @@ unsigned char *zzlLastInRange(unsigned char *zl, zrangespec range) {
 }
 
 /*
- * åœ¨ ziplist é‡ŒæŸ¥æ‰¾ç»™å®šå…ƒç´  ele ï¼Œå¦‚æœæ‰¾åˆ°äº†ï¼Œ
- * å°†å…ƒç´ çš„ç‚¹æ•°ä¿å­˜åˆ° score ï¼Œå¹¶è¿”å›è¯¥å…ƒç´ åœ¨ ziplist çš„æŒ‡é’ˆã€‚
+ * ÔÚ ziplist Àï²éÕÒ¸ø¶¨ÔªËØ ele £¬Èç¹ûÕÒµ½ÁË£¬
+ * ½«ÔªËØµÄµãÊı±£´æµ½ score £¬²¢·µ»Ø¸ÃÔªËØÔÚ ziplist µÄÖ¸Õë¡£
  *
  * T = O(N^2)
  */
-unsigned char *zzlFind(unsigned char *zl, robj *ele, double *score) {
+unsigned char *zzlFind(unsigned char *zl, robj *ele, double *score)
+{
 
-    // è¿­ä»£å™¨
+    // µü´úÆ÷
     unsigned char *eptr = ziplistIndex(zl,0), *sptr;
 
-    // è§£ç 
+    // ½âÂë
     ele = getDecodedObject(ele);
 
-    // éå†æ•´ä¸ª ziplist ï¼Œ O(N^2)
-    while (eptr != NULL) {
+    // ±éÀúÕû¸ö ziplist £¬ O(N^2)
+    while (eptr != NULL)
+    {
         sptr = ziplistNext(zl,eptr);
         redisAssertWithInfo(NULL,ele,sptr != NULL);
 
-        // å¯¹æ¯”å…ƒç´  ele çš„å€¼å’Œ eptr æ‰€ä¿å­˜çš„å€¼
+        // ¶Ô±ÈÔªËØ ele µÄÖµºÍ eptr Ëù±£´æµÄÖµ
         // O(N)
-        if (ziplistCompare(eptr,ele->ptr,sdslen(ele->ptr))) {
+        if (ziplistCompare(eptr,ele->ptr,sdslen(ele->ptr)))
+        {
             /* Matching element, pull out score. */
-            // å°†åŒ¹é…å…ƒç´ çš„æŒ‡é’ˆä¿å­˜åˆ° score é‡Œ
+            // ½«Æ¥ÅäÔªËØµÄÖ¸Õë±£´æµ½ score Àï
             if (score != NULL) *score = zzlGetScore(sptr);
 
             decrRefCount(ele);
 
-            // è¿”å›æŒ‡é’ˆ
+            // ·µ»ØÖ¸Õë
             return eptr;
         }
 
@@ -944,55 +1030,60 @@ unsigned char *zzlFind(unsigned char *zl, robj *ele, double *score) {
 /* Delete (element,score) pair from ziplist. Use local copy of eptr because we
  * don't want to modify the one given as argument. */
 /*
- * ä» ziplist ä¸­åˆ é™¤ element-score å¯¹ã€‚
- * ä½¿ç”¨ä¸€ä¸ªå‰¯æœ¬ä¿å­˜ eptr çš„å€¼ã€‚
+ * ´Ó ziplist ÖĞÉ¾³ı element-score ¶Ô¡£
+ * Ê¹ÓÃÒ»¸ö¸±±¾±£´æ eptr µÄÖµ¡£
  *
  * T = O(N^2)
  */
-unsigned char *zzlDelete(unsigned char *zl, unsigned char *eptr) {
+unsigned char *zzlDelete(unsigned char *zl, unsigned char *eptr)
+{
     unsigned char *p = eptr;
 
     /* TODO: add function to ziplist API to delete N elements from offset. */
-    // åˆ é™¤ member åŸŸ ï¼ŒO(N^2)
+    // É¾³ı member Óò £¬O(N^2)
     zl = ziplistDelete(zl,&p);
-    // åˆ é™¤ score åŸŸ ï¼ŒO(N^2)
+    // É¾³ı score Óò £¬O(N^2)
     zl = ziplistDelete(zl,&p);
 
     return zl;
 }
 
 /*
- * å°†æœ‰åºé›†èŠ‚ç‚¹ä¿å­˜åˆ° eptr æ‰€æŒ‡å‘çš„åœ°æ–¹
+ * ½«ÓĞĞò¼¯½Úµã±£´æµ½ eptr ËùÖ¸ÏòµÄµØ·½
  *
  * T = O(N^2)
  */
-unsigned char *zzlInsertAt(unsigned char *zl, unsigned char *eptr, robj *ele, double score) {
+unsigned char *zzlInsertAt(unsigned char *zl, unsigned char *eptr, robj *ele, double score)
+{
     unsigned char *sptr;
     char scorebuf[128];
     int scorelen;
     size_t offset;
 
     redisAssertWithInfo(NULL,ele,ele->encoding == REDIS_ENCODING_RAW);
-    // å°† score å€¼è½¬æ¢ä¸ºå­—ç¬¦ä¸²
+    // ½« score Öµ×ª»»Îª×Ö·û´®
     scorelen = d2string(scorebuf,sizeof(scorebuf),score);
-    if (eptr == NULL) {
-        // æ’å…¥åˆ° ziplist çš„æœ€å, O(N^2)
-        // ziplist çš„ç¬¬ä¸€ä¸ªèŠ‚ç‚¹ä¿å­˜æœ‰åºé›†çš„ member
+    if (eptr == NULL)
+    {
+        // ²åÈëµ½ ziplist µÄ×îºó, O(N^2)
+        // ziplist µÄµÚÒ»¸ö½Úµã±£´æÓĞĞò¼¯µÄ member
         zl = ziplistPush(zl,ele->ptr,sdslen(ele->ptr),ZIPLIST_TAIL);
-        // ziplist çš„ç¬¬äºŒä¸ªèŠ‚ç‚¹ä¿å­˜æœ‰åºé›†çš„ score
+        // ziplist µÄµÚ¶ş¸ö½Úµã±£´æÓĞĞò¼¯µÄ score
         zl = ziplistPush(zl,(unsigned char*)scorebuf,scorelen,ZIPLIST_TAIL);
-    } else {
-        // æ’å…¥åˆ°ç»™å®šä½ç½®, O(N^2)
+    }
+    else
+    {
+        // ²åÈëµ½¸ø¶¨Î»ÖÃ, O(N^2)
         /* Keep offset relative to zl, as it might be re-allocated. */
-        // è®°å½• ziplist çš„ç›¸å¯¹åç§»é‡ï¼ˆè€Œä¸æ˜¯æŒ‡é’ˆï¼‰ï¼Œé¿å…å†…å­˜é‡åˆ†é…ä¹‹åä½ç½®ä¸¢å¤±
+        // ¼ÇÂ¼ ziplist µÄÏà¶ÔÆ«ÒÆÁ¿£¨¶ø²»ÊÇÖ¸Õë£©£¬±ÜÃâÄÚ´æÖØ·ÖÅäÖ®ºóÎ»ÖÃ¶ªÊ§
         offset = eptr-zl;
-        // ä¿å­˜ member
+        // ±£´æ member
         zl = ziplistInsert(zl,eptr,ele->ptr,sdslen(ele->ptr));
         eptr = zl+offset;
 
         /* Insert score after the element. */
         redisAssertWithInfo(NULL,ele,(sptr = ziplistNext(zl,eptr)) != NULL);
-        // ä¿å­˜ score
+        // ±£´æ score
         zl = ziplistInsert(zl,sptr,(unsigned char*)scorebuf,scorelen);
     }
 
@@ -1002,44 +1093,50 @@ unsigned char *zzlInsertAt(unsigned char *zl, unsigned char *eptr, robj *ele, do
 /* Insert (element,score) pair in ziplist. This function assumes the element is
  * not yet present in the list. */
 /*
- * å°† ele æˆå‘˜å’Œå®ƒçš„åˆ†å€¼ score æ·»åŠ åˆ° ziplist é‡Œé¢
+ * ½« ele ³ÉÔ±ºÍËüµÄ·ÖÖµ score Ìí¼Óµ½ ziplist ÀïÃæ
  *
- * ziplist é‡Œçš„å„ä¸ªèŠ‚ç‚¹æŒ‰ score å€¼ä»å°åˆ°å¤§æ’åˆ—
+ * ziplist ÀïµÄ¸÷¸ö½Úµã°´ score Öµ´ÓĞ¡µ½´óÅÅÁĞ
  *
- * è¿™ä¸ªå‡½æ•°å‡è®¾ elem ä¸å­˜åœ¨äºæœ‰åºé›†
+ * Õâ¸öº¯Êı¼ÙÉè elem ²»´æÔÚÓÚÓĞĞò¼¯
  *
  * T = O(N^2)
  */
-unsigned char *zzlInsert(unsigned char *zl, robj *ele, double score) {
-    // æŒ‡å‘ ziplist ç¬¬ä¸€ä¸ªèŠ‚ç‚¹ï¼ˆä¹Ÿå³æ˜¯æœ‰åºé›†çš„ member åŸŸï¼‰
+unsigned char *zzlInsert(unsigned char *zl, robj *ele, double score)
+{
+    // Ö¸Ïò ziplist µÚÒ»¸ö½Úµã£¨Ò²¼´ÊÇÓĞĞò¼¯µÄ member Óò£©
     unsigned char *eptr = ziplistIndex(zl,0), *sptr;
     double s;
 
-    // è§£ç å€¼
+    // ½âÂëÖµ
     ele = getDecodedObject(ele);
-    // éå†æ•´ä¸ª ziplist
-    while (eptr != NULL) {
-        // æŒ‡å‘ score åŸŸ
+    // ±éÀúÕû¸ö ziplist
+    while (eptr != NULL)
+    {
+        // Ö¸Ïò score Óò
         sptr = ziplistNext(zl,eptr);
         redisAssertWithInfo(NULL,ele,sptr != NULL);
-        // å–å‡º score å€¼
+        // È¡³ö score Öµ
         s = zzlGetScore(sptr);
 
-        if (s > score) {
+        if (s > score)
+        {
             /* First element with score larger than score for element to be
              * inserted. This means we should take its spot in the list to
              * maintain ordering. */
-            // é‡åˆ°ç¬¬ä¸€ä¸ª score å€¼æ¯”è¾“å…¥ score å¤§çš„èŠ‚ç‚¹
-            // å°†æ–°èŠ‚ç‚¹æ’å…¥åœ¨è¿™ä¸ªèŠ‚ç‚¹çš„å‰é¢ï¼Œ
-            // è®©èŠ‚ç‚¹åœ¨ ziplist é‡Œæ ¹æ® score ä»å°åˆ°å¤§æ’åˆ—
+            // Óöµ½µÚÒ»¸ö score Öµ±ÈÊäÈë score ´óµÄ½Úµã
+            // ½«ĞÂ½Úµã²åÈëÔÚÕâ¸ö½ÚµãµÄÇ°Ãæ£¬
+            // ÈÃ½ÚµãÔÚ ziplist Àï¸ù¾İ score ´ÓĞ¡µ½´óÅÅÁĞ
             // O(N^2)
             zl = zzlInsertAt(zl,eptr,ele,score);
             break;
-        } else if (s == score) {
+        }
+        else if (s == score)
+        {
             /* Ensure lexicographical ordering for elements. */
-            // å¦‚æœè¾“å…¥ score å’ŒèŠ‚ç‚¹çš„ score ç›¸åŒ
-            // é‚£ä¹ˆæ ¹æ® member çš„å­—ç¬¦ä¸²ä½ç½®æ¥å†³å®šæ–°èŠ‚ç‚¹çš„æ’å…¥ä½ç½®
-            if (zzlCompareElements(eptr,ele->ptr,sdslen(ele->ptr)) > 0) {
+            // Èç¹ûÊäÈë score ºÍ½ÚµãµÄ score ÏàÍ¬
+            // ÄÇÃ´¸ù¾İ member µÄ×Ö·û´®Î»ÖÃÀ´¾ö¶¨ĞÂ½ÚµãµÄ²åÈëÎ»ÖÃ
+            if (zzlCompareElements(eptr,ele->ptr,sdslen(ele->ptr)) > 0)
+            {
                 // O(N^2)
                 zl = zzlInsertAt(zl,eptr,ele,score);
                 break;
@@ -1047,14 +1144,14 @@ unsigned char *zzlInsert(unsigned char *zl, robj *ele, double score) {
         }
 
         /* Move to next element. */
-        // è¾“å…¥ score æ¯”èŠ‚ç‚¹çš„ score å€¼è¦å¤§
-        // ç§»åŠ¨åˆ°ä¸‹ä¸€ä¸ªèŠ‚ç‚¹
+        // ÊäÈë score ±È½ÚµãµÄ score ÖµÒª´ó
+        // ÒÆ¶¯µ½ÏÂÒ»¸ö½Úµã
         eptr = ziplistNext(zl,sptr);
     }
 
     /* Push on tail of list when it was not yet inserted. */
-    // å¦‚æœæœ‰åºé›†é‡Œç›®å‰æ²¡æœ‰ä¸€ä¸ªèŠ‚ç‚¹çš„ score å€¼æ¯”è¾“å…¥ score å¤§
-    // é‚£ä¹ˆå°†æ–°èŠ‚ç‚¹æ·»åŠ åˆ° ziplist çš„æœ€å
+    // Èç¹ûÓĞĞò¼¯ÀïÄ¿Ç°Ã»ÓĞÒ»¸ö½ÚµãµÄ score Öµ±ÈÊäÈë score ´ó
+    // ÄÇÃ´½«ĞÂ½ÚµãÌí¼Óµ½ ziplist µÄ×îºó
     if (eptr == NULL)
         // O(N^2)
         zl = zzlInsertAt(zl,NULL,ele,score);
@@ -1064,35 +1161,40 @@ unsigned char *zzlInsert(unsigned char *zl, robj *ele, double score) {
 }
 
 /*
- * åˆ é™¤ç»™å®š score èŒƒå›´å†…çš„èŠ‚ç‚¹
+ * É¾³ı¸ø¶¨ score ·¶Î§ÄÚµÄ½Úµã
  *
  * T = O(N^3)
  */
-unsigned char *zzlDeleteRangeByScore(unsigned char *zl, zrangespec range, unsigned long *deleted) {
+unsigned char *zzlDeleteRangeByScore(unsigned char *zl, zrangespec range, unsigned long *deleted)
+{
     unsigned char *eptr, *sptr;
     double score;
     unsigned long num = 0;
 
     if (deleted != NULL) *deleted = 0;
 
-    // æŒ‰ range å®šä½èµ·å§‹èŠ‚ç‚¹çš„ä½ç½®
+    // °´ range ¶¨Î»ÆğÊ¼½ÚµãµÄÎ»ÖÃ
     eptr = zzlFirstInRange(zl,range);
     if (eptr == NULL) return zl;
 
     /* When the tail of the ziplist is deleted, eptr will point to the sentinel
      * byte and ziplistNext will return NULL. */
-    // ä¸€ç›´è¿›è¡Œåˆ é™¤ï¼Œç›´åˆ°ç¢°åˆ° score å€¼æ¯” range->max æ›´å¤§çš„èŠ‚ç‚¹ä¸ºæ­¢
+    // Ò»Ö±½øĞĞÉ¾³ı£¬Ö±µ½Åöµ½ score Öµ±È range->max ¸ü´óµÄ½ÚµãÎªÖ¹
     // O(N^3)
-    while ((sptr = ziplistNext(zl,eptr)) != NULL) {
+    while ((sptr = ziplistNext(zl,eptr)) != NULL)
+    {
         score = zzlGetScore(sptr);
-        if (zslValueLteMax(score,&range)) {
+        if (zslValueLteMax(score,&range))
+        {
             /* Delete both the element and the score. */
             // O(N^2)
             zl = ziplistDelete(zl,&eptr);
             // O(N^2)
             zl = ziplistDelete(zl,&eptr);
             num++;
-        } else {
+        }
+        else
+        {
             /* No longer in range. */
             break;
         }
@@ -1105,15 +1207,16 @@ unsigned char *zzlDeleteRangeByScore(unsigned char *zl, zrangespec range, unsign
 /* Delete all the elements with rank between start and end from the skiplist.
  * Start and end are inclusive. Note that start and end need to be 1-based */
 /*
- * åˆ é™¤ç»™å®šæ’åˆ—åŒºé—´å†…çš„æ‰€æœ‰èŠ‚ç‚¹
+ * É¾³ı¸ø¶¨ÅÅÁĞÇø¼äÄÚµÄËùÓĞ½Úµã
  *
  * T = O(N^2)
  */
-unsigned char *zzlDeleteRangeByRank(unsigned char *zl, unsigned int start, unsigned int end, unsigned long *deleted) {
-    // è®¡ç®—åˆ é™¤çš„èŠ‚ç‚¹æ•°é‡
+unsigned char *zzlDeleteRangeByRank(unsigned char *zl, unsigned int start, unsigned int end, unsigned long *deleted)
+{
+    // ¼ÆËãÉ¾³ıµÄ½ÚµãÊıÁ¿
     unsigned int num = (end-start)+1;
     if (deleted) *deleted = num;
-    // åˆ é™¤
+    // É¾³ı
     zl = ziplistDeleteRange(zl,2*(start-1),2*num);
     return zl;
 }
@@ -1123,40 +1226,48 @@ unsigned char *zzlDeleteRangeByRank(unsigned char *zl, unsigned int start, unsig
  *----------------------------------------------------------------------------*/
 
 /*
- * è¿”å›æœ‰åºé›†çš„å…ƒç´ ä¸ªæ•°
+ * ·µ»ØÓĞĞò¼¯µÄÔªËØ¸öÊı
  *
  * T = O(N)
  */
-unsigned int zsetLength(robj *zobj) {
+unsigned int zsetLength(robj *zobj)
+{
     int length = -1;
     // O(N)
-    if (zobj->encoding == REDIS_ENCODING_ZIPLIST) {
+    if (zobj->encoding == REDIS_ENCODING_ZIPLIST)
+    {
         length = zzlLength(zobj->ptr);
-    // O(1)
-    } else if (zobj->encoding == REDIS_ENCODING_SKIPLIST) {
+        // O(1)
+    }
+    else if (zobj->encoding == REDIS_ENCODING_SKIPLIST)
+    {
         length = ((zset*)zobj->ptr)->zsl->length;
-    } else {
+    }
+    else
+    {
         redisPanic("Unknown sorted set encoding");
     }
     return length;
 }
 
 /*
- * å°†ç»™å®šçš„ zobj è½¬æ¢æˆç»™å®šç¼–ç 
+ * ½«¸ø¶¨µÄ zobj ×ª»»³É¸ø¶¨±àÂë
  *
  * T = O(N^3)
  */
-void zsetConvert(robj *zobj, int encoding) {
+void zsetConvert(robj *zobj, int encoding)
+{
     zset *zs;
     zskiplistNode *node, *next;
     robj *ele;
     double score;
 
-    // ç¼–ç ç›¸åŒï¼Œæ— é¡»è½¬æ¢
+    // ±àÂëÏàÍ¬£¬ÎŞĞë×ª»»
     if (zobj->encoding == encoding) return;
 
-    // å°† ziplist ç¼–ç è½¬æ¢æˆ skiplist ç¼–ç 
-    if (zobj->encoding == REDIS_ENCODING_ZIPLIST) {
+    // ½« ziplist ±àÂë×ª»»³É skiplist ±àÂë
+    if (zobj->encoding == REDIS_ENCODING_ZIPLIST)
+    {
         unsigned char *zl = zobj->ptr;
         unsigned char *eptr, *sptr;
         unsigned char *vstr;
@@ -1166,42 +1277,43 @@ void zsetConvert(robj *zobj, int encoding) {
         if (encoding != REDIS_ENCODING_SKIPLIST)
             redisPanic("Unknown target encoding");
 
-        // åˆ›å»ºæ–° zset
+        // ´´½¨ĞÂ zset
         zs = zmalloc(sizeof(*zs));
         zs->dict = dictCreate(&zsetDictType,NULL);
         zs->zsl = zslCreate();
 
-        // æŒ‡å‘ç¬¬ä¸€ä¸ªèŠ‚ç‚¹çš„ member åŸŸ
+        // Ö¸ÏòµÚÒ»¸ö½ÚµãµÄ member Óò
         eptr = ziplistIndex(zl,0);
         redisAssertWithInfo(NULL,zobj,eptr != NULL);
-        // æŒ‡å‘ç¬¬ä¸€ä¸ªèŠ‚ç‚¹çš„ score åŸŸ
+        // Ö¸ÏòµÚÒ»¸ö½ÚµãµÄ score Óò
         sptr = ziplistNext(zl,eptr);
         redisAssertWithInfo(NULL,zobj,sptr != NULL);
 
-        // éå†æ•´ä¸ª ziplist ï¼Œå°†å®ƒçš„ member å’Œ score æ·»åŠ åˆ° zset
+        // ±éÀúÕû¸ö ziplist £¬½«ËüµÄ member ºÍ score Ìí¼Óµ½ zset
         // O(N^2)
-        while (eptr != NULL) {
-            // å–å‡º score å€¼
+        while (eptr != NULL)
+        {
+            // È¡³ö score Öµ
             score = zzlGetScore(sptr);
-            // å–å‡º member å€¼
+            // È¡³ö member Öµ
             redisAssertWithInfo(NULL,zobj,ziplistGet(eptr,&vstr,&vlen,&vlong));
 
-            // ä¸º member å€¼åˆ›å»º robj å¯¹è±¡
+            // Îª member Öµ´´½¨ robj ¶ÔÏó
             if (vstr == NULL)
                 ele = createStringObjectFromLongLong(vlong);
             else
                 ele = createStringObject((char*)vstr,vlen);
 
             /* Has incremented refcount since it was just created. */
-            // å°† score å’Œ memberï¼ˆè¿™é‡Œçš„eleï¼‰æ·»åŠ åˆ° skiplist
+            // ½« score ºÍ member£¨ÕâÀïµÄele£©Ìí¼Óµ½ skiplist
             // O(N)
             node = zslInsert(zs->zsl,score,ele);
-            // å°† member ä½œä¸ºé”®ï¼Œ score ä½œä¸ºå€¼ï¼Œä¿å­˜åˆ°å­—å…¸
+            // ½« member ×÷Îª¼ü£¬ score ×÷ÎªÖµ£¬±£´æµ½×Öµä
             // O(1)
             redisAssertWithInfo(NULL,zobj,dictAdd(zs->dict,ele,&node->score) == DICT_OK);
             incrRefCount(ele); /* Added to dictionary. */
 
-            // å‰è¿›è‡³ä¸‹ä¸ªèŠ‚ç‚¹
+            // Ç°½øÖÁÏÂ¸ö½Úµã
             zzlNext(zl,&eptr,&sptr);
         }
 
@@ -1209,8 +1321,10 @@ void zsetConvert(robj *zobj, int encoding) {
         zobj->ptr = zs;
         zobj->encoding = REDIS_ENCODING_SKIPLIST;
 
-    // å°† skiplist è½¬æ¢ä¸º ziplist
-    } else if (zobj->encoding == REDIS_ENCODING_SKIPLIST) {
+        // ½« skiplist ×ª»»Îª ziplist
+    }
+    else if (zobj->encoding == REDIS_ENCODING_SKIPLIST)
+    {
         unsigned char *zl = ziplistNew();
 
         if (encoding != REDIS_ENCODING_ZIPLIST)
@@ -1219,19 +1333,20 @@ void zsetConvert(robj *zobj, int encoding) {
         /* Approach similar to zslFree(), since we want to free the skiplist at
          * the same time as creating the ziplist. */
         zs = zobj->ptr;
-        // é‡Šæ”¾æ•´ä¸ªå­—å…¸
+        // ÊÍ·ÅÕû¸ö×Öµä
         dictRelease(zs->dict);
-        // æŒ‡å‘é¦–ä¸ªèŠ‚ç‚¹
+        // Ö¸ÏòÊ×¸ö½Úµã
         node = zs->zsl->header->level[0].forward;
-        // é‡Šæ”¾ zset è¡¨å¤´
+        // ÊÍ·Å zset ±íÍ·
         zfree(zs->zsl->header);
         zfree(zs->zsl);
 
-        // å°†æ‰€æœ‰å…ƒç´ ä¿å­˜åˆ° ziplist , O(N^3)
-        while (node) {
-            // å–å‡ºè§£ç åçš„ member
+        // ½«ËùÓĞÔªËØ±£´æµ½ ziplist , O(N^3)
+        while (node)
+        {
+            // È¡³ö½âÂëºóµÄ member
             ele = getDecodedObject(node->obj);
-            // æ’å…¥ member å’Œ score åˆ° ziplist, O(N^2)
+            // ²åÈë member ºÍ score µ½ ziplist, O(N^2)
             zl = zzlInsertAt(zl,NULL,ele,node->score);
             decrRefCount(ele);
 
@@ -1243,24 +1358,27 @@ void zsetConvert(robj *zobj, int encoding) {
         zfree(zs);
         zobj->ptr = zl;
         zobj->encoding = REDIS_ENCODING_ZIPLIST;
-    } else {
+    }
+    else
+    {
         redisPanic("Unknown sorted set encoding");
     }
 }
 
 /*-----------------------------------------------------------------------------
- * Sorted set commands 
+ * Sorted set commands
  *----------------------------------------------------------------------------*/
 
 /* This generic command implements both ZADD and ZINCRBY. */
 /*
- * å¤šæ€æ·»åŠ æ“ä½œ
+ * ¶àÌ¬Ìí¼Ó²Ù×÷
  *
- * ZADD å’Œ ZINCRBY çš„åº•å±‚å®ç°
+ * ZADD ºÍ ZINCRBY µÄµ×²ãÊµÏÖ
  *
  * T = O(N^4)
  */
-void zaddGenericCommand(redisClient *c, int incr) {
+void zaddGenericCommand(redisClient *c, int incr)
+{
     static char *nanerr = "resulting score is not a number (NaN)";
     robj *key = c->argv[1];
     robj *ele;
@@ -1270,8 +1388,9 @@ void zaddGenericCommand(redisClient *c, int incr) {
     int j, elements = (c->argc-2)/2;
     int added = 0;
 
-    // å‚æ•° member - score å¯¹ï¼Œç›´æ¥æŠ¥é”™
-    if (c->argc % 2) {
+    // ²ÎÊı member - score ¶Ô£¬Ö±½Ó±¨´í
+    if (c->argc % 2)
+    {
         addReply(c,shared.syntaxerr);
         return;
     }
@@ -1279,12 +1398,13 @@ void zaddGenericCommand(redisClient *c, int incr) {
     /* Start parsing all the scores, we need to emit any syntax error
      * before executing additions to the sorted set, as the command should
      * either execute fully or nothing at all. */
-    // parse æ‰€æœ‰è¾“å…¥çš„ score 
-    // å¦‚æœå‘ç°é”™è¯¯ï¼Œç«‹å³æŠ¥é”™å¹¶è¿”å›
+    // parse ËùÓĞÊäÈëµÄ score
+    // Èç¹û·¢ÏÖ´íÎó£¬Á¢¼´±¨´í²¢·µ»Ø
     scores = zmalloc(sizeof(double)*elements);
-    for (j = 0; j < elements; j++) {
+    for (j = 0; j < elements; j++)
+    {
         if (getDoubleFromObjectOrReply(c,c->argv[2+j*2],&scores[j],NULL)
-            != REDIS_OK)
+                != REDIS_OK)
         {
             zfree(scores);
             return;
@@ -1292,52 +1412,63 @@ void zaddGenericCommand(redisClient *c, int incr) {
     }
 
     /* Lookup the key and create the sorted set if does not exist. */
-    // æŒ‰ key æŸ¥æ‰¾æ’åºé›†åˆï¼Œå¦‚æœ key ä¸ºç©ºå°±åˆ›å»ºä¸€ä¸ª
+    // °´ key ²éÕÒÅÅĞò¼¯ºÏ£¬Èç¹û key Îª¿Õ¾Í´´½¨Ò»¸ö
     zobj = lookupKeyWrite(c->db,key);
-    // å¯¹è±¡ä¸å­˜åœ¨ï¼Œåˆ›å»ºæœ‰åºé›†
-    if (zobj == NULL) {
+    // ¶ÔÏó²»´æÔÚ£¬´´½¨ÓĞĞò¼¯
+    if (zobj == NULL)
+    {
 
-        // åˆ›å»º skiplist ç¼–ç çš„ zset
+        // ´´½¨ skiplist ±àÂëµÄ zset
         if (server.zset_max_ziplist_entries == 0 ||
-            server.zset_max_ziplist_value < sdslen(c->argv[3]->ptr))
+                server.zset_max_ziplist_value < sdslen(c->argv[3]->ptr))
         {
             zobj = createZsetObject();
-        // åˆ›å»º ziplist ç¼–ç çš„ zset
-        } else {
+            // ´´½¨ ziplist ±àÂëµÄ zset
+        }
+        else
+        {
             zobj = createZsetZiplistObject();
         }
 
-        // æ·»åŠ æ–°æœ‰åºé›†åˆ° db
+        // Ìí¼ÓĞÂÓĞĞò¼¯µ½ db
         dbAdd(c->db,key,zobj);
-    } else {
-        // å¯¹å·²å­˜åœ¨å¯¹è±¡è¿›è¡Œç±»å‹æ£€æŸ¥
-        if (zobj->type != REDIS_ZSET) {
+    }
+    else
+    {
+        // ¶ÔÒÑ´æÔÚ¶ÔÏó½øĞĞÀàĞÍ¼ì²é
+        if (zobj->type != REDIS_ZSET)
+        {
             addReply(c,shared.wrongtypeerr);
             zfree(scores);
             return;
         }
     }
 
-    // éå†æ‰€æœ‰å…ƒç´ ï¼Œå°†å®ƒä»¬åŠ å…¥åˆ°æœ‰åºé›†
+    // ±éÀúËùÓĞÔªËØ£¬½«ËüÃÇ¼ÓÈëµ½ÓĞĞò¼¯
     // O(N^4)
-    for (j = 0; j < elements; j++) {
+    for (j = 0; j < elements; j++)
+    {
         score = scores[j];
 
-        // æ·»åŠ å…ƒç´ åˆ° ziplist ç¼–ç çš„æœ‰åºé›†, O(N^3)
-        if (zobj->encoding == REDIS_ENCODING_ZIPLIST) {
+        // Ìí¼ÓÔªËØµ½ ziplist ±àÂëµÄÓĞĞò¼¯, O(N^3)
+        if (zobj->encoding == REDIS_ENCODING_ZIPLIST)
+        {
             unsigned char *eptr;
 
             /* Prefer non-encoded element when dealing with ziplists. */
-            // è·å–å…ƒç´ 
+            // »ñÈ¡ÔªËØ
             ele = c->argv[3+j*2];
-            // å¦‚æœå…ƒç´ å­˜åœ¨ï¼Œé‚£ä¹ˆå–å‡ºå®ƒ
+            // Èç¹ûÔªËØ´æÔÚ£¬ÄÇÃ´È¡³öËü
             // O(N)
-            if ((eptr = zzlFind(zobj->ptr,ele,&curscore)) != NULL) {
-                // zincrby æ“ä½œï¼Œè¿½åŠ  incr åˆ°å…ƒç´ çš„å€¼
-                if (incr) {
+            if ((eptr = zzlFind(zobj->ptr,ele,&curscore)) != NULL)
+            {
+                // zincrby ²Ù×÷£¬×·¼Ó incr µ½ÔªËØµÄÖµ
+                if (incr)
+                {
                     score += curscore;
-                    // æ£€æŸ¥æº¢å‡º
-                    if (isnan(score)) {
+                    // ¼ì²éÒç³ö
+                    if (isnan(score))
+                    {
                         addReplyError(c,nanerr);
                         /* Don't need to check if the sorted set is empty
                          * because we know it has at least one element. */
@@ -1347,25 +1478,28 @@ void zaddGenericCommand(redisClient *c, int incr) {
                 }
 
                 /* Remove and re-insert when score changed. */
-                // å¦‚æœä¸¤ä¸ªå…ƒç´ ç‚¹æ•°ä¸åŒï¼Œé‚£ä¹ˆç”¨æ–°å…ƒç´ æ›¿æ¢æ—§å…ƒç´ 
-                if (score != curscore) {
-                    // åˆ é™¤æ—§å…ƒç´ -ç‚¹æ•°, O(N^2)
+                // Èç¹ûÁ½¸öÔªËØµãÊı²»Í¬£¬ÄÇÃ´ÓÃĞÂÔªËØÌæ»»¾ÉÔªËØ
+                if (score != curscore)
+                {
+                    // É¾³ı¾ÉÔªËØ-µãÊı, O(N^2)
                     zobj->ptr = zzlDelete(zobj->ptr,eptr);
-                    // æ’å…¥æ–°å…ƒç´ -ç‚¹æ•°, O(N^2)
+                    // ²åÈëĞÂÔªËØ-µãÊı, O(N^2)
                     zobj->ptr = zzlInsert(zobj->ptr,ele,score);
 
                     signalModifiedKey(c->db,key);
                     server.dirty++;
                 }
-            // å…ƒç´ ä¸å­˜åœ¨
-            } else {
+                // ÔªËØ²»´æÔÚ
+            }
+            else
+            {
                 /* Optimize: check if the element is too large or the list
                  * becomes too long *before* executing zzlInsert. */
-                // æ·»åŠ å…ƒç´ åˆ° ziplist
+                // Ìí¼ÓÔªËØµ½ ziplist
                 // O(N^2)
                 zobj->ptr = zzlInsert(zobj->ptr,ele,score);
 
-                // å¦‚æœæœ‰éœ€è¦ï¼Œå°† ziplist è½¬æ¢ä¸º skiplist ç¼–ç 
+                // Èç¹ûÓĞĞèÒª£¬½« ziplist ×ª»»Îª skiplist ±àÂë
                 if (zzlLength(zobj->ptr) > server.zset_max_ziplist_entries)
                     // O(N^3)
                     zsetConvert(zobj,REDIS_ENCODING_SKIPLIST);
@@ -1376,33 +1510,38 @@ void zaddGenericCommand(redisClient *c, int incr) {
                 signalModifiedKey(c->db,key);
                 server.dirty++;
 
-                // è¿™æ˜¯ incrby è¿˜æ˜¯ zadd æ“ä½œï¼Ÿ
+                // ÕâÊÇ incrby »¹ÊÇ zadd ²Ù×÷£¿
                 if (!incr) added++;
             }
-        // æ·»åŠ å…ƒç´ åˆ° skiplist
-        } else if (zobj->encoding == REDIS_ENCODING_SKIPLIST) {
+            // Ìí¼ÓÔªËØµ½ skiplist
+        }
+        else if (zobj->encoding == REDIS_ENCODING_SKIPLIST)
+        {
             zset *zs = zobj->ptr;
             zskiplistNode *znode;
             dictEntry *de;
-    
-            // ç¼–ç å…ƒç´ 
+
+            // ±àÂëÔªËØ
             ele = c->argv[3+j*2] = tryObjectEncoding(c->argv[3+j*2]);
 
-            // åœ¨å­—å…¸ä¸­æŸ¥æ‰¾å…ƒç´ , O(1)
+            // ÔÚ×ÖµäÖĞ²éÕÒÔªËØ, O(1)
             de = dictFind(zs->dict,ele);
 
-            // å…ƒç´ å­˜åœ¨ï¼ˆæ›´æ–° scoreï¼‰
-            if (de != NULL) {
-                // å½“å‰ member
+            // ÔªËØ´æÔÚ£¨¸üĞÂ score£©
+            if (de != NULL)
+            {
+                // µ±Ç° member
                 curobj = dictGetKey(de);
-                // å½“å‰ score
+                // µ±Ç° score
                 curscore = *(double*)dictGetVal(de);
 
-                // INCRBY æ“ä½œ
-                if (incr) {
+                // INCRBY ²Ù×÷
+                if (incr)
+                {
                     score += curscore;
-                    // æ£€æŸ¥æº¢å‡º
-                    if (isnan(score)) {
+                    // ¼ì²éÒç³ö
+                    if (isnan(score))
+                    {
                         addReplyError(c,nanerr);
                         /* Don't need to check if the sorted set is empty
                          * because we know it has at least one element. */
@@ -1414,40 +1553,45 @@ void zaddGenericCommand(redisClient *c, int incr) {
                 /* Remove and re-insert when score changed. We can safely
                  * delete the key object from the skiplist, since the
                  * dictionary still has a reference to it. */
-                // æ–°æ—§ score å€¼ä¸åŒï¼Œå…ˆå°†æ—§å…ƒç´ ï¼ˆå’Œåˆ†å€¼ï¼‰åˆ é™¤ï¼Œå†é‡æ–°æ·»åŠ åˆ° ziplist
-                if (score != curscore) {
-                    // åˆ é™¤ zset æ—§èŠ‚ç‚¹, O(N)
+                // ĞÂ¾É score Öµ²»Í¬£¬ÏÈ½«¾ÉÔªËØ£¨ºÍ·ÖÖµ£©É¾³ı£¬ÔÙÖØĞÂÌí¼Óµ½ ziplist
+                if (score != curscore)
+                {
+                    // É¾³ı zset ¾É½Úµã, O(N)
                     redisAssertWithInfo(c,curobj,zslDelete(zs->zsl,curscore,curobj));
 
-                    // æ·»åŠ å¸¦æ–°ç‚¹æ•°çš„èŠ‚ç‚¹åˆ° zset, O(N)
+                    // Ìí¼Ó´øĞÂµãÊıµÄ½Úµãµ½ zset, O(N)
                     znode = zslInsert(zs->zsl,score,curobj);
 
                     incrRefCount(curobj); /* Re-inserted in skiplist. */
 
-                    // æ›´æ–°å­—å…¸ä¿å­˜çš„å…ƒç´ çš„åˆ†å€¼
+                    // ¸üĞÂ×Öµä±£´æµÄÔªËØµÄ·ÖÖµ
                     dictGetVal(de) = &znode->score; /* Update score ptr. */
 
                     signalModifiedKey(c->db,key);
                     server.dirty++;
                 }
-            // å…ƒç´ ä¸å­˜åœ¨ï¼ˆæ·»åŠ æ“ä½œï¼‰
-            } else {
+                // ÔªËØ²»´æÔÚ£¨Ìí¼Ó²Ù×÷£©
+            }
+            else
+            {
 
-                // æ·»åŠ åˆ° zset, O(N)
+                // Ìí¼Óµ½ zset, O(N)
                 znode = zslInsert(zs->zsl,score,ele);
                 incrRefCount(ele); /* Inserted in skiplist. */
 
-                // æ·»åŠ åˆ° dict , O(1)
+                // Ìí¼Óµ½ dict , O(1)
                 redisAssertWithInfo(c,NULL,dictAdd(zs->dict,ele,&znode->score) == DICT_OK);
                 incrRefCount(ele); /* Added to dictionary. */
 
                 signalModifiedKey(c->db,key);
                 server.dirty++;
 
-                // æ·»åŠ æ“ä½œ
+                // Ìí¼Ó²Ù×÷
                 if (!incr) added++;
             }
-        } else {
+        }
+        else
+        {
             redisPanic("Unknown sorted set encoding");
         }
     }
@@ -1460,84 +1604,99 @@ void zaddGenericCommand(redisClient *c, int incr) {
         addReplyLongLong(c,added);
 }
 
-void zaddCommand(redisClient *c) {
+void zaddCommand(redisClient *c)
+{
     zaddGenericCommand(c,0);
 }
 
-void zincrbyCommand(redisClient *c) {
+void zincrbyCommand(redisClient *c)
+{
     zaddGenericCommand(c,1);
 }
 
 /*
- * å¤šæ€å…ƒç´ åˆ é™¤å‡½æ•°
+ * ¶àÌ¬ÔªËØÉ¾³ıº¯Êı
  *
  * T = O(N^3)
  */
-void zremCommand(redisClient *c) {
+void zremCommand(redisClient *c)
+{
     robj *key = c->argv[1];
     robj *zobj;
     int deleted = 0, j;
 
-    // æŸ¥æ‰¾å¯¹è±¡ï¼Œæ£€æŸ¥ç±»å‹
+    // ²éÕÒ¶ÔÏó£¬¼ì²éÀàĞÍ
     if ((zobj = lookupKeyWriteOrReply(c,key,shared.czero)) == NULL ||
-        checkType(c,zobj,REDIS_ZSET)) return;
+            checkType(c,zobj,REDIS_ZSET)) return;
 
     // ziplist
-    if (zobj->encoding == REDIS_ENCODING_ZIPLIST) {
+    if (zobj->encoding == REDIS_ENCODING_ZIPLIST)
+    {
         unsigned char *eptr;
 
         // O(N^3)
-        for (j = 2; j < c->argc; j++) {
-            // å¦‚æœå…ƒç´ å­˜åœ¨ï¼Œé‚£ä¹ˆå¯¹å®ƒè¿›è¡Œåˆ é™¤, O(N^2)
-            if ((eptr = zzlFind(zobj->ptr,c->argv[j],NULL)) != NULL) {
+        for (j = 2; j < c->argc; j++)
+        {
+            // Èç¹ûÔªËØ´æÔÚ£¬ÄÇÃ´¶ÔËü½øĞĞÉ¾³ı, O(N^2)
+            if ((eptr = zzlFind(zobj->ptr,c->argv[j],NULL)) != NULL)
+            {
                 deleted++;
                 // O(N^2)
                 zobj->ptr = zzlDelete(zobj->ptr,eptr);
 
-                // å¦‚æœé›†åˆä¸ºç©ºï¼Œé‚£ä¹ˆåˆ é™¤å®ƒ
-                if (zzlLength(zobj->ptr) == 0) {
+                // Èç¹û¼¯ºÏÎª¿Õ£¬ÄÇÃ´É¾³ıËü
+                if (zzlLength(zobj->ptr) == 0)
+                {
                     dbDelete(c->db,key);
                     break;
                 }
             }
         }
-    // è·³è·ƒè¡¨
-    } else if (zobj->encoding == REDIS_ENCODING_SKIPLIST) {
+        // ÌøÔ¾±í
+    }
+    else if (zobj->encoding == REDIS_ENCODING_SKIPLIST)
+    {
         zset *zs = zobj->ptr;
         dictEntry *de;
         double score;
 
         // O(N^2)
-        for (j = 2; j < c->argc; j++) {
-            // å–å‡ºå…ƒç´  O(1)
+        for (j = 2; j < c->argc; j++)
+        {
+            // È¡³öÔªËØ O(1)
             de = dictFind(zs->dict,c->argv[j]);
-            if (de != NULL) {
+            if (de != NULL)
+            {
                 deleted++;
 
                 /* Delete from the skiplist */
-                // åˆ é™¤ score åŸŸ
+                // É¾³ı score Óò
                 score = *(double*)dictGetVal(de);
-                // ä» skiplist ä¸­åˆ é™¤å…ƒç´ 
+                // ´Ó skiplist ÖĞÉ¾³ıÔªËØ
                 // O(N)
                 redisAssertWithInfo(c,c->argv[j],zslDelete(zs->zsl,score,c->argv[j]));
 
                 /* Delete from the hash table */
-                // ä»å­—å…¸ä¸­åˆ é™¤å…ƒç´ 
+                // ´Ó×ÖµäÖĞÉ¾³ıÔªËØ
                 // O(1)
                 dictDelete(zs->dict,c->argv[j]);
                 // O(N)
                 if (htNeedsResize(zs->dict)) dictResize(zs->dict);
-                if (dictSize(zs->dict) == 0) {
+                if (dictSize(zs->dict) == 0)
+                {
                     dbDelete(c->db,key);
                     break;
                 }
             }
         }
-    } else {
+    }
+    else
+    {
         redisPanic("Unknown sorted set encoding");
     }
 
-    if (deleted) {
+    if (deleted)
+    {
         signalModifiedKey(c->db,key);
         server.dirty += deleted;
     }
@@ -1545,43 +1704,50 @@ void zremCommand(redisClient *c) {
 }
 
 /*
- * å¤šæ€åœ°ç§»é™¤ç»™å®š score èŒƒå›´å†…çš„å…ƒç´ 
+ * ¶àÌ¬µØÒÆ³ı¸ø¶¨ score ·¶Î§ÄÚµÄÔªËØ
  *
  * T = O(N^2)
  */
-void zremrangebyscoreCommand(redisClient *c) {
+void zremrangebyscoreCommand(redisClient *c)
+{
     robj *key = c->argv[1];
     robj *zobj;
     zrangespec range;
     unsigned long deleted;
 
     /* Parse the range arguments. */
-    // è§£é‡Šè¾“å…¥èŒƒå›´
-    if (zslParseRange(c->argv[2],c->argv[3],&range) != REDIS_OK) {
+    // ½âÊÍÊäÈë·¶Î§
+    if (zslParseRange(c->argv[2],c->argv[3],&range) != REDIS_OK)
+    {
         addReplyError(c,"min or max is not a float");
         return;
     }
 
-    // æŸ¥æ‰¾ key ï¼Œæ£€æŸ¥ç±»å‹
+    // ²éÕÒ key £¬¼ì²éÀàĞÍ
     if ((zobj = lookupKeyWriteOrReply(c,key,shared.czero)) == NULL ||
-        checkType(c,zobj,REDIS_ZSET)) return;
+            checkType(c,zobj,REDIS_ZSET)) return;
 
     // ziplist
-    if (zobj->encoding == REDIS_ENCODING_ZIPLIST) {
+    if (zobj->encoding == REDIS_ENCODING_ZIPLIST)
+    {
         // O(N^3)
         zobj->ptr = zzlDeleteRangeByScore(zobj->ptr,range,&deleted);
-        // åˆ é™¤ç©º ziplist
+        // É¾³ı¿Õ ziplist
         if (zzlLength(zobj->ptr) == 0) dbDelete(c->db,key);
-    // skiplist
-    } else if (zobj->encoding == REDIS_ENCODING_SKIPLIST) {
+        // skiplist
+    }
+    else if (zobj->encoding == REDIS_ENCODING_SKIPLIST)
+    {
         zset *zs = zobj->ptr;
         // O(N^2)
         deleted = zslDeleteRangeByScore(zs->zsl,range,zs->dict);
-        // ç´§ç¼©ç©ºé—´
+        // ½ôËõ¿Õ¼ä
         if (htNeedsResize(zs->dict)) dictResize(zs->dict);
-        // åˆ é™¤ç©ºå­—å…¸
+        // É¾³ı¿Õ×Öµä
         if (dictSize(zs->dict) == 0) dbDelete(c->db,key);
-    } else {
+    }
+    else
+    {
         redisPanic("Unknown sorted set encoding");
     }
 
@@ -1592,11 +1758,12 @@ void zremrangebyscoreCommand(redisClient *c) {
 }
 
 /*
- * åˆ é™¤ç»™å®šæ’åºèŒƒå›´å†…çš„æ‰€æœ‰å…ƒç´ 
+ * É¾³ı¸ø¶¨ÅÅĞò·¶Î§ÄÚµÄËùÓĞÔªËØ
  *
  * T = O(N^2)
  */
-void zremrangebyrankCommand(redisClient *c) {
+void zremrangebyrankCommand(redisClient *c)
+{
     robj *key = c->argv[1];
     robj *zobj;
     long start;
@@ -1604,12 +1771,12 @@ void zremrangebyrankCommand(redisClient *c) {
     int llen;
     unsigned long deleted;
 
-    // è¯»å…¥ start å’Œ end å‚æ•°
+    // ¶ÁÈë start ºÍ end ²ÎÊı
     if ((getLongFromObjectOrReply(c, c->argv[2], &start, NULL) != REDIS_OK) ||
-        (getLongFromObjectOrReply(c, c->argv[3], &end, NULL) != REDIS_OK)) return;
+            (getLongFromObjectOrReply(c, c->argv[3], &end, NULL) != REDIS_OK)) return;
 
     if ((zobj = lookupKeyWriteOrReply(c,key,shared.czero)) == NULL ||
-        checkType(c,zobj,REDIS_ZSET)) return;
+            checkType(c,zobj,REDIS_ZSET)) return;
 
     /* Sanitize indexes. */
     llen = zsetLength(zobj);
@@ -1619,20 +1786,24 @@ void zremrangebyrankCommand(redisClient *c) {
 
     /* Invariant: start >= 0, so this test will be true when end < 0.
      * The range is empty when start > end or start >= length. */
-    if (start > end || start >= llen) {
+    if (start > end || start >= llen)
+    {
         addReply(c,shared.czero);
         return;
     }
     if (end >= llen) end = llen-1;
 
     // ziplist
-    if (zobj->encoding == REDIS_ENCODING_ZIPLIST) {
+    if (zobj->encoding == REDIS_ENCODING_ZIPLIST)
+    {
         /* Correct for 1-based rank. */
         // O(N^2)
         zobj->ptr = zzlDeleteRangeByRank(zobj->ptr,start+1,end+1,&deleted);
         if (zzlLength(zobj->ptr) == 0) dbDelete(c->db,key);
-    // skiplist
-    } else if (zobj->encoding == REDIS_ENCODING_SKIPLIST) {
+        // skiplist
+    }
+    else if (zobj->encoding == REDIS_ENCODING_SKIPLIST)
+    {
         zset *zs = zobj->ptr;
 
         /* Correct for 1-based rank. */
@@ -1640,7 +1811,9 @@ void zremrangebyrankCommand(redisClient *c) {
         deleted = zslDeleteRangeByRank(zs->zsl,start+1,end+1,zs->dict);
         if (htNeedsResize(zs->dict)) dictResize(zs->dict);
         if (dictSize(zs->dict) == 0) dbDelete(c->db,key);
-    } else {
+    }
+    else
+    {
         redisPanic("Unknown sorted set encoding");
     }
 
@@ -1650,27 +1823,32 @@ void zremrangebyrankCommand(redisClient *c) {
 }
 
 /*
- * è¿­ä»£å™¨ç»“æ„
+ * µü´úÆ÷½á¹¹
  */
-typedef struct {
-    // è¿­ä»£ç›®æ ‡
+typedef struct
+{
+    // µü´úÄ¿±ê
     robj *subject;
-    // ç±»å‹ï¼šå¯ä»¥æ˜¯é›†åˆæˆ–æœ‰åºé›†
+    // ÀàĞÍ£º¿ÉÒÔÊÇ¼¯ºÏ»òÓĞĞò¼¯
     int type; /* Set, sorted set */
-    // ç¼–ç 
+    // ±àÂë
     int encoding;
-    // æƒé‡
+    // È¨ÖØ
     double weight;
 
-    union {
-        // é›†åˆè¿­ä»£å™¨
+    union
+    {
+        // ¼¯ºÏµü´úÆ÷
         /* Set iterators. */
-        union _iterset {
-            struct {
+        union _iterset
+        {
+            struct
+            {
                 intset *is;
                 int ii;
             } is;
-            struct {
+            struct
+            {
                 dict *dict;
                 dictIterator *di;
                 dictEntry *de;
@@ -1678,15 +1856,18 @@ typedef struct {
         } set;
 
         /* Sorted set iterators. */
-        // æœ‰åºé›†è¿­ä»£å™¨
-        union _iterzset {
-            // ziplist ç¼–ç 
-            struct {
+        // ÓĞĞò¼¯µü´úÆ÷
+        union _iterzset
+        {
+            // ziplist ±àÂë
+            struct
+            {
                 unsigned char *zl;
                 unsigned char *eptr, *sptr;
             } zl;
-            // zset ç¼–ç 
-            struct {
+            // zset ±àÂë
+            struct
+            {
                 zset *zs;
                 zskiplistNode *node;
             } sl;
@@ -1707,17 +1888,18 @@ typedef struct {
 
 /* Store value retrieved from the iterator. */
 /*
- * ä¿å­˜ä»è¿­ä»£å™¨å–å¾—çš„å€¼
+ * ±£´æ´Óµü´úÆ÷È¡µÃµÄÖµ
  */
-typedef struct {
+typedef struct
+{
     int flags;
     unsigned char _buf[32]; /* Private buffer. */
-    // å¯èƒ½ä¿å­˜ member çš„å‡ ä¸ªç±»å‹
+    // ¿ÉÄÜ±£´æ member µÄ¼¸¸öÀàĞÍ
     robj *ele;
     unsigned char *estr;
     unsigned int elen;
     long long ell;
-    // score å€¼
+    // score Öµ
     double score;
 } zsetopval;
 
@@ -1725,100 +1907,149 @@ typedef union _iterset iterset;
 typedef union _iterzset iterzset;
 
 /*
- * åˆå§‹åŒ–è¿­ä»£å™¨
+ * ³õÊ¼»¯µü´úÆ÷
  */
-void zuiInitIterator(zsetopsrc *op) {
+void zuiInitIterator(zsetopsrc *op)
+{
     if (op->subject == NULL)
         return;
 
-    if (op->type == REDIS_SET) {
+    if (op->type == REDIS_SET)
+    {
         iterset *it = &op->iter.set;
-        if (op->encoding == REDIS_ENCODING_INTSET) {
+        if (op->encoding == REDIS_ENCODING_INTSET)
+        {
             it->is.is = op->subject->ptr;
             it->is.ii = 0;
-        } else if (op->encoding == REDIS_ENCODING_HT) {
+        }
+        else if (op->encoding == REDIS_ENCODING_HT)
+        {
             it->ht.dict = op->subject->ptr;
             it->ht.di = dictGetIterator(op->subject->ptr);
             it->ht.de = dictNext(it->ht.di);
-        } else {
+        }
+        else
+        {
             redisPanic("Unknown set encoding");
         }
-    } else if (op->type == REDIS_ZSET) {
+    }
+    else if (op->type == REDIS_ZSET)
+    {
         iterzset *it = &op->iter.zset;
-        if (op->encoding == REDIS_ENCODING_ZIPLIST) {
+        if (op->encoding == REDIS_ENCODING_ZIPLIST)
+        {
             it->zl.zl = op->subject->ptr;
             it->zl.eptr = ziplistIndex(it->zl.zl,0);
-            if (it->zl.eptr != NULL) {
+            if (it->zl.eptr != NULL)
+            {
                 it->zl.sptr = ziplistNext(it->zl.zl,it->zl.eptr);
                 redisAssert(it->zl.sptr != NULL);
             }
-        } else if (op->encoding == REDIS_ENCODING_SKIPLIST) {
+        }
+        else if (op->encoding == REDIS_ENCODING_SKIPLIST)
+        {
             it->sl.zs = op->subject->ptr;
             it->sl.node = it->sl.zs->zsl->header->level[0].forward;
-        } else {
+        }
+        else
+        {
             redisPanic("Unknown sorted set encoding");
         }
-    } else {
+    }
+    else
+    {
         redisPanic("Unsupported type");
     }
 }
 
 /*
- * æ¸…ç©ºè¿­ä»£å™¨
+ * Çå¿Õµü´úÆ÷
  */
-void zuiClearIterator(zsetopsrc *op) {
+void zuiClearIterator(zsetopsrc *op)
+{
     if (op->subject == NULL)
         return;
 
-    if (op->type == REDIS_SET) {
+    if (op->type == REDIS_SET)
+    {
         iterset *it = &op->iter.set;
-        if (op->encoding == REDIS_ENCODING_INTSET) {
+        if (op->encoding == REDIS_ENCODING_INTSET)
+        {
             REDIS_NOTUSED(it); /* skip */
-        } else if (op->encoding == REDIS_ENCODING_HT) {
+        }
+        else if (op->encoding == REDIS_ENCODING_HT)
+        {
             dictReleaseIterator(it->ht.di);
-        } else {
+        }
+        else
+        {
             redisPanic("Unknown set encoding");
         }
-    } else if (op->type == REDIS_ZSET) {
+    }
+    else if (op->type == REDIS_ZSET)
+    {
         iterzset *it = &op->iter.zset;
-        if (op->encoding == REDIS_ENCODING_ZIPLIST) {
+        if (op->encoding == REDIS_ENCODING_ZIPLIST)
+        {
             REDIS_NOTUSED(it); /* skip */
-        } else if (op->encoding == REDIS_ENCODING_SKIPLIST) {
+        }
+        else if (op->encoding == REDIS_ENCODING_SKIPLIST)
+        {
             REDIS_NOTUSED(it); /* skip */
-        } else {
+        }
+        else
+        {
             redisPanic("Unknown sorted set encoding");
         }
-    } else {
+    }
+    else
+    {
         redisPanic("Unsupported type");
     }
 }
 
 /*
- * è¿”å›è¿­ä»£å¯¹è±¡çš„å…ƒç´ æ•°é‡
+ * ·µ»Øµü´ú¶ÔÏóµÄÔªËØÊıÁ¿
  */
-int zuiLength(zsetopsrc *op) {
+int zuiLength(zsetopsrc *op)
+{
     if (op->subject == NULL)
         return 0;
 
-    if (op->type == REDIS_SET) {
+    if (op->type == REDIS_SET)
+    {
         iterset *it = &op->iter.set;
-        if (op->encoding == REDIS_ENCODING_INTSET) {
+        if (op->encoding == REDIS_ENCODING_INTSET)
+        {
             return intsetLen(it->is.is);
-        } else if (op->encoding == REDIS_ENCODING_HT) {
+        }
+        else if (op->encoding == REDIS_ENCODING_HT)
+        {
             return dictSize(it->ht.dict);
-        } else {
+        }
+        else
+        {
             redisPanic("Unknown set encoding");
         }
-    } else if (op->type == REDIS_ZSET) {
+    }
+    else if (op->type == REDIS_ZSET)
+    {
         iterzset *it = &op->iter.zset;
-        if (op->encoding == REDIS_ENCODING_ZIPLIST) {
+        if (op->encoding == REDIS_ENCODING_ZIPLIST)
+        {
             return zzlLength(it->zl.zl);
-        } else if (op->encoding == REDIS_ENCODING_SKIPLIST) {
+        }
+        else if (op->encoding == REDIS_ENCODING_SKIPLIST)
+        {
             return it->sl.zs->zsl->length;
-        } else {
+        }
+        else
+        {
             redisPanic("Unknown sorted set encoding");
         }
-    } else {
+    }
+    else
+    {
         redisPanic("Unsupported type");
     }
 }
@@ -1827,85 +2058,101 @@ int zuiLength(zsetopsrc *op) {
  * and move to the next element. If not valid, this means we have reached the
  * end of the structure and can abort. */
 /*
- * ä»è¿­ä»£å™¨ä¸­å–å‡ºä¸‹ä¸€ä¸ªå…ƒç´ ï¼Œå¹¶å°†å®ƒä¿å­˜åˆ° val ï¼Œç„¶åè¿”å› 1 ã€‚
+ * ´Óµü´úÆ÷ÖĞÈ¡³öÏÂÒ»¸öÔªËØ£¬²¢½«Ëü±£´æµ½ val £¬È»ºó·µ»Ø 1 ¡£
  *
- * å½“æ²¡æœ‰ä¸‹ä¸€ä¸ªå…ƒç´ æ—¶ï¼Œè¿”å› 0 ã€‚
+ * µ±Ã»ÓĞÏÂÒ»¸öÔªËØÊ±£¬·µ»Ø 0 ¡£
  *
  * T = O(N)
  */
-int zuiNext(zsetopsrc *op, zsetopval *val) {
+int zuiNext(zsetopsrc *op, zsetopval *val)
+{
     if (op->subject == NULL)
         return 0;
 
     if (val->flags & OPVAL_DIRTY_ROBJ)
         decrRefCount(val->ele);
 
-    // æ¸…é›¶
+    // ÇåÁã
     memset(val,0,sizeof(zsetopval));
 
-    // è¾“å…¥æ˜¯é›†åˆ
-    if (op->type == REDIS_SET) {
+    // ÊäÈëÊÇ¼¯ºÏ
+    if (op->type == REDIS_SET)
+    {
         iterset *it = &op->iter.set;
-        // intset ç¼–ç 
-        if (op->encoding == REDIS_ENCODING_INTSET) {
+        // intset ±àÂë
+        if (op->encoding == REDIS_ENCODING_INTSET)
+        {
             int64_t ell;
 
             // O(1)
             if (!intsetGet(it->is.is,it->is.ii,&ell))
                 return 0;
-            // å–å‡ºmember
+            // È¡³ömember
             val->ell = ell;
-            // é›†åˆå…ƒç´ æ²¡æœ‰ score ï¼Œä¸ºå®ƒè®¾ç½®ä¸€ä¸ªé»˜è®¤ score
+            // ¼¯ºÏÔªËØÃ»ÓĞ score £¬ÎªËüÉèÖÃÒ»¸öÄ¬ÈÏ score
             val->score = 1.0;
 
             /* Move to next element. */
             it->is.ii++;
-        // ht ç¼–ç 
-        } else if (op->encoding == REDIS_ENCODING_HT) {
+            // ht ±àÂë
+        }
+        else if (op->encoding == REDIS_ENCODING_HT)
+        {
             if (it->ht.de == NULL)
                 return 0;
-            // å–å‡ºmember
+            // È¡³ömember
             // O(1)
             val->ele = dictGetKey(it->ht.de);
-            // é›†åˆå…ƒç´ æ²¡æœ‰ score ï¼Œä¸ºå®ƒè®¾ç½®ä¸€ä¸ªé»˜è®¤ score
+            // ¼¯ºÏÔªËØÃ»ÓĞ score £¬ÎªËüÉèÖÃÒ»¸öÄ¬ÈÏ score
             val->score = 1.0;
 
             /* Move to next element. */
             it->ht.de = dictNext(it->ht.di);
-        } else {
+        }
+        else
+        {
             redisPanic("Unknown set encoding");
         }
 
-    // è¾“å…¥æ˜¯æœ‰åºé›†
-    } else if (op->type == REDIS_ZSET) {
+        // ÊäÈëÊÇÓĞĞò¼¯
+    }
+    else if (op->type == REDIS_ZSET)
+    {
         iterzset *it = &op->iter.zset;
-        // ziplist ç¼–ç , O(N)
-        if (op->encoding == REDIS_ENCODING_ZIPLIST) {
+        // ziplist ±àÂë, O(N)
+        if (op->encoding == REDIS_ENCODING_ZIPLIST)
+        {
             /* No need to check both, but better be explicit. */
             if (it->zl.eptr == NULL || it->zl.sptr == NULL)
                 return 0;
-            // å–å‡º member
+            // È¡³ö member
             redisAssert(ziplistGet(it->zl.eptr,&val->estr,&val->elen,&val->ell));
-            // å–å‡º score
+            // È¡³ö score
             val->score = zzlGetScore(it->zl.sptr);
 
             /* Move to next element. */
             zzlNext(it->zl.zl,&it->zl.eptr,&it->zl.sptr);
-        // skiplist ç¼–ç , O(N)
-        } else if (op->encoding == REDIS_ENCODING_SKIPLIST) {
+            // skiplist ±àÂë, O(N)
+        }
+        else if (op->encoding == REDIS_ENCODING_SKIPLIST)
+        {
             if (it->sl.node == NULL)
                 return 0;
-            // å–å‡º member
+            // È¡³ö member
             val->ele = it->sl.node->obj;
-            // å–å‡º score
+            // È¡³ö score
             val->score = it->sl.node->score;
 
             /* Move to next element. */
             it->sl.node = it->sl.node->level[0].forward;
-        } else {
+        }
+        else
+        {
             redisPanic("Unknown sorted set encoding");
         }
-    } else {
+    }
+    else
+    {
         redisPanic("Unsupported type");
     }
 
@@ -1914,34 +2161,46 @@ int zuiNext(zsetopsrc *op, zsetopval *val) {
 }
 
 /*
- * ä» val é‡Œå–å‡ºå¹¶è¿”å›æ•´æ•°å€¼
+ * ´Ó val ÀïÈ¡³ö²¢·µ»ØÕûÊıÖµ
  *
  * T = O(1)
  */
-int zuiLongLongFromValue(zsetopval *val) {
-    if (!(val->flags & OPVAL_DIRTY_LL)) {
+int zuiLongLongFromValue(zsetopval *val)
+{
+    if (!(val->flags & OPVAL_DIRTY_LL))
+    {
         val->flags |= OPVAL_DIRTY_LL;
 
-        // è¾“å…¥ä¸ºé›†åˆæ—¶ä½¿ç”¨...
-        if (val->ele != NULL) {
-            // ä» intset é‡Œå–å‡º
-            if (val->ele->encoding == REDIS_ENCODING_INT) {
+        // ÊäÈëÎª¼¯ºÏÊ±Ê¹ÓÃ...
+        if (val->ele != NULL)
+        {
+            // ´Ó intset ÀïÈ¡³ö
+            if (val->ele->encoding == REDIS_ENCODING_INT)
+            {
                 val->ell = (long)val->ele->ptr;
                 val->flags |= OPVAL_VALID_LL;
-            // ä» sds é‡Œå–å‡º
-            } else if (val->ele->encoding == REDIS_ENCODING_RAW) {
+                // ´Ó sds ÀïÈ¡³ö
+            }
+            else if (val->ele->encoding == REDIS_ENCODING_RAW)
+            {
                 if (string2ll(val->ele->ptr,sdslen(val->ele->ptr),&val->ell))
                     val->flags |= OPVAL_VALID_LL;
-            } else {
+            }
+            else
+            {
                 redisPanic("Unsupported element encoding");
             }
 
-        // è¾“å…¥ä¸ºæœ‰åºé›†æ—¶ä½¿ç”¨
-        // ä»å­—ç¬¦ä¸²ä¸­å–å‡º
-        } else if (val->estr != NULL) {
+            // ÊäÈëÎªÓĞĞò¼¯Ê±Ê¹ÓÃ
+            // ´Ó×Ö·û´®ÖĞÈ¡³ö
+        }
+        else if (val->estr != NULL)
+        {
             if (string2ll((char*)val->estr,val->elen,&val->ell))
                 val->flags |= OPVAL_VALID_LL;
-        } else {
+        }
+        else
+        {
             /* The long long was already set, flag as valid. */
             val->flags |= OPVAL_VALID_LL;
         }
@@ -1950,38 +2209,53 @@ int zuiLongLongFromValue(zsetopval *val) {
 }
 
 /*
- * å°† zsetopval é‡Œçš„ç»“æœå–å‡ºï¼Œä¿å­˜åˆ° robj å¯¹è±¡é‡Œï¼Œç„¶åè¿”å›
+ * ½« zsetopval ÀïµÄ½á¹ûÈ¡³ö£¬±£´æµ½ robj ¶ÔÏóÀï£¬È»ºó·µ»Ø
  *
  * T = O(1)
  */
-robj *zuiObjectFromValue(zsetopval *val) {
-    if (val->ele == NULL) {
-        if (val->estr != NULL) {
-            // member ä¸ºæ•´æ•°
+robj *zuiObjectFromValue(zsetopval *val)
+{
+    if (val->ele == NULL)
+    {
+        if (val->estr != NULL)
+        {
+            // member ÎªÕûÊı
             val->ele = createStringObject((char*)val->estr,val->elen);
-        } else {
-            // member ä¸ºæ•´æ•°å€¼
+        }
+        else
+        {
+            // member ÎªÕûÊıÖµ
             val->ele = createStringObjectFromLongLong(val->ell);
         }
         val->flags |= OPVAL_DIRTY_ROBJ;
     }
-    // member ä¸ºå¯¹è±¡
+    // member Îª¶ÔÏó
     return val->ele;
 }
 
-int zuiBufferFromValue(zsetopval *val) {
-    if (val->estr == NULL) {
-        if (val->ele != NULL) {
-            if (val->ele->encoding == REDIS_ENCODING_INT) {
+int zuiBufferFromValue(zsetopval *val)
+{
+    if (val->estr == NULL)
+    {
+        if (val->ele != NULL)
+        {
+            if (val->ele->encoding == REDIS_ENCODING_INT)
+            {
                 val->elen = ll2string((char*)val->_buf,sizeof(val->_buf),(long)val->ele->ptr);
                 val->estr = val->_buf;
-            } else if (val->ele->encoding == REDIS_ENCODING_RAW) {
+            }
+            else if (val->ele->encoding == REDIS_ENCODING_RAW)
+            {
                 val->elen = sdslen(val->ele->ptr);
                 val->estr = val->ele->ptr;
-            } else {
+            }
+            else
+            {
                 redisPanic("Unsupported element encoding");
             }
-        } else {
+        }
+        else
+        {
             val->elen = ll2string((char*)val->_buf,sizeof(val->_buf),val->ell);
             val->estr = val->_buf;
         }
@@ -1992,69 +2266,98 @@ int zuiBufferFromValue(zsetopval *val) {
 /* Find value pointed to by val in the source pointer to by op. When found,
  * return 1 and store its score in target. Return 0 otherwise. */
 /*
- * åœ¨ op ä¸­æŸ¥æ‰¾ member å’Œ score å€¼ã€‚
+ * ÔÚ op ÖĞ²éÕÒ member ºÍ score Öµ¡£
  *
- * æ‰¾åˆ°è¿”å› 1 ï¼Œå¦åˆ™è¿”å› 0 ã€‚
+ * ÕÒµ½·µ»Ø 1 £¬·ñÔò·µ»Ø 0 ¡£
  *
  * T = O(N)
  */
-int zuiFind(zsetopsrc *op, zsetopval *val, double *score) {
+int zuiFind(zsetopsrc *op, zsetopval *val, double *score)
+{
     if (op->subject == NULL)
         return 0;
 
-    if (op->type == REDIS_SET) {
+    if (op->type == REDIS_SET)
+    {
         iterset *it = &op->iter.set;
 
-        if (op->encoding == REDIS_ENCODING_INTSET) {
+        if (op->encoding == REDIS_ENCODING_INTSET)
+        {
             // O(lg N)
-            if (zuiLongLongFromValue(val) && intsetFind(it->is.is,val->ell)) {
+            if (zuiLongLongFromValue(val) && intsetFind(it->is.is,val->ell))
+            {
                 *score = 1.0;
                 return 1;
-            } else {
+            }
+            else
+            {
                 return 0;
             }
-        } else if (op->encoding == REDIS_ENCODING_HT) {
+        }
+        else if (op->encoding == REDIS_ENCODING_HT)
+        {
             zuiObjectFromValue(val);
             // O(1)
-            if (dictFind(it->ht.dict,val->ele) != NULL) {
+            if (dictFind(it->ht.dict,val->ele) != NULL)
+            {
                 *score = 1.0;
                 return 1;
-            } else {
+            }
+            else
+            {
                 return 0;
             }
-        } else {
+        }
+        else
+        {
             redisPanic("Unknown set encoding");
         }
-    } else if (op->type == REDIS_ZSET) {
+    }
+    else if (op->type == REDIS_ZSET)
+    {
         iterzset *it = &op->iter.zset;
         zuiObjectFromValue(val);
 
-        if (op->encoding == REDIS_ENCODING_ZIPLIST) {
+        if (op->encoding == REDIS_ENCODING_ZIPLIST)
+        {
             // O(N)
-            if (zzlFind(it->zl.zl,val->ele,score) != NULL) {
+            if (zzlFind(it->zl.zl,val->ele,score) != NULL)
+            {
                 /* Score is already set by zzlFind. */
                 return 1;
-            } else {
+            }
+            else
+            {
                 return 0;
             }
-        } else if (op->encoding == REDIS_ENCODING_SKIPLIST) {
+        }
+        else if (op->encoding == REDIS_ENCODING_SKIPLIST)
+        {
             dictEntry *de;
             // O(1)
-            if ((de = dictFind(it->sl.zs->dict,val->ele)) != NULL) {
+            if ((de = dictFind(it->sl.zs->dict,val->ele)) != NULL)
+            {
                 *score = *(double*)dictGetVal(de);
                 return 1;
-            } else {
+            }
+            else
+            {
                 return 0;
             }
-        } else {
+        }
+        else
+        {
             redisPanic("Unknown sorted set encoding");
         }
-    } else {
+    }
+    else
+    {
         redisPanic("Unsupported type");
     }
 }
 
-int zuiCompareByCardinality(const void *s1, const void *s2) {
+int zuiCompareByCardinality(const void *s1, const void *s2)
+{
     return zuiLength((zsetopsrc*)s1) - zuiLength((zsetopsrc*)s2);
 }
 
@@ -2064,31 +2367,40 @@ int zuiCompareByCardinality(const void *s1, const void *s2) {
 #define zunionInterDictValue(_e) (dictGetVal(_e) == NULL ? 1.0 : *(double*)dictGetVal(_e))
 
 /*
- * æ ¹æ® aggregate å‚æ•°æ‰€æŒ‡å®šçš„æ¨¡å¼ï¼Œèšåˆ *target å’Œ val ä¸¤ä¸ªå€¼ã€‚
+ * ¸ù¾İ aggregate ²ÎÊıËùÖ¸¶¨µÄÄ£Ê½£¬¾ÛºÏ *target ºÍ val Á½¸öÖµ¡£
  */
-inline static void zunionInterAggregate(double *target, double val, int aggregate) {
-    if (aggregate == REDIS_AGGR_SUM) {
+inline static void zunionInterAggregate(double *target, double val, int aggregate)
+{
+    if (aggregate == REDIS_AGGR_SUM)
+    {
         *target = *target + val;
         /* The result of adding two doubles is NaN when one variable
          * is +inf and the other is -inf. When these numbers are added,
          * we maintain the convention of the result being 0.0. */
         if (isnan(*target)) *target = 0.0;
-    } else if (aggregate == REDIS_AGGR_MIN) {
+    }
+    else if (aggregate == REDIS_AGGR_MIN)
+    {
         *target = val < *target ? val : *target;
-    } else if (aggregate == REDIS_AGGR_MAX) {
+    }
+    else if (aggregate == REDIS_AGGR_MAX)
+    {
         *target = val > *target ? val : *target;
-    } else {
+    }
+    else
+    {
         /* safety net */
         redisPanic("Unknown ZUNION/INTER aggregate type");
     }
 }
 
 /*
- * ZUNIONSTORE å’Œ ZINTERSTORE ä¸¤ä¸ªå‘½ä»¤çš„åº•å±‚å®ç°
+ * ZUNIONSTORE ºÍ ZINTERSTORE Á½¸öÃüÁîµÄµ×²ãÊµÏÖ
  *
  * T = O(N^4)
  */
-void zunionInterGenericCommand(redisClient *c, robj *dstkey, int op) {
+void zunionInterGenericCommand(redisClient *c, robj *dstkey, int op)
+{
     int i, j;
     long setnum;
     int aggregate = REDIS_AGGR_SUM;
@@ -2102,41 +2414,48 @@ void zunionInterGenericCommand(redisClient *c, robj *dstkey, int op) {
     int touched = 0;
 
     /* expect setnum input keys to be given */
-    // å–å‡º setnum å‚æ•°
+    // È¡³ö setnum ²ÎÊı
     if ((getLongFromObjectOrReply(c, c->argv[2], &setnum, NULL) != REDIS_OK))
         return;
 
-    if (setnum < 1) {
+    if (setnum < 1)
+    {
         addReplyError(c,
-            "at least 1 input key is needed for ZUNIONSTORE/ZINTERSTORE");
+                      "at least 1 input key is needed for ZUNIONSTORE/ZINTERSTORE");
         return;
     }
 
     /* test if the expected number of keys would overflow */
-    if (setnum > c->argc-3) {
+    if (setnum > c->argc-3)
+    {
         addReply(c,shared.syntaxerr);
         return;
     }
 
     /* read keys to be used for input */
-    // ä¿å­˜æ‰€æœ‰ key , O(N)
+    // ±£´æËùÓĞ key , O(N)
     src = zcalloc(sizeof(zsetopsrc) * setnum);
-    for (i = 0, j = 3; i < setnum; i++, j++) {
-        // å–å‡º key
+    for (i = 0, j = 3; i < setnum; i++, j++)
+    {
+        // È¡³ö key
         robj *obj = lookupKeyWrite(c->db,c->argv[j]);
-        if (obj != NULL) {
-            // key å¯ä»¥æ˜¯ sorted set æˆ–è€… set
-            if (obj->type != REDIS_ZSET && obj->type != REDIS_SET) {
+        if (obj != NULL)
+        {
+            // key ¿ÉÒÔÊÇ sorted set »òÕß set
+            if (obj->type != REDIS_ZSET && obj->type != REDIS_SET)
+            {
                 zfree(src);
                 addReply(c,shared.wrongtypeerr);
                 return;
             }
 
-            // è®¾ç½®
+            // ÉèÖÃ
             src[i].subject = obj;
             src[i].type = obj->type;
             src[i].encoding = obj->encoding;
-        } else {
+        }
+        else
+        {
             src[i].subject = NULL;
         }
 
@@ -2145,40 +2464,58 @@ void zunionInterGenericCommand(redisClient *c, robj *dstkey, int op) {
     }
 
     /* parse optional extra arguments */
-    // åˆ†æé™„åŠ å‚æ•°, O(N)
-    if (j < c->argc) {
+    // ·ÖÎö¸½¼Ó²ÎÊı, O(N)
+    if (j < c->argc)
+    {
         int remaining = c->argc - j;
 
         // O(N)
-        while (remaining) {
-            // è¯»å…¥æ‰€æœ‰ weight å‚æ•°, O(N)
-            if (remaining >= (setnum + 1) && !strcasecmp(c->argv[j]->ptr,"weights")) {
-                j++; remaining--;
-                for (i = 0; i < setnum; i++, j++, remaining--) {
-                    // å°† weight ä¿å­˜åˆ° src æ•°ç»„ä¸­
+        while (remaining)
+        {
+            // ¶ÁÈëËùÓĞ weight ²ÎÊı, O(N)
+            if (remaining >= (setnum + 1) && !strcasecmp(c->argv[j]->ptr,"weights"))
+            {
+                j++;
+                remaining--;
+                for (i = 0; i < setnum; i++, j++, remaining--)
+                {
+                    // ½« weight ±£´æµ½ src Êı×éÖĞ
                     if (getDoubleFromObjectOrReply(c,c->argv[j],&src[i].weight,
-                            "weight value is not a float") != REDIS_OK)
+                                                   "weight value is not a float") != REDIS_OK)
                     {
                         zfree(src);
                         return;
                     }
                 }
-            // è¯»å–æ‰€æœ‰ aggregate å‚æ•°, O(N)
-            } else if (remaining >= 2 && !strcasecmp(c->argv[j]->ptr,"aggregate")) {
-                j++; remaining--;
-                if (!strcasecmp(c->argv[j]->ptr,"sum")) {
+                // ¶ÁÈ¡ËùÓĞ aggregate ²ÎÊı, O(N)
+            }
+            else if (remaining >= 2 && !strcasecmp(c->argv[j]->ptr,"aggregate"))
+            {
+                j++;
+                remaining--;
+                if (!strcasecmp(c->argv[j]->ptr,"sum"))
+                {
                     aggregate = REDIS_AGGR_SUM;
-                } else if (!strcasecmp(c->argv[j]->ptr,"min")) {
+                }
+                else if (!strcasecmp(c->argv[j]->ptr,"min"))
+                {
                     aggregate = REDIS_AGGR_MIN;
-                } else if (!strcasecmp(c->argv[j]->ptr,"max")) {
+                }
+                else if (!strcasecmp(c->argv[j]->ptr,"max"))
+                {
                     aggregate = REDIS_AGGR_MAX;
-                } else {
+                }
+                else
+                {
                     zfree(src);
                     addReply(c,shared.syntaxerr);
                     return;
                 }
-                j++; remaining--;
-            } else {
+                j++;
+                remaining--;
+            }
+            else
+            {
                 zfree(src);
                 addReply(c,shared.syntaxerr);
                 return;
@@ -2186,70 +2523,80 @@ void zunionInterGenericCommand(redisClient *c, robj *dstkey, int op) {
         }
     }
 
-    // ä¸ºæ‰€æœ‰ key åˆ›å»ºè¿­ä»£å™¨
+    // ÎªËùÓĞ key ´´½¨µü´úÆ÷
     for (i = 0; i < setnum; i++)
         zuiInitIterator(&src[i]);
 
     /* sort sets from the smallest to largest, this will improve our
      * algorithm's performance */
-    // å°†æ‰€æœ‰é›†åˆæŒ‰åŸºæ•°ä»å°åˆ°å¤§æ’åˆ—ï¼Œæå‡ç®—æ³•æ€§èƒ½
+    // ½«ËùÓĞ¼¯ºÏ°´»ùÊı´ÓĞ¡µ½´óÅÅÁĞ£¬ÌáÉıËã·¨ĞÔÄÜ
     qsort(src,setnum,sizeof(zsetopsrc),zuiCompareByCardinality);
 
-    // ç»“æœé›†åˆå¯¹è±¡
+    // ½á¹û¼¯ºÏ¶ÔÏó
     dstobj = createZsetObject();
     dstzset = dstobj->ptr;
-    // åˆå§‹åŒ– zval å˜é‡
+    // ³õÊ¼»¯ zval ±äÁ¿
     memset(&zval, 0, sizeof(zval));
 
-    // INTER æ“ä½œ, O(N^3)
-    if (op == REDIS_OP_INTER) {
+    // INTER ²Ù×÷, O(N^3)
+    if (op == REDIS_OP_INTER)
+    {
         /* Skip everything if the smallest input is empty. */
-        // å¦‚æœæœ€å°é›†åˆä¸ºç©ºé›†ï¼Œé‚£ä¹ˆè·³å‡º
-        // ï¼ˆå°ä¼˜åŒ–ï¼Œå¦‚æœè¾“å…¥é‡Œæœ‰è‡³å°‘ä¸€ä¸ªç©ºé›†ï¼Œé‚£ä¹ˆç»“æœå¿…å°†æ˜¯ç©ºé›†ï¼‰
-        if (zuiLength(&src[0]) > 0) {
+        // Èç¹û×îĞ¡¼¯ºÏÎª¿Õ¼¯£¬ÄÇÃ´Ìø³ö
+        // £¨Ğ¡ÓÅ»¯£¬Èç¹ûÊäÈëÀïÓĞÖÁÉÙÒ»¸ö¿Õ¼¯£¬ÄÇÃ´½á¹û±Ø½«ÊÇ¿Õ¼¯£©
+        if (zuiLength(&src[0]) > 0)
+        {
             /* Precondition: as src[0] is non-empty and the inputs are ordered
              * by size, all src[i > 0] are non-empty too. */
-            // å–å‡ºç¬¬ä¸€ä¸ªé›†åˆçš„å…ƒç´ 
+            // È¡³öµÚÒ»¸ö¼¯ºÏµÄÔªËØ
             // O(N^3)
-            while (zuiNext(&src[0],&zval)) {
+            while (zuiNext(&src[0],&zval))
+            {
                 double score, value;
 
-                // æ ¹æ® weight è®¡ç®—æ–°çš„ score å€¼
+                // ¸ù¾İ weight ¼ÆËãĞÂµÄ score Öµ
                 score = src[0].weight * zval.score;
                 if (isnan(score)) score = 0;
 
-                // éå†æ‰€æœ‰è¾“å…¥é›†åˆï¼Œè®¡ç®—äº¤é›†å…ƒç´ ï¼Œå¹¶å¯¹å…ƒç´ çš„ score å€¼è¿›è¡Œèšåˆ
+                // ±éÀúËùÓĞÊäÈë¼¯ºÏ£¬¼ÆËã½»¼¯ÔªËØ£¬²¢¶ÔÔªËØµÄ score Öµ½øĞĞ¾ÛºÏ
                 // O(N^2)
-                for (j = 1; j < setnum; j++) {
+                for (j = 1; j < setnum; j++)
+                {
                     /* It is not safe to access the zset we are
                      * iterating, so explicitly check for equal object. */
-                    // å¦‚æœåŒä¸€ä¸ªé›†åˆå‡ºç°äº†ä¸¤æ¬¡ï¼Œé‚£ä¹ˆå°†åŒä¸€ä¸ªå…ƒç´ è®¡ç®—å¤šèšåˆä¸€æ¬¡
-                    if (src[j].subject == src[0].subject) {
+                    // Èç¹ûÍ¬Ò»¸ö¼¯ºÏ³öÏÖÁËÁ½´Î£¬ÄÇÃ´½«Í¬Ò»¸öÔªËØ¼ÆËã¶à¾ÛºÏÒ»´Î
+                    if (src[j].subject == src[0].subject)
+                    {
                         value = zval.score*src[j].weight;
                         // O(1)
                         zunionInterAggregate(&score,value,aggregate);
-                    // æŸ¥æ‰¾é›†åˆä¸­æ˜¯å¦æœ‰ç›¸åŒå…ƒç´ 
-                    // å¦‚æœæœ‰å°±è¿›è¡Œèšåˆ, O(N)
-                    } else if (zuiFind(&src[j],&zval,&value)) {
+                        // ²éÕÒ¼¯ºÏÖĞÊÇ·ñÓĞÏàÍ¬ÔªËØ
+                        // Èç¹ûÓĞ¾Í½øĞĞ¾ÛºÏ, O(N)
+                    }
+                    else if (zuiFind(&src[j],&zval,&value))
+                    {
                         value *= src[j].weight;
                         // O(1)
                         zunionInterAggregate(&score,value,aggregate);
-                    // æ²¡æœ‰äº¤é›†å…ƒç´ ï¼Œè·³å‡º
-                    } else {
+                        // Ã»ÓĞ½»¼¯ÔªËØ£¬Ìø³ö
+                    }
+                    else
+                    {
                         break;
                     }
                 }
 
                 /* Only continue when present in every input. */
-                // å¦‚æœå‰é¢çš„äº¤é›†è®¡ç®—æ²¡æœ‰è·³å‡ºï¼Œé‚£ä¹ˆæ‰§è¡Œå¦‚ä¸‹æ“ä½œ
+                // Èç¹ûÇ°ÃæµÄ½»¼¯¼ÆËãÃ»ÓĞÌø³ö£¬ÄÇÃ´Ö´ĞĞÈçÏÂ²Ù×÷
                 // O(N)
-                if (j == setnum) {
-                    // å–å‡º member
+                if (j == setnum)
+                {
+                    // È¡³ö member
                     tmp = zuiObjectFromValue(&zval);
-                    // æ·»åŠ åˆ° skiplist, O(N)
+                    // Ìí¼Óµ½ skiplist, O(N)
                     znode = zslInsert(dstzset->zsl,score,tmp);
                     incrRefCount(tmp); /* added to skiplist */
-                    // æ·»åŠ åˆ°å­—å…¸, O(1)
+                    // Ìí¼Óµ½×Öµä, O(1)
                     dictAdd(dstzset->dict,tmp,&znode->score);
                     incrRefCount(tmp); /* added to dictionary */
 
@@ -2260,48 +2607,56 @@ void zunionInterGenericCommand(redisClient *c, robj *dstkey, int op) {
             }
         }
 
-    // ZUNIONSTORE æ“ä½œï¼Œ O(N^4)
-    } else if (op == REDIS_OP_UNION) {
-        // éå†æ‰€æœ‰é›†åˆ
+        // ZUNIONSTORE ²Ù×÷£¬ O(N^4)
+    }
+    else if (op == REDIS_OP_UNION)
+    {
+        // ±éÀúËùÓĞ¼¯ºÏ
         // O(N^4)
-        for (i = 0; i < setnum; i++) {
+        for (i = 0; i < setnum; i++)
+        {
             if (zuiLength(&src[i]) == 0)
                 continue;
 
-            // å–å‡ºé›†åˆä¸­çš„æ‰€æœ‰å…ƒç´ 
+            // È¡³ö¼¯ºÏÖĞµÄËùÓĞÔªËØ
             // O(N^3)
-            while (zuiNext(&src[i],&zval)) {
+            while (zuiNext(&src[i],&zval))
+            {
                 double score, value;
 
                 /* Skip key when already processed */
-                // å¦‚æœè¯¥å…ƒç´ å·²ç»å­˜åœ¨äºç»“æœé›†ï¼Œé‚£ä¹ˆç»“æŸå¾ªç¯
+                // Èç¹û¸ÃÔªËØÒÑ¾­´æÔÚÓÚ½á¹û¼¯£¬ÄÇÃ´½áÊøÑ­»·
                 if (dictFind(dstzset->dict,zuiObjectFromValue(&zval)) != NULL)
                     continue;
 
                 /* Initialize score */
-                // æ ¹æ® weight è®¡ç®— score
+                // ¸ù¾İ weight ¼ÆËã score
                 score = src[i].weight * zval.score;
                 if (isnan(score)) score = 0;
 
                 /* Because the inputs are sorted by size, it's only possible
                  * for sets at larger indices to hold this element. */
-                // éå†å½“å‰é›†åˆä¹‹åçš„æ‰€æœ‰é›†åˆï¼Œå¯¹ member è¿›è¡Œèšåˆ
+                // ±éÀúµ±Ç°¼¯ºÏÖ®ºóµÄËùÓĞ¼¯ºÏ£¬¶Ô member ½øĞĞ¾ÛºÏ
                 // O(N^2)
-                for (j = (i+1); j < setnum; j++) {
+                for (j = (i+1); j < setnum; j++)
+                {
                     /* It is not safe to access the zset we are
                      * iterating, so explicitly check for equal object. */
-                    // ä¸¤ä¸ªé›†åˆç›¸åŒ, O(1)
-                    if(src[j].subject == src[i].subject) {
+                    // Á½¸ö¼¯ºÏÏàÍ¬, O(1)
+                    if(src[j].subject == src[i].subject)
+                    {
                         value = zval.score*src[j].weight;
                         zunionInterAggregate(&score,value,aggregate);
-                    // æŸ¥æ‰¾å…ƒç´ , O(N)
-                    } else if (zuiFind(&src[j],&zval,&value)) {
+                        // ²éÕÒÔªËØ, O(N)
+                    }
+                    else if (zuiFind(&src[j],&zval,&value))
+                    {
                         value *= src[j].weight;
                         zunionInterAggregate(&score,value,aggregate);
                     }
                 }
 
-                // å°†ç»“æœä¿å­˜åˆ° zset å¯¹è±¡é‡Œ
+                // ½«½á¹û±£´æµ½ zset ¶ÔÏóÀï
                 tmp = zuiObjectFromValue(&zval);
                 znode = zslInsert(dstzset->zsl,score,tmp);
                 incrRefCount(zval.ele); /* added to skiplist */
@@ -2313,51 +2668,60 @@ void zunionInterGenericCommand(redisClient *c, robj *dstkey, int op) {
                         maxelelen = sdslen(tmp->ptr);
             }
         }
-    } else {
+    }
+    else
+    {
         redisPanic("Unknown operator");
     }
 
-    // æ¸…é™¤æ‰€æœ‰è¿­ä»£å™¨
+    // Çå³ıËùÓĞµü´úÆ÷
     for (i = 0; i < setnum; i++)
         zuiClearIterator(&src[i]);
 
-    // åˆ é™¤æ—§çš„ dstkey 
-    if (dbDelete(c->db,dstkey)) {
+    // É¾³ı¾ÉµÄ dstkey
+    if (dbDelete(c->db,dstkey))
+    {
         signalModifiedKey(c->db,dstkey);
         touched = 1;
         server.dirty++;
     }
 
-    // ä¿å­˜èšåˆç»“æœåˆ° dstkey
-    if (dstzset->zsl->length) {
+    // ±£´æ¾ÛºÏ½á¹ûµ½ dstkey
+    if (dstzset->zsl->length)
+    {
         /* Convert to ziplist when in limits. */
         if (dstzset->zsl->length <= server.zset_max_ziplist_entries &&
-            maxelelen <= server.zset_max_ziplist_value)
-                zsetConvert(dstobj,REDIS_ENCODING_ZIPLIST);
+                maxelelen <= server.zset_max_ziplist_value)
+            zsetConvert(dstobj,REDIS_ENCODING_ZIPLIST);
 
         dbAdd(c->db,dstkey,dstobj);
         addReplyLongLong(c,zsetLength(dstobj));
         if (!touched) signalModifiedKey(c->db,dstkey);
         server.dirty++;
-    } else {
+    }
+    else
+    {
         decrRefCount(dstobj);
         addReply(c,shared.czero);
     }
     zfree(src);
 }
 
-void zunionstoreCommand(redisClient *c) {
+void zunionstoreCommand(redisClient *c)
+{
     zunionInterGenericCommand(c,c->argv[1], REDIS_OP_UNION);
 }
 
-void zinterstoreCommand(redisClient *c) {
+void zinterstoreCommand(redisClient *c)
+{
     zunionInterGenericCommand(c,c->argv[1], REDIS_OP_INTER);
 }
 
 /*
  * T = O(N)
  */
-void zrangeGenericCommand(redisClient *c, int reverse) {
+void zrangeGenericCommand(redisClient *c, int reverse)
+{
     robj *key = c->argv[1];
     robj *zobj;
     int withscores = 0;
@@ -2366,20 +2730,23 @@ void zrangeGenericCommand(redisClient *c, int reverse) {
     int llen;
     int rangelen;
 
-    // å–å‡º start å’Œ end å‚æ•°
+    // È¡³ö start ºÍ end ²ÎÊı
     if ((getLongFromObjectOrReply(c, c->argv[2], &start, NULL) != REDIS_OK) ||
-        (getLongFromObjectOrReply(c, c->argv[3], &end, NULL) != REDIS_OK)) return;
+            (getLongFromObjectOrReply(c, c->argv[3], &end, NULL) != REDIS_OK)) return;
 
-    // å–å‡º withscores å‚æ•°
-    if (c->argc == 5 && !strcasecmp(c->argv[4]->ptr,"withscores")) {
+    // È¡³ö withscores ²ÎÊı
+    if (c->argc == 5 && !strcasecmp(c->argv[4]->ptr,"withscores"))
+    {
         withscores = 1;
-    } else if (c->argc >= 5) {
+    }
+    else if (c->argc >= 5)
+    {
         addReply(c,shared.syntaxerr);
         return;
     }
 
     if ((zobj = lookupKeyReadOrReply(c,key,shared.emptymultibulk)) == NULL
-         || checkType(c,zobj,REDIS_ZSET)) return;
+            || checkType(c,zobj,REDIS_ZSET)) return;
 
     /* Sanitize indexes. */
     llen = zsetLength(zobj);
@@ -2389,7 +2756,8 @@ void zrangeGenericCommand(redisClient *c, int reverse) {
 
     /* Invariant: start >= 0, so this test will be true when end < 0.
      * The range is empty when start > end or start >= length. */
-    if (start > end || start >= llen) {
+    if (start > end || start >= llen)
+    {
         addReply(c,shared.emptymultibulk);
         return;
     }
@@ -2399,16 +2767,17 @@ void zrangeGenericCommand(redisClient *c, int reverse) {
     /* Return the result in form of a multi-bulk reply */
     addReplyMultiBulkLen(c, withscores ? (rangelen*2) : rangelen);
 
-    // ziplist ç¼–ç , O(N)
-    if (zobj->encoding == REDIS_ENCODING_ZIPLIST) {
+    // ziplist ±àÂë, O(N)
+    if (zobj->encoding == REDIS_ENCODING_ZIPLIST)
+    {
         unsigned char *zl = zobj->ptr;
         unsigned char *eptr, *sptr;
         unsigned char *vstr;
         unsigned int vlen;
         long long vlong;
 
-        // å†³å®šè¿­ä»£çš„æ–¹å‘
-        // å¹¶æŒ‡å‘ç¬¬ä¸€ä¸ª member
+        // ¾ö¶¨µü´úµÄ·½Ïò
+        // ²¢Ö¸ÏòµÚÒ»¸ö member
         // O(1)
         if (reverse)
             eptr = ziplistIndex(zl,-2-(2*start));
@@ -2416,45 +2785,51 @@ void zrangeGenericCommand(redisClient *c, int reverse) {
             eptr = ziplistIndex(zl,2*start);
 
         redisAssertWithInfo(c,zobj,eptr != NULL);
-        // æŒ‡å‘ç¬¬ä¸€ä¸ª score
+        // Ö¸ÏòµÚÒ»¸ö score
         sptr = ziplistNext(zl,eptr);
 
-        // å–å‡ºå…ƒç´ , O(N)
-        while (rangelen--) {
-            // å…ƒç´ ä¸ä¸ºç©ºï¼Ÿ
+        // È¡³öÔªËØ, O(N)
+        while (rangelen--)
+        {
+            // ÔªËØ²»Îª¿Õ£¿
             redisAssertWithInfo(c,zobj,eptr != NULL && sptr != NULL);
-            // å–å‡º member 
+            // È¡³ö member
             redisAssertWithInfo(c,zobj,ziplistGet(eptr,&vstr,&vlen,&vlong));
             if (vstr == NULL)
                 addReplyBulkLongLong(c,vlong);
             else
                 addReplyBulkCBuffer(c,vstr,vlen);
 
-            // å–å‡º score
+            // È¡³ö score
             if (withscores)
                 addReplyDouble(c,zzlGetScore(sptr));
 
-            // ç§»åŠ¨æŒ‡é’ˆåˆ°ä¸‹ä¸€ä¸ªèŠ‚ç‚¹
+            // ÒÆ¶¯Ö¸Õëµ½ÏÂÒ»¸ö½Úµã
             if (reverse)
                 zzlPrev(zl,&eptr,&sptr);
             else
                 zzlNext(zl,&eptr,&sptr);
         }
 
-    } else if (zobj->encoding == REDIS_ENCODING_SKIPLIST) {
+    }
+    else if (zobj->encoding == REDIS_ENCODING_SKIPLIST)
+    {
         zset *zs = zobj->ptr;
         zskiplist *zsl = zs->zsl;
         zskiplistNode *ln;
         robj *ele;
 
         /* Check if starting point is trivial, before doing log(N) lookup. */
-        // å†³å®šèµ·å§‹èŠ‚ç‚¹, O(N)
-        if (reverse) {
+        // ¾ö¶¨ÆğÊ¼½Úµã, O(N)
+        if (reverse)
+        {
             ln = zsl->tail;
             if (start > 0)
                 // O(N)
                 ln = zslGetElementByRank(zsl,llen-start);
-        } else {
+        }
+        else
+        {
             ln = zsl->header->level[0].forward;
             if (start > 0)
                 // O(N)
@@ -2462,27 +2837,32 @@ void zrangeGenericCommand(redisClient *c, int reverse) {
         }
 
         // O(N)
-        while(rangelen--) {
+        while(rangelen--)
+        {
             redisAssertWithInfo(c,zobj,ln != NULL);
-            // è¿”å› member
+            // ·µ»Ø member
             ele = ln->obj;
             addReplyBulk(c,ele);
-            // è¿”å› score
+            // ·µ»Ø score
             if (withscores)
                 addReplyDouble(c,ln->score);
             // O(1)
             ln = reverse ? ln->backward : ln->level[0].forward;
         }
-    } else {
+    }
+    else
+    {
         redisPanic("Unknown sorted set encoding");
     }
 }
 
-void zrangeCommand(redisClient *c) {
+void zrangeCommand(redisClient *c)
+{
     zrangeGenericCommand(c,0);
 }
 
-void zrevrangeCommand(redisClient *c) {
+void zrevrangeCommand(redisClient *c)
+{
     zrangeGenericCommand(c,1);
 }
 
@@ -2490,7 +2870,8 @@ void zrevrangeCommand(redisClient *c) {
 /*
  * T = O(N)
  */
-void genericZrangebyscoreCommand(redisClient *c, int reverse) {
+void genericZrangebyscoreCommand(redisClient *c, int reverse)
+{
     zrangespec range;
     robj *key = c->argv[1];
     robj *zobj;
@@ -2501,15 +2882,21 @@ void genericZrangebyscoreCommand(redisClient *c, int reverse) {
     int minidx, maxidx;
 
     /* Parse the range arguments. */
-    if (reverse) {
+    if (reverse)
+    {
         /* Range is given as [max,min] */
-        maxidx = 2; minidx = 3;
-    } else {
+        maxidx = 2;
+        minidx = 3;
+    }
+    else
+    {
         /* Range is given as [min,max] */
-        minidx = 2; maxidx = 3;
+        minidx = 2;
+        maxidx = 3;
     }
 
-    if (zslParseRange(c->argv[minidx],c->argv[maxidx],&range) != REDIS_OK) {
+    if (zslParseRange(c->argv[minidx],c->argv[maxidx],&range) != REDIS_OK)
+    {
         addReplyError(c,"min or max is not a float");
         return;
     }
@@ -2517,23 +2904,32 @@ void genericZrangebyscoreCommand(redisClient *c, int reverse) {
     /* Parse optional extra arguments. Note that ZCOUNT will exactly have
      * 4 arguments, so we'll never enter the following code path. */
     // O(1)
-    if (c->argc > 4) {
+    if (c->argc > 4)
+    {
         int remaining = c->argc - 4;
         int pos = 4;
 
-        // è¯»å…¥å‚æ•°, O(N)
-        while (remaining) {
-            // withscores å‚æ•°
-            if (remaining >= 1 && !strcasecmp(c->argv[pos]->ptr,"withscores")) {
-                pos++; remaining--;
+        // ¶ÁÈë²ÎÊı, O(N)
+        while (remaining)
+        {
+            // withscores ²ÎÊı
+            if (remaining >= 1 && !strcasecmp(c->argv[pos]->ptr,"withscores"))
+            {
+                pos++;
+                remaining--;
                 withscores = 1;
-            // limit å‚æ•°
-            } else if (remaining >= 3 && !strcasecmp(c->argv[pos]->ptr,"limit")) {
-                // offset å’Œ limit å‚æ•°
+                // limit ²ÎÊı
+            }
+            else if (remaining >= 3 && !strcasecmp(c->argv[pos]->ptr,"limit"))
+            {
+                // offset ºÍ limit ²ÎÊı
                 if ((getLongFromObjectOrReply(c, c->argv[pos+1], &offset, NULL) != REDIS_OK) ||
-                    (getLongFromObjectOrReply(c, c->argv[pos+2], &limit, NULL) != REDIS_OK)) return;
-                pos += 3; remaining -= 3;
-            } else {
+                        (getLongFromObjectOrReply(c, c->argv[pos+2], &limit, NULL) != REDIS_OK)) return;
+                pos += 3;
+                remaining -= 3;
+            }
+            else
+            {
                 addReply(c,shared.syntaxerr);
                 return;
             }
@@ -2542,10 +2938,11 @@ void genericZrangebyscoreCommand(redisClient *c, int reverse) {
 
     /* Ok, lookup the key and get the range */
     if ((zobj = lookupKeyReadOrReply(c,key,shared.emptymultibulk)) == NULL ||
-        checkType(c,zobj,REDIS_ZSET)) return;
+            checkType(c,zobj,REDIS_ZSET)) return;
 
     // O(N)
-    if (zobj->encoding == REDIS_ENCODING_ZIPLIST) {
+    if (zobj->encoding == REDIS_ENCODING_ZIPLIST)
+    {
         unsigned char *zl = zobj->ptr;
         unsigned char *eptr, *sptr;
         unsigned char *vstr;
@@ -2555,14 +2952,18 @@ void genericZrangebyscoreCommand(redisClient *c, int reverse) {
 
         /* If reversed, get the last node in range as starting point. */
         // O(N)
-        if (reverse) {
+        if (reverse)
+        {
             eptr = zzlLastInRange(zl,range);
-        } else {
+        }
+        else
+        {
             eptr = zzlFirstInRange(zl,range);
         }
 
         /* No "first" element in the specified interval. */
-        if (eptr == NULL) {
+        if (eptr == NULL)
+        {
             addReply(c, shared.emptymultibulk);
             return;
         }
@@ -2579,65 +2980,86 @@ void genericZrangebyscoreCommand(redisClient *c, int reverse) {
         /* If there is an offset, just traverse the number of elements without
          * checking the score because that is done in the next loop. */
         // O(N)
-        while (eptr && offset--) {
-            if (reverse) {
+        while (eptr && offset--)
+        {
+            if (reverse)
+            {
                 zzlPrev(zl,&eptr,&sptr);
-            } else {
+            }
+            else
+            {
                 zzlNext(zl,&eptr,&sptr);
             }
         }
 
         // O(N)
-        while (eptr && limit--) {
+        while (eptr && limit--)
+        {
             score = zzlGetScore(sptr);
 
             /* Abort when the node is no longer in range. */
-            // è¶…å‡ºèŒƒå›´ï¼Œè·³å‡º
-            if (reverse) {
+            // ³¬³ö·¶Î§£¬Ìø³ö
+            if (reverse)
+            {
                 if (!zslValueGteMin(score,&range)) break;
-            } else {
+            }
+            else
+            {
                 if (!zslValueLteMax(score,&range)) break;
             }
 
             /* We know the element exists, so ziplistGet should always succeed */
-            // å–å‡º member
+            // È¡³ö member
             redisAssertWithInfo(c,zobj,ziplistGet(eptr,&vstr,&vlen,&vlong));
 
             rangelen++;
-            if (vstr == NULL) {
+            if (vstr == NULL)
+            {
                 addReplyBulkLongLong(c,vlong);
-            } else {
+            }
+            else
+            {
                 addReplyBulkCBuffer(c,vstr,vlen);
             }
 
-            // å–å‡º score
-            if (withscores) {
+            // È¡³ö score
+            if (withscores)
+            {
                 addReplyDouble(c,score);
             }
 
             /* Move to next node */
-            // ç§»åŠ¨åˆ°ä¸‹ä¸€èŠ‚ç‚¹
-            if (reverse) {
+            // ÒÆ¶¯µ½ÏÂÒ»½Úµã
+            if (reverse)
+            {
                 zzlPrev(zl,&eptr,&sptr);
-            } else {
+            }
+            else
+            {
                 zzlNext(zl,&eptr,&sptr);
             }
         }
-    } else if (zobj->encoding == REDIS_ENCODING_SKIPLIST) {
+    }
+    else if (zobj->encoding == REDIS_ENCODING_SKIPLIST)
+    {
         zset *zs = zobj->ptr;
         zskiplist *zsl = zs->zsl;
         zskiplistNode *ln;
 
         /* If reversed, get the last node in range as starting point. */
         // O(N)
-        if (reverse) {
+        if (reverse)
+        {
             ln = zslLastInRange(zsl,range);
-        } else {
+        }
+        else
+        {
             ln = zslFirstInRange(zsl,range);
         }
 
         /* No "first" element in the specified interval. */
-        if (ln == NULL) {
+        if (ln == NULL)
+        {
             addReply(c, shared.emptymultibulk);
             return;
         }
@@ -2650,120 +3072,147 @@ void genericZrangebyscoreCommand(redisClient *c, int reverse) {
         /* If there is an offset, just traverse the number of elements without
          * checking the score because that is done in the next loop. */
         // O(N)
-        while (ln && offset--) {
-            if (reverse) {
+        while (ln && offset--)
+        {
+            if (reverse)
+            {
                 ln = ln->backward;
-            } else {
+            }
+            else
+            {
                 ln = ln->level[0].forward;
             }
         }
 
         // O(N)
-        while (ln && limit--) {
+        while (ln && limit--)
+        {
             /* Abort when the node is no longer in range. */
-            // è¶…å‡ºèŒƒå›´ï¼Œ è·³å‡º
-            if (reverse) {
+            // ³¬³ö·¶Î§£¬ Ìø³ö
+            if (reverse)
+            {
                 if (!zslValueGteMin(ln->score,&range)) break;
-            } else {
+            }
+            else
+            {
                 if (!zslValueLteMax(ln->score,&range)) break;
             }
 
             rangelen++;
-            // å–å‡º member
+            // È¡³ö member
             addReplyBulk(c,ln->obj);
 
-            // å–å‡º score
-            if (withscores) {
+            // È¡³ö score
+            if (withscores)
+            {
                 addReplyDouble(c,ln->score);
             }
 
             /* Move to next node */
-            // ç§»åŠ¨åˆ°ä¸‹ä¸€èŠ‚ç‚¹
-            if (reverse) {
+            // ÒÆ¶¯µ½ÏÂÒ»½Úµã
+            if (reverse)
+            {
                 ln = ln->backward;
-            } else {
+            }
+            else
+            {
                 ln = ln->level[0].forward;
             }
         }
-    } else {
+    }
+    else
+    {
         redisPanic("Unknown sorted set encoding");
     }
 
-    if (withscores) {
+    if (withscores)
+    {
         rangelen *= 2;
     }
 
     setDeferredMultiBulkLength(c, replylen, rangelen);
 }
 
-void zrangebyscoreCommand(redisClient *c) {
+void zrangebyscoreCommand(redisClient *c)
+{
     genericZrangebyscoreCommand(c,0);
 }
 
-void zrevrangebyscoreCommand(redisClient *c) {
+void zrevrangebyscoreCommand(redisClient *c)
+{
     genericZrangebyscoreCommand(c,1);
 }
 
 /*
- * è¿”å›æœ‰åºé›†åœ¨ç»™å®šèŒƒå›´å†…çš„å…ƒç´ 
+ * ·µ»ØÓĞĞò¼¯ÔÚ¸ø¶¨·¶Î§ÄÚµÄÔªËØ
  *
  * T = O(N)
  */
-void zcountCommand(redisClient *c) {
+void zcountCommand(redisClient *c)
+{
     robj *key = c->argv[1];
     robj *zobj;
     zrangespec range;
     int count = 0;
 
     /* Parse the range arguments */
-    // range å‚æ•°
-    if (zslParseRange(c->argv[2],c->argv[3],&range) != REDIS_OK) {
+    // range ²ÎÊı
+    if (zslParseRange(c->argv[2],c->argv[3],&range) != REDIS_OK)
+    {
         addReplyError(c,"min or max is not a float");
         return;
     }
 
     /* Lookup the sorted set */
     if ((zobj = lookupKeyReadOrReply(c, key, shared.czero)) == NULL ||
-        checkType(c, zobj, REDIS_ZSET)) return;
+            checkType(c, zobj, REDIS_ZSET)) return;
 
     // O(N)
-    if (zobj->encoding == REDIS_ENCODING_ZIPLIST) {
+    if (zobj->encoding == REDIS_ENCODING_ZIPLIST)
+    {
         unsigned char *zl = zobj->ptr;
         unsigned char *eptr, *sptr;
         double score;
 
         /* Use the first element in range as the starting point */
-        // å–å‡ºç¬¬ä¸€ä¸ªç¬¦åˆèŒƒå›´çš„ member
+        // È¡³öµÚÒ»¸ö·ûºÏ·¶Î§µÄ member
         eptr = zzlFirstInRange(zl,range);
 
         /* No "first" element */
-        // æ²¡æœ‰ç¬¦åˆèŒƒå›´çš„èŠ‚ç‚¹
-        if (eptr == NULL) {
+        // Ã»ÓĞ·ûºÏ·¶Î§µÄ½Úµã
+        if (eptr == NULL)
+        {
             addReply(c, shared.czero);
             return;
         }
 
         /* First element is in range */
-        // æŒ‡å‘ score åŸŸ
+        // Ö¸Ïò score Óò
         sptr = ziplistNext(zl,eptr);
-        // å–å‡º score å€¼
+        // È¡³ö score Öµ
         score = zzlGetScore(sptr);
         redisAssertWithInfo(c,zobj,zslValueLteMax(score,&range));
 
         /* Iterate over elements in range */
         // O(N)
-        while (eptr) {
+        while (eptr)
+        {
             score = zzlGetScore(sptr);
 
             /* Abort when the node is no longer in range. */
-            if (!zslValueLteMax(score,&range)) {
+            if (!zslValueLteMax(score,&range))
+            {
                 break;
-            } else {
+            }
+            else
+            {
                 count++;
                 zzlNext(zl,&eptr,&sptr);
             }
         }
-    } else if (zobj->encoding == REDIS_ENCODING_SKIPLIST) {
+    }
+    else if (zobj->encoding == REDIS_ENCODING_SKIPLIST)
+    {
         zset *zs = zobj->ptr;
         zskiplist *zsl = zs->zsl;
         zskiplistNode *zn;
@@ -2774,7 +3223,8 @@ void zcountCommand(redisClient *c) {
         zn = zslFirstInRange(zsl, range);
 
         /* Use rank of first element, if any, to determine preliminary count */
-        if (zn != NULL) {
+        if (zn != NULL)
+        {
             // O(N)
             rank = zslGetRank(zsl, zn->score, zn->obj);
             count = (zsl->length - (rank - 1));
@@ -2783,14 +3233,17 @@ void zcountCommand(redisClient *c) {
             zn = zslLastInRange(zsl, range);
 
             /* Use rank of last element, if any, to determine the actual count */
-            if (zn != NULL) {
+            if (zn != NULL)
+            {
                 rank = zslGetRank(zsl, zn->score, zn->obj);
-                // æ‰¾å‡ºç¬¬ä¸€ä¸ªå’Œæœ€åä¸€ä¸ªç¬¦åˆèŒƒå›´çš„èŠ‚ç‚¹
-                // å°†å®ƒä»¬çš„ rank ç›¸å‡å°±æ˜¯èŒƒå›´å†…çš„èŠ‚ç‚¹çš„æ•°é‡
+                // ÕÒ³öµÚÒ»¸öºÍ×îºóÒ»¸ö·ûºÏ·¶Î§µÄ½Úµã
+                // ½«ËüÃÇµÄ rank Ïà¼õ¾ÍÊÇ·¶Î§ÄÚµÄ½ÚµãµÄÊıÁ¿
                 count -= (zsl->length - rank);
             }
         }
-    } else {
+    }
+    else
+    {
         redisPanic("Unknown sorted set encoding");
     }
 
@@ -2798,63 +3251,74 @@ void zcountCommand(redisClient *c) {
 }
 
 /*
- * è¿”å›æœ‰åºé›†çš„åŸºæ•°
+ * ·µ»ØÓĞĞò¼¯µÄ»ùÊı
  *
  * T = O(N)
  */
-void zcardCommand(redisClient *c) {
+void zcardCommand(redisClient *c)
+{
     robj *key = c->argv[1];
     robj *zobj;
 
     if ((zobj = lookupKeyReadOrReply(c,key,shared.czero)) == NULL ||
-        checkType(c,zobj,REDIS_ZSET)) return;
+            checkType(c,zobj,REDIS_ZSET)) return;
 
     addReplyLongLong(c,zsetLength(zobj));
 }
 
 /*
- * æ‰¾å‡ºç»™å®šå…ƒç´ çš„ score å€¼
+ * ÕÒ³ö¸ø¶¨ÔªËØµÄ score Öµ
  *
  * T = O(N)
  */
-void zscoreCommand(redisClient *c) {
+void zscoreCommand(redisClient *c)
+{
     robj *key = c->argv[1];
     robj *zobj;
     double score;
 
     if ((zobj = lookupKeyReadOrReply(c,key,shared.nullbulk)) == NULL ||
-        checkType(c,zobj,REDIS_ZSET)) return;
+            checkType(c,zobj,REDIS_ZSET)) return;
 
-    if (zobj->encoding == REDIS_ENCODING_ZIPLIST) {
+    if (zobj->encoding == REDIS_ENCODING_ZIPLIST)
+    {
         // O(N)
         if (zzlFind(zobj->ptr,c->argv[2],&score) != NULL)
             addReplyDouble(c,score);
         else
             addReply(c,shared.nullbulk);
-    } else if (zobj->encoding == REDIS_ENCODING_SKIPLIST) {
+    }
+    else if (zobj->encoding == REDIS_ENCODING_SKIPLIST)
+    {
         zset *zs = zobj->ptr;
         dictEntry *de;
 
         // O(1)
         c->argv[2] = tryObjectEncoding(c->argv[2]);
         de = dictFind(zs->dict,c->argv[2]);
-        if (de != NULL) {
+        if (de != NULL)
+        {
             score = *(double*)dictGetVal(de);
             addReplyDouble(c,score);
-        } else {
+        }
+        else
+        {
             addReply(c,shared.nullbulk);
         }
-    } else {
+    }
+    else
+    {
         redisPanic("Unknown sorted set encoding");
     }
 }
 
 /*
- * è¿”å›ç»™å®šå…ƒç´ åœ¨æœ‰åºé›†ä¸­çš„æ’ä½
+ * ·µ»Ø¸ø¶¨ÔªËØÔÚÓĞĞò¼¯ÖĞµÄÅÅÎ»
  *
  * T = O(N)
  */
-void zrankGenericCommand(redisClient *c, int reverse) {
+void zrankGenericCommand(redisClient *c, int reverse)
+{
     robj *key = c->argv[1];
     robj *ele = c->argv[2];
     robj *zobj;
@@ -2862,11 +3326,12 @@ void zrankGenericCommand(redisClient *c, int reverse) {
     unsigned long rank;
 
     if ((zobj = lookupKeyReadOrReply(c,key,shared.nullbulk)) == NULL ||
-        checkType(c,zobj,REDIS_ZSET)) return;
+            checkType(c,zobj,REDIS_ZSET)) return;
     llen = zsetLength(zobj);
 
     redisAssertWithInfo(c,ele,ele->encoding == REDIS_ENCODING_RAW);
-    if (zobj->encoding == REDIS_ENCODING_ZIPLIST) {
+    if (zobj->encoding == REDIS_ENCODING_ZIPLIST)
+    {
         unsigned char *zl = zobj->ptr;
         unsigned char *eptr, *sptr;
 
@@ -2875,24 +3340,30 @@ void zrankGenericCommand(redisClient *c, int reverse) {
         sptr = ziplistNext(zl,eptr);
         redisAssertWithInfo(c,zobj,sptr != NULL);
 
-        // éå†æŒ‡é’ˆï¼Œä¸€è·¯è®¡ç®—è¶Šè¿‡çš„èŠ‚ç‚¹æ•°é‡
+        // ±éÀúÖ¸Õë£¬Ò»Â·¼ÆËãÔ½¹ıµÄ½ÚµãÊıÁ¿
         rank = 1;
-        while(eptr != NULL) {
+        while(eptr != NULL)
+        {
             if (ziplistCompare(eptr,ele->ptr,sdslen(ele->ptr)))
                 break;
             rank++;
             zzlNext(zl,&eptr,&sptr);
         }
 
-        if (eptr != NULL) {
+        if (eptr != NULL)
+        {
             if (reverse)
                 addReplyLongLong(c,llen-rank);
             else
                 addReplyLongLong(c,rank-1);
-        } else {
+        }
+        else
+        {
             addReply(c,shared.nullbulk);
         }
-    } else if (zobj->encoding == REDIS_ENCODING_SKIPLIST) {
+    }
+    else if (zobj->encoding == REDIS_ENCODING_SKIPLIST)
+    {
         zset *zs = zobj->ptr;
         zskiplist *zsl = zs->zsl;
         dictEntry *de;
@@ -2901,27 +3372,34 @@ void zrankGenericCommand(redisClient *c, int reverse) {
         // O(1)
         ele = c->argv[2] = tryObjectEncoding(c->argv[2]);
         de = dictFind(zs->dict,ele);
-        if (de != NULL) {
+        if (de != NULL)
+        {
             score = *(double*)dictGetVal(de);
-            // æŸ¥æ‰¾å…ƒç´ åœ¨è·³è·ƒè¡¨ä¸­çš„ä½ç½® O(N)
+            // ²éÕÒÔªËØÔÚÌøÔ¾±íÖĞµÄÎ»ÖÃ O(N)
             rank = zslGetRank(zsl,score,ele);
             redisAssertWithInfo(c,ele,rank); /* Existing elements always have a rank. */
             if (reverse)
                 addReplyLongLong(c,llen-rank);
             else
                 addReplyLongLong(c,rank-1);
-        } else {
+        }
+        else
+        {
             addReply(c,shared.nullbulk);
         }
-    } else {
+    }
+    else
+    {
         redisPanic("Unknown sorted set encoding");
     }
 }
 
-void zrankCommand(redisClient *c) {
+void zrankCommand(redisClient *c)
+{
     zrankGenericCommand(c, 0);
 }
 
-void zrevrankCommand(redisClient *c) {
+void zrevrankCommand(redisClient *c)
+{
     zrankGenericCommand(c, 1);
 }

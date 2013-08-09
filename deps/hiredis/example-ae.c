@@ -9,7 +9,8 @@
 /* Put event loop in the global scope, so it can be explicitly stopped */
 static aeEventLoop *loop;
 
-void getCallback(redisAsyncContext *c, void *r, void *privdata) {
+void getCallback(redisAsyncContext *c, void *r, void *privdata)
+{
     redisReply *reply = r;
     if (reply == NULL) return;
     printf("argv[%s]: %s\n", (char*)privdata, reply->str);
@@ -18,27 +19,33 @@ void getCallback(redisAsyncContext *c, void *r, void *privdata) {
     redisAsyncDisconnect(c);
 }
 
-void connectCallback(const redisAsyncContext *c, int status) {
-    if (status != REDIS_OK) {
+void connectCallback(const redisAsyncContext *c, int status)
+{
+    if (status != REDIS_OK)
+    {
         printf("Error: %s\n", c->errstr);
         return;
     }
     printf("Connected...\n");
 }
 
-void disconnectCallback(const redisAsyncContext *c, int status) {
-    if (status != REDIS_OK) {
+void disconnectCallback(const redisAsyncContext *c, int status)
+{
+    if (status != REDIS_OK)
+    {
         printf("Error: %s\n", c->errstr);
         return;
     }
     printf("Disconnected...\n");
 }
 
-int main (int argc, char **argv) {
+int main (int argc, char **argv)
+{
     signal(SIGPIPE, SIG_IGN);
 
     redisAsyncContext *c = redisAsyncConnect("127.0.0.1", 6379);
-    if (c->err) {
+    if (c->err)
+    {
         /* Let *c leak for now... */
         printf("Error: %s\n", c->errstr);
         return 1;

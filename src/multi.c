@@ -33,30 +33,33 @@
 
 /* Client state initialization for MULTI/EXEC */
 /*
- * åˆå§‹åŒ–å®¢æˆ·ç«¯çš„äº‹åŠ¡çŠ¶æ€
+ * ³õÊ¼»¯¿Í»§¶ËµÄÊÂÎñ×´Ì¬
  *
  * T = O(1)
  */
-void initClientMultiState(redisClient *c) {
+void initClientMultiState(redisClient *c)
+{
     c->mstate.commands = NULL;
     c->mstate.count = 0;
 }
 
 /* Release all the resources associated with MULTI/EXEC state */
 /*
- * é‡Šæ”¾æ‰€æœ‰åœ¨äº‹åŠ¡é˜Ÿåˆ—ä¸­çš„å‘½ä»¤
+ * ÊÍ·ÅËùÓĞÔÚÊÂÎñ¶ÓÁĞÖĞµÄÃüÁî
  *
  * T = O(N^2)
  */
-void freeClientMultiState(redisClient *c) {
+void freeClientMultiState(redisClient *c)
+{
     int j;
 
-    // é‡Šæ”¾æ‰€æœ‰å‘½ä»¤
-    for (j = 0; j < c->mstate.count; j++) {
+    // ÊÍ·ÅËùÓĞÃüÁî
+    for (j = 0; j < c->mstate.count; j++)
+    {
         int i;
         multiCmd *mc = c->mstate.commands+j;
 
-        // é‡Šæ”¾å‘½ä»¤çš„æ‰€æœ‰å‚æ•°
+        // ÊÍ·ÅÃüÁîµÄËùÓĞ²ÎÊı
         for (i = 0; i < mc->argc; i++)
             decrRefCount(mc->argv[i]);
         zfree(mc->argv);
@@ -66,96 +69,103 @@ void freeClientMultiState(redisClient *c) {
 
 /* Add a new command into the MULTI commands queue */
 /*
- * å°†æ–°å‘½ä»¤æ·»åŠ åˆ°äº‹åŠ¡é˜Ÿåˆ—ä¸­
+ * ½«ĞÂÃüÁîÌí¼Óµ½ÊÂÎñ¶ÓÁĞÖĞ
  *
  * T = O(N)
  */
-void queueMultiCommand(redisClient *c) {
+void queueMultiCommand(redisClient *c)
+{
     multiCmd *mc;
     int j;
 
-    // é‡åˆ†é…ç©ºé—´ï¼Œä¸ºæ–°å‘½ä»¤ç”³è¯·ç©ºé—´
+    // ÖØ·ÖÅä¿Õ¼ä£¬ÎªĞÂÃüÁîÉêÇë¿Õ¼ä
     c->mstate.commands = zrealloc(c->mstate.commands,
-            sizeof(multiCmd)*(c->mstate.count+1));
+                                  sizeof(multiCmd)*(c->mstate.count+1));
 
-    // æŒ‡é’ˆæŒ‡å‘æ–°åˆ†é…çš„ç©ºé—´
-    // å¹¶å°†å‘½ä»¤å†…å®¹ä¿å­˜è¿›å»
+    // Ö¸ÕëÖ¸ÏòĞÂ·ÖÅäµÄ¿Õ¼ä
+    // ²¢½«ÃüÁîÄÚÈİ±£´æ½øÈ¥
     mc = c->mstate.commands+c->mstate.count;
-    mc->cmd = c->cmd;   // ä¿å­˜è¦æ‰§è¡Œçš„å‘½ä»¤
-    mc->argc = c->argc; // ä¿å­˜å‘½ä»¤å‚æ•°çš„æ•°é‡
-    mc->argv = zmalloc(sizeof(robj*)*c->argc);  // ä¸ºå‚æ•°åˆ†é…ç©ºé—´
-    memcpy(mc->argv,c->argv,sizeof(robj*)*c->argc); // å¤åˆ¶å‚æ•°
-    for (j = 0; j < c->argc; j++)   // ä¸ºå‚æ•°çš„å¼•ç”¨è®¡æ•°å¢ä¸€
+    mc->cmd = c->cmd;   // ±£´æÒªÖ´ĞĞµÄÃüÁî
+    mc->argc = c->argc; // ±£´æÃüÁî²ÎÊıµÄÊıÁ¿
+    mc->argv = zmalloc(sizeof(robj*)*c->argc);  // Îª²ÎÊı·ÖÅä¿Õ¼ä
+    memcpy(mc->argv,c->argv,sizeof(robj*)*c->argc); // ¸´ÖÆ²ÎÊı
+    for (j = 0; j < c->argc; j++)   // Îª²ÎÊıµÄÒıÓÃ¼ÆÊıÔöÒ»
         incrRefCount(mc->argv[j]);
 
-    // å…¥é˜Ÿå‘½ä»¤æ•°é‡å¢ä¸€
+    // Èë¶ÓÃüÁîÊıÁ¿ÔöÒ»
     c->mstate.count++;
 }
 
 /*
- * æ”¾å¼ƒäº‹åŠ¡ï¼Œæ¸…ç†å¹¶é‡ç½®å®¢æˆ·ç«¯çš„äº‹åŠ¡çŠ¶æ€
+ * ·ÅÆúÊÂÎñ£¬ÇåÀí²¢ÖØÖÃ¿Í»§¶ËµÄÊÂÎñ×´Ì¬
  *
  * T = O(N^2)
  */
-void discardTransaction(redisClient *c) {
-    // é‡Šæ”¾å‚æ•°ç©ºé—´
+void discardTransaction(redisClient *c)
+{
+    // ÊÍ·Å²ÎÊı¿Õ¼ä
     freeClientMultiState(c);
-    // é‡ç½®äº‹åŠ¡çŠ¶æ€
+    // ÖØÖÃÊÂÎñ×´Ì¬
     initClientMultiState(c);
-    // å…³é—­ç›¸å…³çš„ flag
+    // ¹Ø±ÕÏà¹ØµÄ flag
     c->flags &= ~(REDIS_MULTI|REDIS_DIRTY_CAS|REDIS_DIRTY_EXEC);;
-    // å–æ¶ˆæ‰€æœ‰ key çš„ç›‘è§†, O(N^2)
+    // È¡ÏûËùÓĞ key µÄ¼àÊÓ, O(N^2)
     unwatchAllKeys(c);
 }
 
 /* Flag the transacation as DIRTY_EXEC so that EXEC will fail.
  * Should be called every time there is an error while queueing a command. */
 /*
- * å¦‚æœåœ¨å…¥é˜Ÿçš„è¿‡ç¨‹ä¸­å‘ç”Ÿå‘½ä»¤å‡ºé”™ï¼Œ
- * é‚£ä¹ˆè®©å®¢æˆ·ç«¯å˜ä¸ºâ€œè„â€ï¼Œä»¤ä¸‹æ¬¡äº‹åŠ¡æ‰§è¡Œå¤±è´¥
+ * Èç¹ûÔÚÈë¶ÓµÄ¹ı³ÌÖĞ·¢ÉúÃüÁî³ö´í£¬
+ * ÄÇÃ´ÈÃ¿Í»§¶Ë±äÎª¡°Ôà¡±£¬ÁîÏÂ´ÎÊÂÎñÖ´ĞĞÊ§°Ü
  *
  * T = O(1)
  */
-void flagTransaction(redisClient *c) {
+void flagTransaction(redisClient *c)
+{
     if (c->flags & REDIS_MULTI)
         c->flags |= REDIS_DIRTY_EXEC;
 }
 
 /*
- * MULTI å‘½ä»¤çš„å®ç°
+ * MULTI ÃüÁîµÄÊµÏÖ
  *
- * æ‰“å¼€å®¢æˆ·ç«¯çš„ FLAG ï¼Œè®©å‘½ä»¤å…¥é˜Ÿåˆ°äº‹åŠ¡é˜Ÿåˆ—é‡Œ
+ * ´ò¿ª¿Í»§¶ËµÄ FLAG £¬ÈÃÃüÁîÈë¶Óµ½ÊÂÎñ¶ÓÁĞÀï
  *
  * T = O(1)
  */
-void multiCommand(redisClient *c) {
-    // MULTI å‘½ä»¤ä¸èƒ½åµŒå¥—
-    if (c->flags & REDIS_MULTI) {
+void multiCommand(redisClient *c)
+{
+    // MULTI ÃüÁî²»ÄÜÇ¶Ì×
+    if (c->flags & REDIS_MULTI)
+    {
         addReplyError(c,"MULTI calls can not be nested");
         return;
     }
-    
-    // æ‰“å¼€äº‹åŠ¡çš„ FLAG
-    // ä»æ­¤ä¹‹åï¼Œé™¤ DISCARD å’Œ EXEC ç­‰å°‘æ•°å‡ ä¸ªå‘½ä»¤ä¹‹å¤–
-    // å…¶ä»–æ‰€æœ‰çš„å‘½ä»¤éƒ½ä¼šè¢«æ·»åŠ åˆ°äº‹åŠ¡é˜Ÿåˆ—é‡Œ
+
+    // ´ò¿ªÊÂÎñµÄ FLAG
+    // ´Ó´ËÖ®ºó£¬³ı DISCARD ºÍ EXEC µÈÉÙÊı¼¸¸öÃüÁîÖ®Íâ
+    // ÆäËûËùÓĞµÄÃüÁî¶¼»á±»Ìí¼Óµ½ÊÂÎñ¶ÓÁĞÀï
     c->flags |= REDIS_MULTI;
     addReply(c,shared.ok);
 }
 
 /*
- * DISCAD å‘½ä»¤çš„å®ç°
+ * DISCAD ÃüÁîµÄÊµÏÖ
  *
- * æ”¾å¼ƒäº‹åŠ¡ï¼Œå¹¶æ¸…ç†ç›¸å…³èµ„æº
+ * ·ÅÆúÊÂÎñ£¬²¢ÇåÀíÏà¹Ø×ÊÔ´
  *
  * T = O(N)
  */
-void discardCommand(redisClient *c) {
-    // åªèƒ½åœ¨ MULTI å‘½ä»¤å·²å¯ç”¨çš„æƒ…å†µä¸‹ä½¿ç”¨
-    if (!(c->flags & REDIS_MULTI)) {
+void discardCommand(redisClient *c)
+{
+    // Ö»ÄÜÔÚ MULTI ÃüÁîÒÑÆôÓÃµÄÇé¿öÏÂÊ¹ÓÃ
+    if (!(c->flags & REDIS_MULTI))
+    {
         addReplyError(c,"DISCARD without MULTI");
         return;
     }
-    // æ”¾å¼ƒäº‹åŠ¡, O(N)
+    // ·ÅÆúÊÂÎñ, O(N)
     discardTransaction(c);
     addReply(c,shared.ok);
 }
@@ -163,9 +173,10 @@ void discardCommand(redisClient *c) {
 /* Send a MULTI command to all the slaves and AOF file. Check the execCommand
  * implememntation for more information. */
 /*
- * å‘æ‰€æœ‰é™„å±èŠ‚ç‚¹å’Œ AOF æ–‡ä»¶å‘é€ MULTI å‘½ä»¤
+ * ÏòËùÓĞ¸½Êô½ÚµãºÍ AOF ÎÄ¼ş·¢ËÍ MULTI ÃüÁî
  */
-void execCommandReplicateMulti(redisClient *c) {
+void execCommandReplicateMulti(redisClient *c)
+{
     robj *multistring = createStringObject("MULTI",5);
 
     if (server.aof_state != REDIS_AOF_OFF)
@@ -176,43 +187,46 @@ void execCommandReplicateMulti(redisClient *c) {
 }
 
 /*
- * EXEC å‘½ä»¤çš„å®ç°
+ * EXEC ÃüÁîµÄÊµÏÖ
  */
-void execCommand(redisClient *c) {
+void execCommand(redisClient *c)
+{
     int j;
-    // ç”¨äºä¿å­˜æ‰§è¡Œå‘½ä»¤ã€å‘½ä»¤çš„å‚æ•°å’Œå‚æ•°æ•°é‡çš„å‰¯æœ¬
+    // ÓÃÓÚ±£´æÖ´ĞĞÃüÁî¡¢ÃüÁîµÄ²ÎÊıºÍ²ÎÊıÊıÁ¿µÄ¸±±¾
     robj **orig_argv;
     int orig_argc;
     struct redisCommand *orig_cmd;
 
-    // åªèƒ½åœ¨ MULTI å·²å¯ç”¨çš„æƒ…å†µä¸‹æ‰§è¡Œ
-    if (!(c->flags & REDIS_MULTI)) {
+    // Ö»ÄÜÔÚ MULTI ÒÑÆôÓÃµÄÇé¿öÏÂÖ´ĞĞ
+    if (!(c->flags & REDIS_MULTI))
+    {
         addReplyError(c,"EXEC without MULTI");
         return;
     }
 
     /* Check if we need to abort the EXEC because:
-     * ä»¥ä¸‹æƒ…å†µå‘ç”Ÿæ—¶ï¼Œå–æ¶ˆäº‹åŠ¡
+     * ÒÔÏÂÇé¿ö·¢ÉúÊ±£¬È¡ÏûÊÂÎñ
      *
      * 1) Some WATCHed key was touched.
-     *    æŸäº›è¢«ç›‘è§†çš„é”®å·²è¢«ä¿®æ”¹ï¼ˆçŠ¶æ€ä¸º REDIS_DIRTY_CASï¼‰
+     *    Ä³Ğ©±»¼àÊÓµÄ¼üÒÑ±»ĞŞ¸Ä£¨×´Ì¬Îª REDIS_DIRTY_CAS£©
      *
      * 2) There was a previous error while queueing commands.
-     *    æœ‰å‘½ä»¤åœ¨å…¥é˜Ÿæ—¶å‘ç”Ÿé”™è¯¯ï¼ˆçŠ¶æ€ä¸º REDIS_DIRTY_EXECï¼‰
+     *    ÓĞÃüÁîÔÚÈë¶ÓÊ±·¢Éú´íÎó£¨×´Ì¬Îª REDIS_DIRTY_EXEC£©
      *
      * A failed EXEC in the first case returns a multi bulk nil object
      * (technically it is not an error but a special behavior), while
      * in the second an EXECABORT error is returned.
      *
-     * ç¬¬ä¸€ç§æƒ…å†µè¿”å›å¤šä¸ªç©ºç™½ NULL å¯¹è±¡ï¼Œ
-     * ç¬¬äºŒç§æƒ…å†µè¿”å›ä¸€ä¸ª EXECABORT é”™è¯¯ã€‚ 
+     * µÚÒ»ÖÖÇé¿ö·µ»Ø¶à¸ö¿Õ°× NULL ¶ÔÏó£¬
+     * µÚ¶şÖÖÇé¿ö·µ»ØÒ»¸ö EXECABORT ´íÎó¡£
      */
-    if (c->flags & (REDIS_DIRTY_CAS|REDIS_DIRTY_EXEC)) {
-        // æ ¹æ®çŠ¶æ€ï¼Œå†³å®šè¿”å›çš„é”™è¯¯çš„ç±»å‹
+    if (c->flags & (REDIS_DIRTY_CAS|REDIS_DIRTY_EXEC))
+    {
+        // ¸ù¾İ×´Ì¬£¬¾ö¶¨·µ»ØµÄ´íÎóµÄÀàĞÍ
         addReply(c, c->flags & REDIS_DIRTY_EXEC ? shared.execaborterr :
-                                                  shared.nullmultibulk);
+                 shared.nullmultibulk);
 
-        // ä»¥ä¸‹å››å¥å¯ä»¥ç”¨ discardTransaction() æ¥æ›¿æ¢
+        // ÒÔÏÂËÄ¾ä¿ÉÒÔÓÃ discardTransaction() À´Ìæ»»
         freeClientMultiState(c);
         initClientMultiState(c);
         c->flags &= ~(REDIS_MULTI|REDIS_DIRTY_CAS|REDIS_DIRTY_EXEC);
@@ -225,40 +239,41 @@ void execCommand(redisClient *c) {
      * This way we'll deliver the MULTI/..../EXEC block as a whole and
      * both the AOF and the replication link will have the same consistency
      * and atomicity guarantees. */
-    // å‘æ‰€æœ‰é™„å±èŠ‚ç‚¹å’Œ AOF æ–‡ä»¶å‘é€ MULTI å‘½ä»¤
+    // ÏòËùÓĞ¸½Êô½ÚµãºÍ AOF ÎÄ¼ş·¢ËÍ MULTI ÃüÁî
     execCommandReplicateMulti(c);
 
     /* Exec all the queued commands */
     unwatchAllKeys(c); /* Unwatch ASAP otherwise we'll waste CPU cycles */
 
-    // å°†ä¸‰ä¸ªåŸå§‹å‚æ•°å¤‡ä»½èµ·æ¥
+    // ½«Èı¸öÔ­Ê¼²ÎÊı±¸·İÆğÀ´
     orig_argv = c->argv;
     orig_argc = c->argc;
     orig_cmd = c->cmd;
     addReplyMultiBulkLen(c,c->mstate.count);
-    // æ‰§è¡Œæ‰€æœ‰å…¥é˜Ÿçš„å‘½ä»¤
-    for (j = 0; j < c->mstate.count; j++) {
-        // å› ä¸º call å¯èƒ½ä¿®æ”¹å‘½ä»¤ï¼Œè€Œå‘½ä»¤éœ€è¦ä¼ é€ç»™å…¶ä»–åŒæ­¥èŠ‚ç‚¹
-        // æ‰€ä»¥è¿™é‡Œå°†è¦æ‰§è¡Œçš„å‘½ä»¤ï¼ˆåŠå…¶å‚æ•°ï¼‰å…ˆå¤‡ä»½èµ·æ¥
+    // Ö´ĞĞËùÓĞÈë¶ÓµÄÃüÁî
+    for (j = 0; j < c->mstate.count; j++)
+    {
+        // ÒòÎª call ¿ÉÄÜĞŞ¸ÄÃüÁî£¬¶øÃüÁîĞèÒª´«ËÍ¸øÆäËûÍ¬²½½Úµã
+        // ËùÒÔÕâÀï½«ÒªÖ´ĞĞµÄÃüÁî£¨¼°Æä²ÎÊı£©ÏÈ±¸·İÆğÀ´
         c->argc = c->mstate.commands[j].argc;
         c->argv = c->mstate.commands[j].argv;
         c->cmd = c->mstate.commands[j].cmd;
 
-        // æ‰§è¡Œå‘½ä»¤
+        // Ö´ĞĞÃüÁî
         call(c,REDIS_CALL_FULL);
 
         /* Commands may alter argc/argv, restore mstate. */
-        // è¿˜åŸåŸå§‹çš„å‚æ•°åˆ°é˜Ÿåˆ—é‡Œ
+        // »¹Ô­Ô­Ê¼µÄ²ÎÊıµ½¶ÓÁĞÀï
         c->mstate.commands[j].argc = c->argc;
         c->mstate.commands[j].argv = c->argv;
         c->mstate.commands[j].cmd = c->cmd;
     }
-    // è¿˜åŸä¸‰ä¸ªåŸå§‹å‘½ä»¤
+    // »¹Ô­Èı¸öÔ­Ê¼ÃüÁî
     c->argv = orig_argv;
     c->argc = orig_argc;
     c->cmd = orig_cmd;
 
-    // ä»¥ä¸‹ä¸‰å¥ä¹Ÿå¯ä»¥ç”¨ discardTransaction() æ¥æ›¿æ¢
+    // ÒÔÏÂÈı¾äÒ²¿ÉÒÔÓÃ discardTransaction() À´Ìæ»»
     freeClientMultiState(c);
     initClientMultiState(c);
     c->flags &= ~(REDIS_MULTI|REDIS_DIRTY_CAS|REDIS_DIRTY_EXEC);
@@ -273,7 +288,7 @@ handle_monitor:
      * MUTLI, EXEC, ... commands inside transaction ...
      * Instead EXEC is flagged as REDIS_CMD_SKIP_MONITOR in the command
      * table, and we do it here with correct ordering. */
-    // å‘åŒæ­¥èŠ‚ç‚¹å‘é€å‘½ä»¤
+    // ÏòÍ¬²½½Úµã·¢ËÍÃüÁî
     if (listLength(server.monitors) && !server.loading)
         replicationFeedMonitors(c,server.monitors,c->db->id,c->argv,c->argc);
 }
@@ -284,67 +299,71 @@ handle_monitor:
  * WATCHing those keys, so that given a key that is going to be modified
  * we can mark all the associated clients as dirty.
  *
- * å®ç°ä¸ºæ¯ä¸ª DB å‡†å¤‡ä¸€ä¸ªå­—å…¸ï¼ˆå“ˆå¸Œè¡¨ï¼‰ï¼Œå­—å…¸çš„é”®ä¸ºè¯¥æ•°æ®åº“è¢« WATCHED çš„ key
- * è€Œå­—å…¸çš„å€¼æ˜¯ä¸€ä¸ªé“¾è¡¨ï¼Œä¿å­˜äº†æ‰€æœ‰ç›‘è§†è¿™ä¸ª key çš„å®¢æˆ·ç«¯
- * ä¸€æ—¦æŸä¸ª key è¢«ä¿®æ”¹ï¼Œç¨‹åºä¼šå°†æ•´ä¸ªé“¾è¡¨çš„æ‰€æœ‰å®¢æˆ·ç«¯éƒ½è®¾ç½®ä¸ºè¢«æ±¡æŸ“
+ * ÊµÏÖÎªÃ¿¸ö DB ×¼±¸Ò»¸ö×Öµä£¨¹şÏ£±í£©£¬×ÖµäµÄ¼üÎª¸ÃÊı¾İ¿â±» WATCHED µÄ key
+ * ¶ø×ÖµäµÄÖµÊÇÒ»¸öÁ´±í£¬±£´æÁËËùÓĞ¼àÊÓÕâ¸ö key µÄ¿Í»§¶Ë
+ * Ò»µ©Ä³¸ö key ±»ĞŞ¸Ä£¬³ÌĞò»á½«Õû¸öÁ´±íµÄËùÓĞ¿Í»§¶Ë¶¼ÉèÖÃÎª±»ÎÛÈ¾
  *
  * Also every client contains a list of WATCHed keys so that's possible to
- * un-watch such keys when the client is freed or when UNWATCH is called. 
+ * un-watch such keys when the client is freed or when UNWATCH is called.
  *
- * æ­¤å¤–ï¼Œå®¢æˆ·ç«¯è¿˜ç»´æŒè¿™ä¸€ä¸ªä¿å­˜æ‰€æœ‰ WATCH key çš„é“¾è¡¨ï¼Œ
- * è¿™æ ·å°±å¯ä»¥åœ¨äº‹åŠ¡æ‰§è¡Œæˆ–è€… UNWATCH è°ƒç”¨æ—¶ï¼Œä¸€æ¬¡æ¸…é™¤æ‰€æœ‰ WATCH key ã€‚
+ * ´ËÍâ£¬¿Í»§¶Ë»¹Î¬³ÖÕâÒ»¸ö±£´æËùÓĞ WATCH key µÄÁ´±í£¬
+ * ÕâÑù¾Í¿ÉÒÔÔÚÊÂÎñÖ´ĞĞ»òÕß UNWATCH µ÷ÓÃÊ±£¬Ò»´ÎÇå³ıËùÓĞ WATCH key ¡£
  */
 
 /* In the client->watched_keys list we need to use watchedKey structures
  * as in order to identify a key in Redis we need both the key name and the
  * DB */
 /*
- * è¢«ç›‘è§†çš„ key çš„èµ„æ–™
+ * ±»¼àÊÓµÄ key µÄ×ÊÁÏ
  */
-typedef struct watchedKey {
-    // è¢«ç›‘è§†çš„ key
+typedef struct watchedKey
+{
+    // ±»¼àÊÓµÄ key
     robj *key;
-    // key æ‰€åœ¨çš„æ•°æ®åº“
+    // key ËùÔÚµÄÊı¾İ¿â
     redisDb *db;
 } watchedKey;
 
 /* Watch for the specified key */
 /*
- * ç›‘è§†ç»™å®š key
+ * ¼àÊÓ¸ø¶¨ key
  *
  * T = O(N)
  */
-void watchForKey(redisClient *c, robj *key) {
+void watchForKey(redisClient *c, robj *key)
+{
     list *clients = NULL;
     listIter li;
     listNode *ln;
     watchedKey *wk;
 
     /* Check if we are already watching for this key */
-    // æ£€æŸ¥è¯¥ key æ˜¯å¦å·²ç»è¢« WATCH 
-    // ï¼ˆå‡ºç°åœ¨ WATCH å‘½ä»¤è°ƒç”¨æ—¶ä¸€ä¸ª key è¢«è¾“å…¥å¤šæ¬¡çš„æƒ…å†µï¼‰
-    // å¦‚æœæ˜¯çš„è¯ï¼Œç›´æ¥è¿”å›
+    // ¼ì²é¸Ã key ÊÇ·ñÒÑ¾­±» WATCH
+    // £¨³öÏÖÔÚ WATCH ÃüÁîµ÷ÓÃÊ±Ò»¸ö key ±»ÊäÈë¶à´ÎµÄÇé¿ö£©
+    // Èç¹ûÊÇµÄ»°£¬Ö±½Ó·µ»Ø
     // O(N)
     listRewind(c->watched_keys,&li);
-    while((ln = listNext(&li))) {
+    while((ln = listNext(&li)))
+    {
         wk = listNodeValue(ln);
         if (wk->db == c->db && equalStringObjects(key,wk->key))
             return; /* Key already watched */
     }
 
-    // key æœªè¢«ç›‘è§†
-    // æ ¹æ® key ï¼Œå°†å®¢æˆ·ç«¯åŠ å…¥åˆ° DB çš„ç›‘è§† key å­—å…¸ä¸­
+    // key Î´±»¼àÊÓ
+    // ¸ù¾İ key £¬½«¿Í»§¶Ë¼ÓÈëµ½ DB µÄ¼àÊÓ key ×ÖµäÖĞ
     /* This key is not already watched in this DB. Let's add it */
     // O(1)
     clients = dictFetchValue(c->db->watched_keys,key);
-    if (!clients) { 
+    if (!clients)
+    {
         clients = listCreate();
         dictAdd(c->db->watched_keys,key,clients);
         incrRefCount(key);
     }
     listAddNodeTail(clients,c);
 
-    // å°† key æ·»åŠ åˆ°å®¢æˆ·ç«¯çš„ç›‘è§†åˆ—è¡¨ä¸­
+    // ½« key Ìí¼Óµ½¿Í»§¶ËµÄ¼àÊÓÁĞ±íÖĞ
     /* Add the new key to the lits of keys watched by this client */
     // O(1)
     wk = zmalloc(sizeof(*wk));
@@ -357,30 +376,32 @@ void watchForKey(redisClient *c, robj *key) {
 /* Unwatch all the keys watched by this client. To clean the EXEC dirty
  * flag is up to the caller. */
 /*
- * å–æ¶ˆæ‰€æœ‰è¯¥å®¢æˆ·ç«¯ç›‘è§†çš„ key 
- * å¯¹äº‹åŠ¡çŠ¶æ€çš„æ¸…é™¤ç”±è°ƒç”¨è€…æ‰§è¡Œ
+ * È¡ÏûËùÓĞ¸Ã¿Í»§¶Ë¼àÊÓµÄ key
+ * ¶ÔÊÂÎñ×´Ì¬µÄÇå³ıÓÉµ÷ÓÃÕßÖ´ĞĞ
  *
  * T = O(N^2)
  */
-void unwatchAllKeys(redisClient *c) {
+void unwatchAllKeys(redisClient *c)
+{
     listIter li;
     listNode *ln;
 
-    // æ²¡æœ‰é”®è¢« watch ï¼Œç›´æ¥è¿”å›
+    // Ã»ÓĞ¼ü±» watch £¬Ö±½Ó·µ»Ø
     if (listLength(c->watched_keys) == 0) return;
 
-    // ä»å®¢æˆ·ç«¯ä»¥åŠ DB ä¸­åˆ é™¤æ‰€æœ‰ç›‘è§† key å’Œå®¢æˆ·ç«¯çš„èµ„æ–™
+    // ´Ó¿Í»§¶ËÒÔ¼° DB ÖĞÉ¾³ıËùÓĞ¼àÊÓ key ºÍ¿Í»§¶ËµÄ×ÊÁÏ
     // O(N^2)
     listRewind(c->watched_keys,&li);
-    while((ln = listNext(&li))) {
+    while((ln = listNext(&li)))
+    {
         list *clients;
         watchedKey *wk;
 
         /* Lookup the watched key -> clients list and remove the client
          * from the list */
-        // å–å‡º watchedKey ç»“æ„
+        // È¡³ö watchedKey ½á¹¹
         wk = listNodeValue(ln);
-        // åˆ é™¤ db ä¸­çš„å®¢æˆ·ç«¯ä¿¡æ¯, O(1)
+        // É¾³ı db ÖĞµÄ¿Í»§¶ËĞÅÏ¢, O(1)
         clients = dictFetchValue(wk->db->watched_keys, wk->key);
         redisAssertWithInfo(c,NULL,clients != NULL);
         // O(N)
@@ -391,7 +412,7 @@ void unwatchAllKeys(redisClient *c) {
             dictDelete(wk->db->watched_keys, wk->key);
         /* Remove this watched key from the client->watched list */
 
-        // å°† key ä»å®¢æˆ·ç«¯çš„ç›‘è§†åˆ—è¡¨ä¸­åˆ é™¤, O(1)
+        // ½« key ´Ó¿Í»§¶ËµÄ¼àÊÓÁĞ±íÖĞÉ¾³ı, O(1)
         listDelNode(c->watched_keys,ln);
 
         decrRefCount(wk->key);
@@ -402,29 +423,31 @@ void unwatchAllKeys(redisClient *c) {
 /* "Touch" a key, so that if this key is being WATCHed by some client the
  * next EXEC will fail. */
 /*
- * â€œç¢°è§¦â€ï¼ˆtouchï¼‰ç»™å®š key ï¼Œå¦‚æœè¿™ä¸ª key æ­£åœ¨è¢«ç›‘è§†çš„è¯ï¼Œ
- * è®©ç›‘è§†å®ƒçš„å®¢æˆ·ç«¯åœ¨æ‰§è¡Œ EXEC å‘½ä»¤æ—¶å¤±è´¥ã€‚
+ * ¡°Åö´¥¡±£¨touch£©¸ø¶¨ key £¬Èç¹ûÕâ¸ö key ÕıÔÚ±»¼àÊÓµÄ»°£¬
+ * ÈÃ¼àÊÓËüµÄ¿Í»§¶ËÔÚÖ´ĞĞ EXEC ÃüÁîÊ±Ê§°Ü¡£
  *
  * T = O(N)
  */
-void touchWatchedKey(redisDb *db, robj *key) {
+void touchWatchedKey(redisDb *db, robj *key)
+{
     list *clients;
     listIter li;
     listNode *ln;
 
-    // å¦‚æœæ•°æ®åº“ä¸­æ²¡æœ‰ä»»ä½• key è¢«ç›‘è§†ï¼Œé‚£ä¹ˆç›´æ¥è¿”å›
+    // Èç¹ûÊı¾İ¿âÖĞÃ»ÓĞÈÎºÎ key ±»¼àÊÓ£¬ÄÇÃ´Ö±½Ó·µ»Ø
     if (dictSize(db->watched_keys) == 0) return;
 
-    // å–å‡ºæ•°æ®åº“ä¸­æ‰€æœ‰ç›‘è§†ç»™å®š key çš„å®¢æˆ·ç«¯
+    // È¡³öÊı¾İ¿âÖĞËùÓĞ¼àÊÓ¸ø¶¨ key µÄ¿Í»§¶Ë
     clients = dictFetchValue(db->watched_keys, key);
     if (!clients) return;
 
     /* Mark all the clients watching this key as REDIS_DIRTY_CAS */
     /* Check if we are already watching for this key */
-    // æ‰“å¼€æ‰€æœ‰ç›‘è§†è¿™ä¸ª key çš„å®¢æˆ·ç«¯çš„ REDIS_DIRTY_CAS çŠ¶æ€
+    // ´ò¿ªËùÓĞ¼àÊÓÕâ¸ö key µÄ¿Í»§¶ËµÄ REDIS_DIRTY_CAS ×´Ì¬
     // O(N)
     listRewind(clients,&li);
-    while((ln = listNext(&li))) {
+    while((ln = listNext(&li)))
+    {
         redisClient *c = listNodeValue(ln);
 
         c->flags |= REDIS_DIRTY_CAS;
@@ -436,31 +459,35 @@ void touchWatchedKey(redisDb *db, robj *key) {
  * be touched. "dbid" is the DB that's getting the flush. -1 if it is
  * a FLUSHALL operation (all the DBs flushed). */
 /*
- * ä¸º FLUSHDB å’Œ FLUSHALL ç‰¹åˆ«è®¾ç½®çš„è§¦ç¢°å‡½æ•°
+ * Îª FLUSHDB ºÍ FLUSHALL ÌØ±ğÉèÖÃµÄ´¥Åöº¯Êı
  *
  * T = O(N^2)
  */
-void touchWatchedKeysOnFlush(int dbid) {
+void touchWatchedKeysOnFlush(int dbid)
+{
     listIter li1, li2;
     listNode *ln;
 
     /* For every client, check all the waited keys */
-    // åˆ—å‡ºæ‰€æœ‰å®¢æˆ·ç«¯ï¼ŒO(N)
+    // ÁĞ³öËùÓĞ¿Í»§¶Ë£¬O(N)
     listRewind(server.clients,&li1);
-    while((ln = listNext(&li1))) {
+    while((ln = listNext(&li1)))
+    {
         redisClient *c = listNodeValue(ln);
-        // åˆ—å‡ºæ‰€æœ‰ç›‘è§† key ,O(N)
+        // ÁĞ³öËùÓĞ¼àÊÓ key ,O(N)
         listRewind(c->watched_keys,&li2);
-        while((ln = listNext(&li2))) {
+        while((ln = listNext(&li2)))
+        {
             watchedKey *wk = listNodeValue(ln);
 
             /* For every watched key matching the specified DB, if the
              * key exists, mark the client as dirty, as the key will be
              * removed. */
-            // å¦‚æœç›®æ ‡ db å’Œç›‘è§† key çš„ DB ç›¸åŒï¼Œ
-            // é‚£ä¹ˆæ‰“å¼€å®¢æˆ·ç«¯çš„ REDIS_DIRTY_CAS é€‰é¡¹
+            // Èç¹ûÄ¿±ê db ºÍ¼àÊÓ key µÄ DB ÏàÍ¬£¬
+            // ÄÇÃ´´ò¿ª¿Í»§¶ËµÄ REDIS_DIRTY_CAS Ñ¡Ïî
             // O(1)
-            if (dbid == -1 || wk->db->id == dbid) {
+            if (dbid == -1 || wk->db->id == dbid)
+            {
                 if (dictFind(wk->db->dict, wk->key->ptr) != NULL)
                     c->flags |= REDIS_DIRTY_CAS;
             }
@@ -469,20 +496,22 @@ void touchWatchedKeysOnFlush(int dbid) {
 }
 
 /*
- * å°†æ‰€æœ‰è¾“å…¥é”®æ·»åŠ åˆ°ç›‘è§†åˆ—è¡¨å½“ä¸­
+ * ½«ËùÓĞÊäÈë¼üÌí¼Óµ½¼àÊÓÁĞ±íµ±ÖĞ
  *
  * T = O(N^2)
  */
-void watchCommand(redisClient *c) {
+void watchCommand(redisClient *c)
+{
     int j;
 
-    // åªèƒ½åœ¨äº‹åŠ¡ä¸­ä½¿ç”¨
-    if (c->flags & REDIS_MULTI) {
+    // Ö»ÄÜÔÚÊÂÎñÖĞÊ¹ÓÃ
+    if (c->flags & REDIS_MULTI)
+    {
         addReplyError(c,"WATCH inside MULTI is not allowed");
         return;
     }
 
-    // ç›‘è§†æ‰€æœ‰ key ï¼ŒO(N^2)
+    // ¼àÊÓËùÓĞ key £¬O(N^2)
     for (j = 1; j < c->argc; j++)
         // O(N)
         watchForKey(c,c->argv[j]);
@@ -491,12 +520,13 @@ void watchCommand(redisClient *c) {
 }
 
 /*
- * å–æ¶ˆå¯¹æ‰€æœ‰ key çš„ç›‘è§†
- * å¹¶å…³é—­å®¢æˆ·ç«¯çš„ REDIS_DIRTY_CAS é€‰é¡¹
+ * È¡Ïû¶ÔËùÓĞ key µÄ¼àÊÓ
+ * ²¢¹Ø±Õ¿Í»§¶ËµÄ REDIS_DIRTY_CAS Ñ¡Ïî
  *
  * T = O(N^2)
  */
-void unwatchCommand(redisClient *c) {
+void unwatchCommand(redisClient *c)
+{
     // O(N^2)
     unwatchAllKeys(c);
 

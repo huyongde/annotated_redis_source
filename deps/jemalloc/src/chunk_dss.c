@@ -3,11 +3,12 @@
 /******************************************************************************/
 /* Data. */
 
-const char	*dss_prec_names[] = {
-	"disabled",
-	"primary",
-	"secondary",
-	"N/A"
+const char	*dss_prec_names[] =
+{
+    "disabled",
+    "primary",
+    "secondary",
+    "N/A"
 };
 
 /* Current dss precedence default, used when creating new arenas. */
@@ -33,165 +34,171 @@ static void *
 sbrk(intptr_t increment)
 {
 
-	not_implemented();
+    not_implemented();
 
-	return (NULL);
+    return (NULL);
 }
 #endif
 
 dss_prec_t
 chunk_dss_prec_get(void)
 {
-	dss_prec_t ret;
+    dss_prec_t ret;
 
-	if (config_dss == false)
-		return (dss_prec_disabled);
-	malloc_mutex_lock(&dss_mtx);
-	ret = dss_prec_default;
-	malloc_mutex_unlock(&dss_mtx);
-	return (ret);
+    if (config_dss == false)
+        return (dss_prec_disabled);
+    malloc_mutex_lock(&dss_mtx);
+    ret = dss_prec_default;
+    malloc_mutex_unlock(&dss_mtx);
+    return (ret);
 }
 
 bool
 chunk_dss_prec_set(dss_prec_t dss_prec)
 {
 
-	if (config_dss == false)
-		return (true);
-	malloc_mutex_lock(&dss_mtx);
-	dss_prec_default = dss_prec;
-	malloc_mutex_unlock(&dss_mtx);
-	return (false);
+    if (config_dss == false)
+        return (true);
+    malloc_mutex_lock(&dss_mtx);
+    dss_prec_default = dss_prec;
+    malloc_mutex_unlock(&dss_mtx);
+    return (false);
 }
 
 void *
 chunk_alloc_dss(size_t size, size_t alignment, bool *zero)
 {
-	void *ret;
+    void *ret;
 
-	cassert(config_dss);
-	assert(size > 0 && (size & chunksize_mask) == 0);
-	assert(alignment > 0 && (alignment & chunksize_mask) == 0);
+    cassert(config_dss);
+    assert(size > 0 && (size & chunksize_mask) == 0);
+    assert(alignment > 0 && (alignment & chunksize_mask) == 0);
 
-	/*
-	 * sbrk() uses a signed increment argument, so take care not to
-	 * interpret a huge allocation request as a negative increment.
-	 */
-	if ((intptr_t)size < 0)
-		return (NULL);
+    /*
+     * sbrk() uses a signed increment argument, so take care not to
+     * interpret a huge allocation request as a negative increment.
+     */
+    if ((intptr_t)size < 0)
+        return (NULL);
 
-	malloc_mutex_lock(&dss_mtx);
-	if (dss_prev != (void *)-1) {
-		size_t gap_size, cpad_size;
-		void *cpad, *dss_next;
-		intptr_t incr;
+    malloc_mutex_lock(&dss_mtx);
+    if (dss_prev != (void *)-1)
+    {
+        size_t gap_size, cpad_size;
+        void *cpad, *dss_next;
+        intptr_t incr;
 
-		/*
-		 * The loop is necessary to recover from races with other
-		 * threads that are using the DSS for something other than
-		 * malloc.
-		 */
-		do {
-			/* Get the current end of the DSS. */
-			dss_max = sbrk(0);
-			/*
-			 * Calculate how much padding is necessary to
-			 * chunk-align the end of the DSS.
-			 */
-			gap_size = (chunksize - CHUNK_ADDR2OFFSET(dss_max)) &
-			    chunksize_mask;
-			/*
-			 * Compute how much chunk-aligned pad space (if any) is
-			 * necessary to satisfy alignment.  This space can be
-			 * recycled for later use.
-			 */
-			cpad = (void *)((uintptr_t)dss_max + gap_size);
-			ret = (void *)ALIGNMENT_CEILING((uintptr_t)dss_max,
-			    alignment);
-			cpad_size = (uintptr_t)ret - (uintptr_t)cpad;
-			dss_next = (void *)((uintptr_t)ret + size);
-			if ((uintptr_t)ret < (uintptr_t)dss_max ||
-			    (uintptr_t)dss_next < (uintptr_t)dss_max) {
-				/* Wrap-around. */
-				malloc_mutex_unlock(&dss_mtx);
-				return (NULL);
-			}
-			incr = gap_size + cpad_size + size;
-			dss_prev = sbrk(incr);
-			if (dss_prev == dss_max) {
-				/* Success. */
-				dss_max = dss_next;
-				malloc_mutex_unlock(&dss_mtx);
-				if (cpad_size != 0)
-					chunk_unmap(cpad, cpad_size);
-				if (*zero) {
-					VALGRIND_MAKE_MEM_UNDEFINED(ret, size);
-					memset(ret, 0, size);
-				}
-				return (ret);
-			}
-		} while (dss_prev != (void *)-1);
-	}
-	malloc_mutex_unlock(&dss_mtx);
+        /*
+         * The loop is necessary to recover from races with other
+         * threads that are using the DSS for something other than
+         * malloc.
+         */
+        do
+        {
+            /* Get the current end of the DSS. */
+            dss_max = sbrk(0);
+            /*
+             * Calculate how much padding is necessary to
+             * chunk-align the end of the DSS.
+             */
+            gap_size = (chunksize - CHUNK_ADDR2OFFSET(dss_max)) &
+                       chunksize_mask;
+            /*
+             * Compute how much chunk-aligned pad space (if any) is
+             * necessary to satisfy alignment.  This space can be
+             * recycled for later use.
+             */
+            cpad = (void *)((uintptr_t)dss_max + gap_size);
+            ret = (void *)ALIGNMENT_CEILING((uintptr_t)dss_max,
+                                            alignment);
+            cpad_size = (uintptr_t)ret - (uintptr_t)cpad;
+            dss_next = (void *)((uintptr_t)ret + size);
+            if ((uintptr_t)ret < (uintptr_t)dss_max ||
+                    (uintptr_t)dss_next < (uintptr_t)dss_max)
+            {
+                /* Wrap-around. */
+                malloc_mutex_unlock(&dss_mtx);
+                return (NULL);
+            }
+            incr = gap_size + cpad_size + size;
+            dss_prev = sbrk(incr);
+            if (dss_prev == dss_max)
+            {
+                /* Success. */
+                dss_max = dss_next;
+                malloc_mutex_unlock(&dss_mtx);
+                if (cpad_size != 0)
+                    chunk_unmap(cpad, cpad_size);
+                if (*zero)
+                {
+                    VALGRIND_MAKE_MEM_UNDEFINED(ret, size);
+                    memset(ret, 0, size);
+                }
+                return (ret);
+            }
+        }
+        while (dss_prev != (void *)-1);
+    }
+    malloc_mutex_unlock(&dss_mtx);
 
-	return (NULL);
+    return (NULL);
 }
 
 bool
 chunk_in_dss(void *chunk)
 {
-	bool ret;
+    bool ret;
 
-	cassert(config_dss);
+    cassert(config_dss);
 
-	malloc_mutex_lock(&dss_mtx);
-	if ((uintptr_t)chunk >= (uintptr_t)dss_base
-	    && (uintptr_t)chunk < (uintptr_t)dss_max)
-		ret = true;
-	else
-		ret = false;
-	malloc_mutex_unlock(&dss_mtx);
+    malloc_mutex_lock(&dss_mtx);
+    if ((uintptr_t)chunk >= (uintptr_t)dss_base
+            && (uintptr_t)chunk < (uintptr_t)dss_max)
+        ret = true;
+    else
+        ret = false;
+    malloc_mutex_unlock(&dss_mtx);
 
-	return (ret);
+    return (ret);
 }
 
 bool
 chunk_dss_boot(void)
 {
 
-	cassert(config_dss);
+    cassert(config_dss);
 
-	if (malloc_mutex_init(&dss_mtx))
-		return (true);
-	dss_base = sbrk(0);
-	dss_prev = dss_base;
-	dss_max = dss_base;
+    if (malloc_mutex_init(&dss_mtx))
+        return (true);
+    dss_base = sbrk(0);
+    dss_prev = dss_base;
+    dss_max = dss_base;
 
-	return (false);
+    return (false);
 }
 
 void
 chunk_dss_prefork(void)
 {
 
-	if (config_dss)
-		malloc_mutex_prefork(&dss_mtx);
+    if (config_dss)
+        malloc_mutex_prefork(&dss_mtx);
 }
 
 void
 chunk_dss_postfork_parent(void)
 {
 
-	if (config_dss)
-		malloc_mutex_postfork_parent(&dss_mtx);
+    if (config_dss)
+        malloc_mutex_postfork_parent(&dss_mtx);
 }
 
 void
 chunk_dss_postfork_child(void)
 {
 
-	if (config_dss)
-		malloc_mutex_postfork_child(&dss_mtx);
+    if (config_dss)
+        malloc_mutex_postfork_child(&dss_mtx);
 }
 
 /******************************************************************************/

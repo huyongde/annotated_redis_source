@@ -4,51 +4,62 @@
 #include "../hiredis.h"
 #include "../async.h"
 
-typedef struct redisLibeventEvents {
+typedef struct redisLibeventEvents
+{
     redisAsyncContext *context;
     struct event rev, wev;
 } redisLibeventEvents;
 
-static void redisLibeventReadEvent(int fd, short event, void *arg) {
-    ((void)fd); ((void)event);
+static void redisLibeventReadEvent(int fd, short event, void *arg)
+{
+    ((void)fd);
+    ((void)event);
     redisLibeventEvents *e = (redisLibeventEvents*)arg;
     redisAsyncHandleRead(e->context);
 }
 
-static void redisLibeventWriteEvent(int fd, short event, void *arg) {
-    ((void)fd); ((void)event);
+static void redisLibeventWriteEvent(int fd, short event, void *arg)
+{
+    ((void)fd);
+    ((void)event);
     redisLibeventEvents *e = (redisLibeventEvents*)arg;
     redisAsyncHandleWrite(e->context);
 }
 
-static void redisLibeventAddRead(void *privdata) {
+static void redisLibeventAddRead(void *privdata)
+{
     redisLibeventEvents *e = (redisLibeventEvents*)privdata;
     event_add(&e->rev,NULL);
 }
 
-static void redisLibeventDelRead(void *privdata) {
+static void redisLibeventDelRead(void *privdata)
+{
     redisLibeventEvents *e = (redisLibeventEvents*)privdata;
     event_del(&e->rev);
 }
 
-static void redisLibeventAddWrite(void *privdata) {
+static void redisLibeventAddWrite(void *privdata)
+{
     redisLibeventEvents *e = (redisLibeventEvents*)privdata;
     event_add(&e->wev,NULL);
 }
 
-static void redisLibeventDelWrite(void *privdata) {
+static void redisLibeventDelWrite(void *privdata)
+{
     redisLibeventEvents *e = (redisLibeventEvents*)privdata;
     event_del(&e->wev);
 }
 
-static void redisLibeventCleanup(void *privdata) {
+static void redisLibeventCleanup(void *privdata)
+{
     redisLibeventEvents *e = (redisLibeventEvents*)privdata;
     event_del(&e->rev);
     event_del(&e->wev);
     free(e);
 }
 
-static int redisLibeventAttach(redisAsyncContext *ac, struct event_base *base) {
+static int redisLibeventAttach(redisAsyncContext *ac, struct event_base *base)
+{
     redisContext *c = &(ac->c);
     redisLibeventEvents *e;
 

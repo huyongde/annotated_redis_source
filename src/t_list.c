@@ -39,21 +39,22 @@ void signalListAsReady(redisClient *c, robj *key);
  * to a real list. Only check raw-encoded objects because integer encoded
  * objects are never too long. */
 /*
- * æ£€æŸ¥ value ï¼Œå¦‚æœå®ƒæ˜¯ä¸€ä¸ªå­—ç¬¦ä¸²çš„è¯ï¼Œçœ‹çœ‹ ziplist èƒ½å¦æ»¡è¶³å‚¨å­˜å®ƒçš„é•¿åº¦è¦æ±‚
- * å¦‚æœä¸èƒ½çš„è¯ï¼Œå°† subject è½¬æ¢ä¸ºåŒç«¯é“¾è¡¨
+ * ¼ì²é value £¬Èç¹ûËüÊÇÒ»¸ö×Ö·û´®µÄ»°£¬¿´¿´ ziplist ÄÜ·ñÂú×ã´¢´æËüµÄ³¤¶ÈÒªÇó
+ * Èç¹û²»ÄÜµÄ»°£¬½« subject ×ª»»ÎªË«¶ËÁ´±í
  *
- * å¦‚æœ value ä¸ºæ•´æ•°ç±»å‹ï¼Œé‚£ä¹ˆä¸å¿…å¯¹å®ƒæ£€æŸ¥ï¼Œå› ä¸ºæ•´æ•°å¯¹è±¡æœ€é•¿åªèƒ½æ˜¯ long ç±»å‹
+ * Èç¹û value ÎªÕûÊıÀàĞÍ£¬ÄÇÃ´²»±Ø¶ÔËü¼ì²é£¬ÒòÎªÕûÊı¶ÔÏó×î³¤Ö»ÄÜÊÇ long ÀàĞÍ
  *
  * T = O(N)
  */
-void listTypeTryConversion(robj *subject, robj *value) {
+void listTypeTryConversion(robj *subject, robj *value)
+{
 
-    // å·²ç»æ˜¯ LINKEDLIST
+    // ÒÑ¾­ÊÇ LINKEDLIST
     if (subject->encoding != REDIS_ENCODING_ZIPLIST) return;
 
     if (value->encoding == REDIS_ENCODING_RAW &&
-        sdslen(value->ptr) > server.list_max_ziplist_value)
-            listTypeConvert(subject,REDIS_ENCODING_LINKEDLIST);
+            sdslen(value->ptr) > server.list_max_ziplist_value)
+        listTypeConvert(subject,REDIS_ENCODING_LINKEDLIST);
 }
 
 /* The function pushes an elmenet to the specified list object 'subject',
@@ -62,99 +63,122 @@ void listTypeTryConversion(robj *subject, robj *value) {
  * There is no need for the caller to incremnet the refcount of 'value' as
  * the function takes care of it if needed. */
 /*
- * å¤šæ€æ¨å…¥å‡½æ•°
+ * ¶àÌ¬ÍÆÈëº¯Êı
  *
- * æ ¹æ® where å‚æ•°ï¼Œå°† value æ¨å…¥åˆ—è¡¨ subject çš„è¡¨å¤´æˆ–è¡¨å°¾
+ * ¸ù¾İ where ²ÎÊı£¬½« value ÍÆÈëÁĞ±í subject µÄ±íÍ·»ò±íÎ²
  *
- * è°ƒç”¨è€…ä¸å¿…å¯¹ value è¿›è¡Œè®¡æ•°ï¼Œè¿™ä¸ªå‡½æ•°ä¼šå¤„ç†å®ƒ
+ * µ÷ÓÃÕß²»±Ø¶Ô value ½øĞĞ¼ÆÊı£¬Õâ¸öº¯Êı»á´¦ÀíËü
  *
  * T = O(N^2)
  */
-void listTypePush(robj *subject, robj *value, int where) {
+void listTypePush(robj *subject, robj *value, int where)
+{
     /* Check if we need to convert the ziplist */
-    // æ£€æŸ¥æ˜¯å¦éœ€è¦å¯¹åˆ—è¡¨è¿›è¡Œç¼–ç è½¬æ¢
+    // ¼ì²éÊÇ·ñĞèÒª¶ÔÁĞ±í½øĞĞ±àÂë×ª»»
     // O(N)
     listTypeTryConversion(subject,value);
     if (subject->encoding == REDIS_ENCODING_ZIPLIST &&
-        ziplistLen(subject->ptr) >= server.list_max_ziplist_entries)
-            listTypeConvert(subject,REDIS_ENCODING_LINKEDLIST);
+            ziplistLen(subject->ptr) >= server.list_max_ziplist_entries)
+        listTypeConvert(subject,REDIS_ENCODING_LINKEDLIST);
 
     // ziplist
-    if (subject->encoding == REDIS_ENCODING_ZIPLIST) {
+    if (subject->encoding == REDIS_ENCODING_ZIPLIST)
+    {
         int pos = (where == REDIS_HEAD) ? ZIPLIST_HEAD : ZIPLIST_TAIL;
         value = getDecodedObject(value);
         // O(N^2)
         subject->ptr = ziplistPush(subject->ptr,value->ptr,sdslen(value->ptr),pos);
         decrRefCount(value);
-    // åŒç«¯é“¾è¡¨
-    } else if (subject->encoding == REDIS_ENCODING_LINKEDLIST) {
+        // Ë«¶ËÁ´±í
+    }
+    else if (subject->encoding == REDIS_ENCODING_LINKEDLIST)
+    {
         // O(1)
-        if (where == REDIS_HEAD) {
+        if (where == REDIS_HEAD)
+        {
             listAddNodeHead(subject->ptr,value);
-        } else {
+        }
+        else
+        {
             listAddNodeTail(subject->ptr,value);
         }
         incrRefCount(value);
-    } else {
+    }
+    else
+    {
         redisPanic("Unknown list encoding");
     }
 }
 
 /*
- * å¤šæ€ pop å¯¹è±¡
+ * ¶àÌ¬ pop ¶ÔÏó
  *
  * T = O(1)
  */
-robj *listTypePop(robj *subject, int where) {
+robj *listTypePop(robj *subject, int where)
+{
 
     robj *value = NULL;
 
-    if (subject->encoding == REDIS_ENCODING_ZIPLIST) {
-        // ä» ziplist ä¸­ pop
+    if (subject->encoding == REDIS_ENCODING_ZIPLIST)
+    {
+        // ´Ó ziplist ÖĞ pop
         unsigned char *p;
         unsigned char *vstr;
         unsigned int vlen;
         long long vlong;
-        // pop è¡¨å¤´æˆ–è¡¨å°¾ï¼Ÿ
+        // pop ±íÍ·»ò±íÎ²£¿
         int pos = (where == REDIS_HEAD) ? 0 : -1;
         // O(1)
         p = ziplistIndex(subject->ptr,pos);
-        // å…ƒç´ è·å–æˆåŠŸï¼Ÿ
-        if (ziplistGet(p,&vstr,&vlen,&vlong)) {
-            // å–å‡ºå€¼
-            if (vstr) {
+        // ÔªËØ»ñÈ¡³É¹¦£¿
+        if (ziplistGet(p,&vstr,&vlen,&vlong))
+        {
+            // È¡³öÖµ
+            if (vstr)
+            {
                 value = createStringObject((char*)vstr,vlen);
-            } else {
+            }
+            else
+            {
                 value = createStringObjectFromLongLong(vlong);
             }
             /* We only need to delete an element when it exists */
-            // åˆ é™¤å®ƒ
+            // É¾³ıËü
             subject->ptr = ziplistDelete(subject->ptr,&p);
         }
-    } else if (subject->encoding == REDIS_ENCODING_LINKEDLIST) {
+    }
+    else if (subject->encoding == REDIS_ENCODING_LINKEDLIST)
+    {
         // O(1)
 
-        // ä»åŒç«¯åˆ—è¡¨ä¸­ pop
+        // ´ÓË«¶ËÁĞ±íÖĞ pop
         list *list = subject->ptr;
         listNode *ln;
-        // å–å‡ºè¡¨å¤´èŠ‚ç‚¹
-        if (where == REDIS_HEAD) {
+        // È¡³ö±íÍ·½Úµã
+        if (where == REDIS_HEAD)
+        {
             ln = listFirst(list);
-        // å–å‡ºè¡¨å°¾èŠ‚ç‚¹
-        } else {
+            // È¡³ö±íÎ²½Úµã
+        }
+        else
+        {
             ln = listLast(list);
         }
 
-        if (ln != NULL) {
-            // å–å‡ºèŠ‚ç‚¹çš„å€¼
+        if (ln != NULL)
+        {
+            // È¡³ö½ÚµãµÄÖµ
             value = listNodeValue(ln);
 
             incrRefCount(value);
-            
-            // åˆ é™¤èŠ‚ç‚¹
+
+            // É¾³ı½Úµã
             listDelNode(list,ln);
         }
-    } else {
+    }
+    else
+    {
         redisPanic("Unknown list encoding");
     }
 
@@ -162,48 +186,60 @@ robj *listTypePop(robj *subject, int where) {
 }
 
 /*
- * å¤šæ€åˆ—è¡¨é•¿åº¦è·å–å‡½æ•°
+ * ¶àÌ¬ÁĞ±í³¤¶È»ñÈ¡º¯Êı
  *
  * T = O(N)
  */
-unsigned long listTypeLength(robj *subject) {
+unsigned long listTypeLength(robj *subject)
+{
     // ziplist
-    if (subject->encoding == REDIS_ENCODING_ZIPLIST) {
+    if (subject->encoding == REDIS_ENCODING_ZIPLIST)
+    {
         // O(N)
         return ziplistLen(subject->ptr);
-    } else if (subject->encoding == REDIS_ENCODING_LINKEDLIST) {
+    }
+    else if (subject->encoding == REDIS_ENCODING_LINKEDLIST)
+    {
         // adlist
         // O(1)
         return listLength((list*)subject->ptr);
-    } else {
+    }
+    else
+    {
         redisPanic("Unknown list encoding");
     }
 }
 
 /* Initialize an iterator at the specified index. */
 /*
- * åˆ›å»ºå¤šæ€åˆ—è¡¨è¿­ä»£å™¨
+ * ´´½¨¶àÌ¬ÁĞ±íµü´úÆ÷
  *
  * T = O(1)
  */
-listTypeIterator *listTypeInitIterator(robj *subject, long index, unsigned char direction) {
+listTypeIterator *listTypeInitIterator(robj *subject, long index, unsigned char direction)
+{
 
-    // åˆ›å»ºè¿­ä»£å™¨ï¼Œå¹¶åˆå§‹åŒ–å„ä¸ªå±æ€§
+    // ´´½¨µü´úÆ÷£¬²¢³õÊ¼»¯¸÷¸öÊôĞÔ
     listTypeIterator *li = zmalloc(sizeof(listTypeIterator));
 
     li->subject = subject;
     li->encoding = subject->encoding;
     li->direction = direction;
 
-    // è¿­ä»£ ziplist
-    if (li->encoding == REDIS_ENCODING_ZIPLIST) {
+    // µü´ú ziplist
+    if (li->encoding == REDIS_ENCODING_ZIPLIST)
+    {
         li->zi = ziplistIndex(subject->ptr,index);
 
-    // è¿­ä»£åŒç«¯é“¾è¡¨
-    } else if (li->encoding == REDIS_ENCODING_LINKEDLIST) {
+        // µü´úË«¶ËÁ´±í
+    }
+    else if (li->encoding == REDIS_ENCODING_LINKEDLIST)
+    {
         li->ln = listIndex(subject->ptr,index);
 
-    } else {
+    }
+    else
+    {
         redisPanic("Unknown list encoding");
     }
 
@@ -212,11 +248,12 @@ listTypeIterator *listTypeInitIterator(robj *subject, long index, unsigned char 
 
 /* Clean up the iterator. */
 /*
- * é‡Šæ”¾è¿­ä»£å™¨
+ * ÊÍ·Åµü´úÆ÷
  *
  * T = O(1)
  */
-void listTypeReleaseIterator(listTypeIterator *li) {
+void listTypeReleaseIterator(listTypeIterator *li)
+{
     zfree(li);
 }
 
@@ -224,39 +261,47 @@ void listTypeReleaseIterator(listTypeIterator *li) {
  * and advances the position of the iterator. Returns 1 when the current
  * entry is in fact an entry, 0 otherwise. */
 /*
- * å°†å½“å‰è¿­ä»£åˆ°çš„èŠ‚ç‚¹ä¿å­˜åˆ° entry ï¼Œå¹¶å°†è¿­ä»£å™¨çš„æŒ‡é’ˆå‘å‰æ¨ç§»ä¸€æ­¥ã€‚
+ * ½«µ±Ç°µü´úµ½µÄ½Úµã±£´æµ½ entry £¬²¢½«µü´úÆ÷µÄÖ¸ÕëÏòÇ°ÍÆÒÆÒ»²½¡£
  *
- * è·å–èŠ‚ç‚¹æˆåŠŸè¿”å› 1 ï¼Œå¦åˆ™è¿”å› 0 ã€‚
+ * »ñÈ¡½Úµã³É¹¦·µ»Ø 1 £¬·ñÔò·µ»Ø 0 ¡£
  *
  * T = O(1)
  */
-int listTypeNext(listTypeIterator *li, listTypeEntry *entry) {
+int listTypeNext(listTypeIterator *li, listTypeEntry *entry)
+{
     /* Protect from converting when iterating */
     redisAssert(li->subject->encoding == li->encoding);
 
     entry->li = li;
 
-    if (li->encoding == REDIS_ENCODING_ZIPLIST) {
+    if (li->encoding == REDIS_ENCODING_ZIPLIST)
+    {
         // ziplist, O(1)
         entry->zi = li->zi;
-        if (entry->zi != NULL) {
+        if (entry->zi != NULL)
+        {
             if (li->direction == REDIS_TAIL)
                 li->zi = ziplistNext(li->subject->ptr,li->zi);
             else
                 li->zi = ziplistPrev(li->subject->ptr,li->zi);
             return 1;
         }
-    } else if (li->encoding == REDIS_ENCODING_LINKEDLIST) {
+    }
+    else if (li->encoding == REDIS_ENCODING_LINKEDLIST)
+    {
         // adlist, O(1)
         entry->ln = li->ln;
-        if (entry->ln != NULL) {
+        if (entry->ln != NULL)
+        {
             if (li->direction == REDIS_TAIL)
                 li->ln = li->ln->next;
             else
                 li->ln = li->ln->prev;
             return 1;
         }
-    } else {
+    }
+    else
+    {
         redisPanic("Unknown list encoding");
     }
 
@@ -265,35 +310,45 @@ int listTypeNext(listTypeIterator *li, listTypeEntry *entry) {
 
 /* Return entry or NULL at the current position of the iterator. */
 /*
- * è¿”å›è¿­ä»£å™¨å½“å‰èŠ‚ç‚¹çš„å€¼ï¼Œå¦‚æœè¿­ä»£å·²ç»å®Œæˆï¼Œè¿”å› NULL 
+ * ·µ»Øµü´úÆ÷µ±Ç°½ÚµãµÄÖµ£¬Èç¹ûµü´úÒÑ¾­Íê³É£¬·µ»Ø NULL
  *
  * T = O(1)
  */
-robj *listTypeGet(listTypeEntry *entry) {
+robj *listTypeGet(listTypeEntry *entry)
+{
 
     listTypeIterator *li = entry->li;
 
     robj *value = NULL;
 
-    if (li->encoding == REDIS_ENCODING_ZIPLIST) {
+    if (li->encoding == REDIS_ENCODING_ZIPLIST)
+    {
         unsigned char *vstr;
         unsigned int vlen;
         long long vlong;
         redisAssert(entry->zi != NULL);
         // O(1)
-        if (ziplistGet(entry->zi,&vstr,&vlen,&vlong)) {
-            if (vstr) {
+        if (ziplistGet(entry->zi,&vstr,&vlen,&vlong))
+        {
+            if (vstr)
+            {
                 value = createStringObject((char*)vstr,vlen);
-            } else {
+            }
+            else
+            {
                 value = createStringObjectFromLongLong(vlong);
             }
         }
-    } else if (li->encoding == REDIS_ENCODING_LINKEDLIST) {
+    }
+    else if (li->encoding == REDIS_ENCODING_LINKEDLIST)
+    {
         redisAssert(entry->ln != NULL);
         // O(1)
         value = listNodeValue(entry->ln);
         incrRefCount(value);
-    } else {
+    }
+    else
+    {
         redisPanic("Unknown list encoding");
     }
 
@@ -301,83 +356,106 @@ robj *listTypeGet(listTypeEntry *entry) {
 }
 
 /*
- * å¤šæ€æ’å…¥å‡½æ•° 
+ * ¶àÌ¬²åÈëº¯Êı
  *
  * T = O(N^2)
  */
-void listTypeInsert(listTypeEntry *entry, robj *value, int where) {
+void listTypeInsert(listTypeEntry *entry, robj *value, int where)
+{
 
     robj *subject = entry->li->subject;
 
-    if (entry->li->encoding == REDIS_ENCODING_ZIPLIST) {
+    if (entry->li->encoding == REDIS_ENCODING_ZIPLIST)
+    {
         value = getDecodedObject(value);
-        if (where == REDIS_TAIL) {
-            // æ’å…¥åˆ°è¡¨å°¾
+        if (where == REDIS_TAIL)
+        {
+            // ²åÈëµ½±íÎ²
 
             // O(1)
             unsigned char *next = ziplistNext(subject->ptr,entry->zi);
 
             /* When we insert after the current element, but the current element
              * is the tail of the list, we need to do a push. */
-            // æ‰¾åˆ° next å°±å°†èŠ‚ç‚¹æ’å…¥åœ¨ next ä¹‹åï¼Œæ²¡æ‰¾åˆ°å°±å°†èŠ‚ç‚¹æ”¾åˆ°è¡¨å°¾
-            if (next == NULL) {
+            // ÕÒµ½ next ¾Í½«½Úµã²åÈëÔÚ next Ö®ºó£¬Ã»ÕÒµ½¾Í½«½Úµã·Åµ½±íÎ²
+            if (next == NULL)
+            {
                 // O(N^2)
                 subject->ptr = ziplistPush(subject->ptr,value->ptr,sdslen(value->ptr),REDIS_TAIL);
-            } else {
+            }
+            else
+            {
                 // O(N^2)
                 subject->ptr = ziplistInsert(subject->ptr,next,value->ptr,sdslen(value->ptr));
             }
-        } else {
-            // æ’å…¥åˆ°è¡¨å¤´ï¼ŒO(N^2)
+        }
+        else
+        {
+            // ²åÈëµ½±íÍ·£¬O(N^2)
             subject->ptr = ziplistInsert(subject->ptr,entry->zi,value->ptr,sdslen(value->ptr));
         }
         decrRefCount(value);
-    } else if (entry->li->encoding == REDIS_ENCODING_LINKEDLIST) {
+    }
+    else if (entry->li->encoding == REDIS_ENCODING_LINKEDLIST)
+    {
         // O(1)
-        if (where == REDIS_TAIL) {
+        if (where == REDIS_TAIL)
+        {
             listInsertNode(subject->ptr,entry->ln,value,AL_START_TAIL);
-        } else {
+        }
+        else
+        {
             listInsertNode(subject->ptr,entry->ln,value,AL_START_HEAD);
         }
         incrRefCount(value);
-    } else {
+    }
+    else
+    {
         redisPanic("Unknown list encoding");
     }
 }
 
 /* Compare the given object with the entry at the current position. */
 /*
- * å¯¹æ¯” entry çš„å€¼å’Œå¯¹è±¡ o
+ * ¶Ô±È entry µÄÖµºÍ¶ÔÏó o
  *
  * T = O(N)
  */
-int listTypeEqual(listTypeEntry *entry, robj *o) {
+int listTypeEqual(listTypeEntry *entry, robj *o)
+{
 
     listTypeIterator *li = entry->li;
 
-    if (li->encoding == REDIS_ENCODING_ZIPLIST) {
+    if (li->encoding == REDIS_ENCODING_ZIPLIST)
+    {
         redisAssertWithInfo(NULL,o,o->encoding == REDIS_ENCODING_RAW);
         // O(1)
         return ziplistCompare(entry->zi,o->ptr,sdslen(o->ptr));
-    } else if (li->encoding == REDIS_ENCODING_LINKEDLIST) {
-        // O(N) 
+    }
+    else if (li->encoding == REDIS_ENCODING_LINKEDLIST)
+    {
+        // O(N)
         return equalStringObjects(o,listNodeValue(entry->ln));
-    } else {
+    }
+    else
+    {
         redisPanic("Unknown list encoding");
     }
 }
 
 /* Delete the element pointed to. */
 /*
- * å¤šæ€åˆ é™¤ entry æŒ‡å‘çš„å…ƒç´ 
+ * ¶àÌ¬É¾³ı entry Ö¸ÏòµÄÔªËØ
  *
  * T = O(N^2)
  */
-void listTypeDelete(listTypeEntry *entry) {
+void listTypeDelete(listTypeEntry *entry)
+{
 
     listTypeIterator *li = entry->li;
 
-    if (li->encoding == REDIS_ENCODING_ZIPLIST) {
+    if (li->encoding == REDIS_ENCODING_ZIPLIST)
+    {
         unsigned char *p = entry->zi;
         // O(N^2)
         li->subject->ptr = ziplistDelete(li->subject->ptr,&p);
@@ -387,7 +465,9 @@ void listTypeDelete(listTypeEntry *entry) {
             li->zi = p;
         else
             li->zi = ziplistPrev(li->subject->ptr,p);
-    } else if (entry->li->encoding == REDIS_ENCODING_LINKEDLIST) {
+    }
+    else if (entry->li->encoding == REDIS_ENCODING_LINKEDLIST)
+    {
         // O(1)
         listNode *next;
         if (li->direction == REDIS_TAIL)
@@ -396,43 +476,49 @@ void listTypeDelete(listTypeEntry *entry) {
             next = entry->ln->prev;
         listDelNode(li->subject->ptr,entry->ln);
         li->ln = next;
-    } else {
+    }
+    else
+    {
         redisPanic("Unknown list encoding");
     }
 }
 
 /*
- * å°†åˆ—è¡¨è½¬æ¢ä¸ºç»™å®šçš„ç¼–ç ç±»å‹
+ * ½«ÁĞ±í×ª»»Îª¸ø¶¨µÄ±àÂëÀàĞÍ
  *
- * ç›®å‰åªæ”¯æŒå°† ziplist è½¬æ¢ä¸ºåŒç«¯é“¾è¡¨
+ * Ä¿Ç°Ö»Ö§³Ö½« ziplist ×ª»»ÎªË«¶ËÁ´±í
  *
  * T = O(N)
  */
-void listTypeConvert(robj *subject, int enc) {
+void listTypeConvert(robj *subject, int enc)
+{
     listTypeIterator *li;
     listTypeEntry entry;
     redisAssertWithInfo(NULL,subject,subject->type == REDIS_LIST);
 
-    if (enc == REDIS_ENCODING_LINKEDLIST) {
-        // åˆ›å»ºåŒç«¯åˆ—è¡¨
+    if (enc == REDIS_ENCODING_LINKEDLIST)
+    {
+        // ´´½¨Ë«¶ËÁĞ±í
         list *l = listCreate();
         listSetFreeMethod(l,decrRefCount);
 
         /* listTypeGet returns a robj with incremented refcount */
-        // å–å‡º ziplist ä¸­çš„æ‰€æœ‰å…ƒç´ 
-        // å¹¶å°†å®ƒä»¬æ·»åŠ åˆ°åŒç«¯åˆ—è¡¨ä¸­
+        // È¡³ö ziplist ÖĞµÄËùÓĞÔªËØ
+        // ²¢½«ËüÃÇÌí¼Óµ½Ë«¶ËÁĞ±íÖĞ
         // O(N)
         li = listTypeInitIterator(subject,0,REDIS_TAIL);
         while (listTypeNext(li,&entry)) listAddNodeTail(l,listTypeGet(&entry));
         listTypeReleaseIterator(li);
 
-        // æ›´æ–°ç¼–ç 
+        // ¸üĞÂ±àÂë
         subject->encoding = REDIS_ENCODING_LINKEDLIST;
-        // é‡Šæ”¾ ziplist
+        // ÊÍ·Å ziplist
         zfree(subject->ptr);
-        // æŒ‡å‘åŒç«¯é“¾è¡¨
+        // Ö¸ÏòË«¶ËÁ´±í
         subject->ptr = l;
-    } else {
+    }
+    else
+    {
         redisPanic("Unsupported list conversion");
     }
 }
@@ -442,40 +528,44 @@ void listTypeConvert(robj *subject, int enc) {
  *----------------------------------------------------------------------------*/
 
 /*
- * [LR]PUSH å‘½ä»¤çš„å®ç°
+ * [LR]PUSH ÃüÁîµÄÊµÏÖ
  *
  * T = O(N^3)
  */
-void pushGenericCommand(redisClient *c, int where) {
+void pushGenericCommand(redisClient *c, int where)
+{
     int j, waiting = 0, pushed = 0;
 
-    // æŸ¥æ‰¾åˆ—è¡¨å¯¹è±¡ï¼ŒO(1)
+    // ²éÕÒÁĞ±í¶ÔÏó£¬O(1)
     robj *lobj = lookupKeyWrite(c->db,c->argv[1]);
 
-    // å¦‚æœåˆ—è¡¨ä¸ºç©ºï¼Œé‚£ä¹ˆå¯èƒ½æ­£åœ¨æœ‰å®¢æˆ·ç«¯ç­‰å¾…è¿™ä¸ªåˆ—è¡¨
+    // Èç¹ûÁĞ±íÎª¿Õ£¬ÄÇÃ´¿ÉÄÜÕıÔÚÓĞ¿Í»§¶ËµÈ´ıÕâ¸öÁĞ±í
     int may_have_waiting_clients = (lobj == NULL);
 
-    // ç±»å‹æ£€æŸ¥
-    if (lobj && lobj->type != REDIS_LIST) {
+    // ÀàĞÍ¼ì²é
+    if (lobj && lobj->type != REDIS_LIST)
+    {
         addReply(c,shared.wrongtypeerr);
         return;
     }
 
-    // æ£€æŸ¥æ˜¯å¦æœ‰å®¢æˆ·ç«¯åœ¨ç­‰å¾…è¿™ä¸ªåˆ—è¡¨
-    // å¦‚æœæ˜¯çš„è¯ï¼Œå‘ŠçŸ¥æœåŠ¡å™¨å’Œå®¢æˆ·ç«¯ï¼Œè¿™ä¸ªåˆ—è¡¨å·²ç»å°±ç»ª
+    // ¼ì²éÊÇ·ñÓĞ¿Í»§¶ËÔÚµÈ´ıÕâ¸öÁĞ±í
+    // Èç¹ûÊÇµÄ»°£¬¸æÖª·şÎñÆ÷ºÍ¿Í»§¶Ë£¬Õâ¸öÁĞ±íÒÑ¾­¾ÍĞ÷
     // O(1)
     if (may_have_waiting_clients) signalListAsReady(c,c->argv[1]);
 
-    // å°†æ‰€æœ‰è¾“å…¥å…ƒç´ æ¨å…¥åˆ—è¡¨
+    // ½«ËùÓĞÊäÈëÔªËØÍÆÈëÁĞ±í
     // O(N^3)
-    for (j = 2; j < c->argc; j++) {
+    for (j = 2; j < c->argc; j++)
+    {
         c->argv[j] = tryObjectEncoding(c->argv[j]);
-        // å¦‚æœåˆ—è¡¨ä¸å­˜åœ¨ï¼Œé‚£ä¹ˆåˆ›å»ºæ–°åˆ—è¡¨
-        if (!lobj) {
-            lobj = createZiplistObject();   // é»˜è®¤ä½¿ç”¨ ziplist ç¼–ç 
+        // Èç¹ûÁĞ±í²»´æÔÚ£¬ÄÇÃ´´´½¨ĞÂÁĞ±í
+        if (!lobj)
+        {
+            lobj = createZiplistObject();   // Ä¬ÈÏÊ¹ÓÃ ziplist ±àÂë
             dbAdd(c->db,c->argv[1],lobj);
         }
-        // å°†å…ƒç´ æ¨å…¥åˆ—è¡¨ï¼ŒO(N^2)
+        // ½«ÔªËØÍÆÈëÁĞ±í£¬O(N^2)
         listTypePush(lobj,c->argv[j],where);
         pushed++;
     }
@@ -486,40 +576,44 @@ void pushGenericCommand(redisClient *c, int where) {
 }
 
 /*
- * LPUSH å‘½ä»¤çš„å®ç°
+ * LPUSH ÃüÁîµÄÊµÏÖ
  *
  * T = O(N^3)
  */
-void lpushCommand(redisClient *c) {
+void lpushCommand(redisClient *c)
+{
     pushGenericCommand(c,REDIS_HEAD);
 }
 
 /*
- * RPUSH å‘½ä»¤çš„å®ç°
+ * RPUSH ÃüÁîµÄÊµÏÖ
  *
  * T = O(N^3)
  */
-void rpushCommand(redisClient *c) {
+void rpushCommand(redisClient *c)
+{
     pushGenericCommand(c,REDIS_TAIL);
 }
 
 /*
- * PUSHX å‘½ä»¤çš„å®ç°
+ * PUSHX ÃüÁîµÄÊµÏÖ
  *
  * T = O(N^2)
  */
-void pushxGenericCommand(redisClient *c, robj *refval, robj *val, int where) {
+void pushxGenericCommand(redisClient *c, robj *refval, robj *val, int where)
+{
     robj *subject;
     listTypeIterator *iter;
     listTypeEntry entry;
     int inserted = 0;
 
-    // æŸ¥æ‰¾æˆ–åˆ›å»ºï¼Œå¹¶åšç±»å‹æ£€æŸ¥, O(1)
+    // ²éÕÒ»ò´´½¨£¬²¢×öÀàĞÍ¼ì²é, O(1)
     if ((subject = lookupKeyReadOrReply(c,c->argv[1],shared.czero)) == NULL ||
-        checkType(c,subject,REDIS_LIST)) return;
+            checkType(c,subject,REDIS_LIST)) return;
 
-    // å‘½ä»¤æŒ‡å®š value è¦æ”¾åœ¨ refval ä¹‹å‰æˆ–ä¹‹å
-    if (refval != NULL) {
+    // ÃüÁîÖ¸¶¨ value Òª·ÅÔÚ refval Ö®Ç°»òÖ®ºó
+    if (refval != NULL)
+    {
         /* Note: we expect refval to be string-encoded because it is *not* the
          * last argument of the multi-bulk LINSERT. */
         redisAssertWithInfo(c,refval,refval->encoding == REDIS_ENCODING_RAW);
@@ -529,17 +623,19 @@ void pushxGenericCommand(redisClient *c, robj *refval, robj *val, int where) {
          * the list twice (once to see if the value can be inserted and once
          * to do the actual insert), so we assume this value can be inserted
          * and convert the ziplist to a regular list if necessary. */
-        // æ£€æŸ¥æ·»åŠ  value æ˜¯å¦éœ€è¦å¯¹ subject è¿›è¡Œç¼–ç è½¬æ¢
+        // ¼ì²éÌí¼Ó value ÊÇ·ñĞèÒª¶Ô subject ½øĞĞ±àÂë×ª»»
         // O(N)
         listTypeTryConversion(subject,val);
 
         /* Seek refval from head to tail */
-        // ä»è¡¨å¤´å¼€å§‹ï¼Œå‘è¡¨å°¾æŸ¥æ‰¾åŒ…å« refval çš„èŠ‚ç‚¹
+        // ´Ó±íÍ·¿ªÊ¼£¬Ïò±íÎ²²éÕÒ°üº¬ refval µÄ½Úµã
         // O(N^2)
         iter = listTypeInitIterator(subject,0,REDIS_TAIL);
-        while (listTypeNext(iter,&entry)) {
-            if (listTypeEqual(&entry,refval)) {
-                // æ‰¾åˆ°ï¼Œæ’å…¥ val, O(N^2)
+        while (listTypeNext(iter,&entry))
+        {
+            if (listTypeEqual(&entry,refval))
+            {
+                // ÕÒµ½£¬²åÈë val, O(N^2)
                 listTypeInsert(&entry,val,where);
                 inserted = 1;
                 break;
@@ -547,22 +643,27 @@ void pushxGenericCommand(redisClient *c, robj *refval, robj *val, int where) {
         }
         listTypeReleaseIterator(iter);
 
-        // value å·²ç»æ’å…¥æˆåŠŸï¼Ÿ
-        if (inserted) {
+        // value ÒÑ¾­²åÈë³É¹¦£¿
+        if (inserted)
+        {
             /* Check if the length exceeds the ziplist length threshold. */
-            // æ£€æŸ¥æ˜¯å¦éœ€è¦å¯¹åˆ—è¡¨è¿›è¡Œç¼–ç è½¬æ¢, O(N)
+            // ¼ì²éÊÇ·ñĞèÒª¶ÔÁĞ±í½øĞĞ±àÂë×ª»», O(N)
             if (subject->encoding == REDIS_ENCODING_ZIPLIST &&
-                ziplistLen(subject->ptr) > server.list_max_ziplist_entries)
-                    listTypeConvert(subject,REDIS_ENCODING_LINKEDLIST);
+                    ziplistLen(subject->ptr) > server.list_max_ziplist_entries)
+                listTypeConvert(subject,REDIS_ENCODING_LINKEDLIST);
             signalModifiedKey(c->db,c->argv[1]);
             server.dirty++;
-        } else {
+        }
+        else
+        {
             /* Notify client of a failed insert */
             addReply(c,shared.cnegone);
             return;
         }
-    } else {
-        // ç®€å•åœ°å°† value æ¨å…¥åˆ°åˆ—è¡¨çš„ä¹‹å‰æˆ–ä¹‹å
+    }
+    else
+    {
+        // ¼òµ¥µØ½« value ÍÆÈëµ½ÁĞ±íµÄÖ®Ç°»òÖ®ºó
         // O(N^2)
         listTypePush(subject,val,where);
 
@@ -574,147 +675,176 @@ void pushxGenericCommand(redisClient *c, robj *refval, robj *val, int where) {
 }
 
 /*
- * LPUSHX å‘½ä»¤çš„å®ç°
+ * LPUSHX ÃüÁîµÄÊµÏÖ
  *
  * T = O(N^2)
  */
-void lpushxCommand(redisClient *c) {
+void lpushxCommand(redisClient *c)
+{
     c->argv[2] = tryObjectEncoding(c->argv[2]);
     pushxGenericCommand(c,NULL,c->argv[2],REDIS_HEAD);
 }
 
 /*
- * RPUSHX å‘½ä»¤çš„å®ç°
+ * RPUSHX ÃüÁîµÄÊµÏÖ
  *
  * T = O(N^2)
  */
-void rpushxCommand(redisClient *c) {
+void rpushxCommand(redisClient *c)
+{
     c->argv[2] = tryObjectEncoding(c->argv[2]);
     pushxGenericCommand(c,NULL,c->argv[2],REDIS_TAIL);
 }
 
 /*
- * LINSERT å‘½ä»¤çš„å®ç°
+ * LINSERT ÃüÁîµÄÊµÏÖ
  *
  * T = O(N^2)
  */
-void linsertCommand(redisClient *c) {
+void linsertCommand(redisClient *c)
+{
 
     c->argv[4] = tryObjectEncoding(c->argv[4]);
 
-    // æ’å…¥åˆ°èŠ‚ç‚¹ä¹‹å
-    if (strcasecmp(c->argv[2]->ptr,"after") == 0) {
+    // ²åÈëµ½½ÚµãÖ®ºó
+    if (strcasecmp(c->argv[2]->ptr,"after") == 0)
+    {
         pushxGenericCommand(c,c->argv[3],c->argv[4],REDIS_TAIL);
-    // æ’å…¥åˆ°èŠ‚ç‚¹ä¹‹å‰
-    } else if (strcasecmp(c->argv[2]->ptr,"before") == 0) {
+        // ²åÈëµ½½ÚµãÖ®Ç°
+    }
+    else if (strcasecmp(c->argv[2]->ptr,"before") == 0)
+    {
         pushxGenericCommand(c,c->argv[3],c->argv[4],REDIS_HEAD);
-    } else {
+    }
+    else
+    {
         addReply(c,shared.syntaxerr);
     }
 }
 
 /*
- * LLEN å‘½ä»¤çš„å®ç°
+ * LLEN ÃüÁîµÄÊµÏÖ
  *
  * T = O(N)
  */
-void llenCommand(redisClient *c) {
-    
-    // åˆ›å»ºæˆ–æŸ¥æ‰¾åˆ—è¡¨å¯¹è±¡
+void llenCommand(redisClient *c)
+{
+
+    // ´´½¨»ò²éÕÒÁĞ±í¶ÔÏó
     robj *o = lookupKeyReadOrReply(c,c->argv[1],shared.czero);
 
-    // ç±»å‹æ£€æŸ¥
+    // ÀàĞÍ¼ì²é
     if (o == NULL || checkType(c,o,REDIS_LIST)) return;
 
-    // è¿”å›é•¿åº¦
+    // ·µ»Ø³¤¶È
     addReplyLongLong(c,listTypeLength(o));
 }
 
 /*
- * LINDEX å‘½ä»¤çš„å®ç°
+ * LINDEX ÃüÁîµÄÊµÏÖ
  *
  * T = O(N)
  */
-void lindexCommand(redisClient *c) {
+void lindexCommand(redisClient *c)
+{
     robj *o = lookupKeyReadOrReply(c,c->argv[1],shared.nullbulk);
     if (o == NULL || checkType(c,o,REDIS_LIST)) return;
     long index;
     robj *value = NULL;
 
-    // è·å–åˆ—è¡¨å¯¹è±¡æˆ–è¿”å›ä¸å­˜åœ¨
+    // »ñÈ¡ÁĞ±í¶ÔÏó»ò·µ»Ø²»´æÔÚ
     if ((getLongFromObjectOrReply(c, c->argv[2], &index, NULL) != REDIS_OK))
         return;
 
-    if (o->encoding == REDIS_ENCODING_ZIPLIST) {
-        // ä» ziplist ä¸­è·å–
+    if (o->encoding == REDIS_ENCODING_ZIPLIST)
+    {
+        // ´Ó ziplist ÖĞ»ñÈ¡
         unsigned char *p;
         unsigned char *vstr;
         unsigned int vlen;
         long long vlong;
         // O(1)
         p = ziplistIndex(o->ptr,index);
-        if (ziplistGet(p,&vstr,&vlen,&vlong)) {
-            // å–å‡ºå€¼
-            if (vstr) {
+        if (ziplistGet(p,&vstr,&vlen,&vlong))
+        {
+            // È¡³öÖµ
+            if (vstr)
+            {
                 value = createStringObject((char*)vstr,vlen);
-            } else {
+            }
+            else
+            {
                 value = createStringObjectFromLongLong(vlong);
             }
             addReplyBulk(c,value);
             decrRefCount(value);
-        } else {
+        }
+        else
+        {
             addReply(c,shared.nullbulk);
         }
-    } else if (o->encoding == REDIS_ENCODING_LINKEDLIST) {
-        // ä»åŒç«¯åˆ—è¡¨ä¸­å–å‡ºå€¼
+    }
+    else if (o->encoding == REDIS_ENCODING_LINKEDLIST)
+    {
+        // ´ÓË«¶ËÁĞ±íÖĞÈ¡³öÖµ
         // O(N)
         listNode *ln = listIndex(o->ptr,index);
-        if (ln != NULL) {
+        if (ln != NULL)
+        {
             value = listNodeValue(ln);
             addReplyBulk(c,value);
-        } else {
+        }
+        else
+        {
             addReply(c,shared.nullbulk);
         }
-    } else {
+    }
+    else
+    {
         redisPanic("Unknown list encoding");
     }
 }
 
 /*
- * LSET å‘½ä»¤çš„å®ç°
+ * LSET ÃüÁîµÄÊµÏÖ
  *
  * T = O(N^2)
  */
-void lsetCommand(redisClient *c) {
-    // æŸ¥æ‰¾å¯¹è±¡ï¼Œæˆ–è€…è¿”å›ä¸å­˜åœ¨é”™è¯¯
+void lsetCommand(redisClient *c)
+{
+    // ²éÕÒ¶ÔÏó£¬»òÕß·µ»Ø²»´æÔÚ´íÎó
     robj *o = lookupKeyWriteOrReply(c,c->argv[1],shared.nokeyerr);
 
-    // ç±»å‹æ£€æŸ¥
+    // ÀàĞÍ¼ì²é
     if (o == NULL || checkType(c,o,REDIS_LIST)) return;
 
     long index;
-    // ç¼–ç è¾“å…¥å€¼
+    // ±àÂëÊäÈëÖµ
     robj *value = (c->argv[3] = tryObjectEncoding(c->argv[3]));
 
-    // è·å– index å‚æ•°
+    // »ñÈ¡ index ²ÎÊı
     if ((getLongFromObjectOrReply(c, c->argv[2], &index, NULL) != REDIS_OK))
         return;
 
-    // å¦‚æœæœ‰éœ€è¦ï¼Œè½¬æ¢åˆ—è¡¨çš„ç¼–ç ,O(N)
+    // Èç¹ûÓĞĞèÒª£¬×ª»»ÁĞ±íµÄ±àÂë,O(N)
     listTypeTryConversion(o,value);
 
-    if (o->encoding == REDIS_ENCODING_ZIPLIST) {
-        // æ›´æ–°åˆ° ziplist
+    if (o->encoding == REDIS_ENCODING_ZIPLIST)
+    {
+        // ¸üĞÂµ½ ziplist
         unsigned char *p, *zl = o->ptr;
         p = ziplistIndex(zl,index);
-        if (p == NULL) {
-            // index è¶Šç•Œ
+        if (p == NULL)
+        {
+            // index Ô½½ç
             addReply(c,shared.outofrangeerr);
-        } else {
-            // å…ˆåˆ é™¤ ziplist é‡ŒæŒ‡å®š index çš„å€¼
+        }
+        else
+        {
+            // ÏÈÉ¾³ı ziplist ÀïÖ¸¶¨ index µÄÖµ
             // O(N^2)
             o->ptr = ziplistDelete(o->ptr,&p);
-            // å†å°†æ–°å€¼æ·»åŠ åˆ° ziplist çš„æœ«å°¾
+            // ÔÙ½«ĞÂÖµÌí¼Óµ½ ziplist µÄÄ©Î²
             value = getDecodedObject(value);
             // O(N^2)
             o->ptr = ziplistInsert(o->ptr,p,value->ptr,sdslen(value->ptr));
@@ -725,17 +855,22 @@ void lsetCommand(redisClient *c) {
             signalModifiedKey(c->db,c->argv[1]);
             server.dirty++;
         }
-    } else if (o->encoding == REDIS_ENCODING_LINKEDLIST) {
-        // æ·»åŠ åˆ°åŒç«¯é“¾è¡¨
+    }
+    else if (o->encoding == REDIS_ENCODING_LINKEDLIST)
+    {
+        // Ìí¼Óµ½Ë«¶ËÁ´±í
         // O(N)
         listNode *ln = listIndex(o->ptr,index);
-        if (ln == NULL) {
+        if (ln == NULL)
+        {
             addReply(c,shared.outofrangeerr);
-        } else {
-            // åˆ é™¤ ln åŸæœ‰çš„å€¼
+        }
+        else
+        {
+            // É¾³ı ln Ô­ÓĞµÄÖµ
             // O(1)
             decrRefCount((robj*)listNodeValue(ln));
-            // åœ¨ç”¨æ–°å€¼æ›¿æ¢å®ƒ
+            // ÔÚÓÃĞÂÖµÌæ»»Ëü
             listNodeValue(ln) = value;
 
             incrRefCount(value);
@@ -744,33 +879,39 @@ void lsetCommand(redisClient *c) {
             signalModifiedKey(c->db,c->argv[1]);
             server.dirty++;
         }
-    } else {
+    }
+    else
+    {
         redisPanic("Unknown list encoding");
     }
 }
 
 /*
- * ä»åˆ—è¡¨ä¸­å¼¹å‡ºä¸€ä¸ªå…ƒç´ ï¼Œå¦‚æœå¼¹å‡ºå…ƒç´ ä¹‹ååˆ—è¡¨ä¸ºç©ºï¼Œé‚£ä¹ˆåˆ é™¤å®ƒ
+ * ´ÓÁĞ±íÖĞµ¯³öÒ»¸öÔªËØ£¬Èç¹ûµ¯³öÔªËØÖ®ºóÁĞ±íÎª¿Õ£¬ÄÇÃ´É¾³ıËü
  *
  * T = O(1)
  */
-void popGenericCommand(redisClient *c, int where) {
-    // æŸ¥æ‰¾å¯¹è±¡ï¼Œæˆ–è€…è¿”å›ä¸å­˜åœ¨ä¿¡æ¯
+void popGenericCommand(redisClient *c, int where)
+{
+    // ²éÕÒ¶ÔÏó£¬»òÕß·µ»Ø²»´æÔÚĞÅÏ¢
     robj *o = lookupKeyWriteOrReply(c,c->argv[1],shared.nullbulk);
 
-    // ç±»å‹æ£€æŸ¥
+    // ÀàĞÍ¼ì²é
     if (o == NULL || checkType(c,o,REDIS_LIST)) return;
 
-    // è°ƒç”¨å¤šæ€ pop å‡½æ•°
+    // µ÷ÓÃ¶àÌ¬ pop º¯Êı
     robj *value = listTypePop(o,where);
-    if (value == NULL) {
+    if (value == NULL)
+    {
         addReply(c,shared.nullbulk);
-    } else {
+    }
+    else
+    {
         addReplyBulk(c,value);
 
         decrRefCount(value);
 
-        // å¦‚æœåˆ—è¡¨ä¸ºç©ºï¼Œé‚£ä¹ˆåˆ é™¤å®ƒ
+        // Èç¹ûÁĞ±íÎª¿Õ£¬ÄÇÃ´É¾³ıËü
         if (listTypeLength(o) == 0) dbDelete(c->db,c->argv[1]);
 
         signalModifiedKey(c->db,c->argv[1]);
@@ -779,37 +920,40 @@ void popGenericCommand(redisClient *c, int where) {
 }
 
 /*
- * LPOP å‘½ä»¤çš„å®ç°
+ * LPOP ÃüÁîµÄÊµÏÖ
  *
  * T = O(1)
  */
-void lpopCommand(redisClient *c) {
+void lpopCommand(redisClient *c)
+{
     popGenericCommand(c,REDIS_HEAD);
 }
 
 /*
- * RPOP å‘½ä»¤çš„å®ç°
+ * RPOP ÃüÁîµÄÊµÏÖ
  *
  * T = O(1)
  */
-void rpopCommand(redisClient *c) {
+void rpopCommand(redisClient *c)
+{
     popGenericCommand(c,REDIS_TAIL);
 }
 
 /*
  * T = O(N)
  */
-void lrangeCommand(redisClient *c) {
+void lrangeCommand(redisClient *c)
+{
     robj *o;
     long start, end, llen, rangelen;
 
-    // æ£€æŸ¥ start å’Œ end å‚æ•°æ˜¯å¦æ•´æ•°
+    // ¼ì²é start ºÍ end ²ÎÊıÊÇ·ñÕûÊı
     if ((getLongFromObjectOrReply(c, c->argv[2], &start, NULL) != REDIS_OK) ||
-        (getLongFromObjectOrReply(c, c->argv[3], &end, NULL) != REDIS_OK)) return;
+            (getLongFromObjectOrReply(c, c->argv[3], &end, NULL) != REDIS_OK)) return;
 
-    // æŸ¥æ‰¾å¯¹è±¡ï¼Œå¯¹è±¡ä¸å­˜åœ¨æ—¶è¿”å›ç©º
+    // ²éÕÒ¶ÔÏó£¬¶ÔÏó²»´æÔÚÊ±·µ»Ø¿Õ
     if ((o = lookupKeyReadOrReply(c,c->argv[1],shared.emptymultibulk)) == NULL
-         || checkType(c,o,REDIS_LIST)) return;
+            || checkType(c,o,REDIS_LIST)) return;
 
     llen = listTypeLength(o);
 
@@ -820,7 +964,8 @@ void lrangeCommand(redisClient *c) {
 
     /* Invariant: start >= 0, so this test will be true when end < 0.
      * The range is empty when start > end or start >= length. */
-    if (start > end || start >= llen) {
+    if (start > end || start >= llen)
+    {
         addReply(c,shared.emptymultibulk);
         return;
     }
@@ -829,25 +974,32 @@ void lrangeCommand(redisClient *c) {
 
     /* Return the result in form of a multi-bulk reply */
     addReplyMultiBulkLen(c,rangelen);
-    if (o->encoding == REDIS_ENCODING_ZIPLIST) {
-        // å¤„ç† ziplist
+    if (o->encoding == REDIS_ENCODING_ZIPLIST)
+    {
+        // ´¦Àí ziplist
         unsigned char *p = ziplistIndex(o->ptr,start);
         unsigned char *vstr;
         unsigned int vlen;
         long long vlong;
 
         // O(N)
-        while(rangelen--) {
+        while(rangelen--)
+        {
             ziplistGet(p,&vstr,&vlen,&vlong);
-            if (vstr) {
+            if (vstr)
+            {
                 addReplyBulkCBuffer(c,vstr,vlen);
-            } else {
+            }
+            else
+            {
                 addReplyBulkLongLong(c,vlong);
             }
             p = ziplistNext(o->ptr,p);
         }
-    } else if (o->encoding == REDIS_ENCODING_LINKEDLIST) {
-        // å¤„ç†åŒç«¯é“¾è¡¨
+    }
+    else if (o->encoding == REDIS_ENCODING_LINKEDLIST)
+    {
+        // ´¦ÀíË«¶ËÁ´±í
         listNode *ln;
 
         /* If we are nearest to the end of the list, reach the element
@@ -856,11 +1008,14 @@ void lrangeCommand(redisClient *c) {
         ln = listIndex(o->ptr,start);
 
         // O(N)
-        while(rangelen--) {
+        while(rangelen--)
+        {
             addReplyBulk(c,ln->value);
             ln = ln->next;
         }
-    } else {
+    }
+    else
+    {
         redisPanic("List encoding is not LINKEDLIST nor ZIPLIST!");
     }
 }
@@ -868,17 +1023,18 @@ void lrangeCommand(redisClient *c) {
 /*
  * T = O(N^2)
  */
-void ltrimCommand(redisClient *c) {
+void ltrimCommand(redisClient *c)
+{
     robj *o;
     long start, end, llen, j, ltrim, rtrim;
     list *list;
     listNode *ln;
 
     if ((getLongFromObjectOrReply(c, c->argv[2], &start, NULL) != REDIS_OK) ||
-        (getLongFromObjectOrReply(c, c->argv[3], &end, NULL) != REDIS_OK)) return;
+            (getLongFromObjectOrReply(c, c->argv[3], &end, NULL) != REDIS_OK)) return;
 
     if ((o = lookupKeyWriteOrReply(c,c->argv[1],shared.ok)) == NULL ||
-        checkType(c,o,REDIS_LIST)) return;
+            checkType(c,o,REDIS_LIST)) return;
     llen = listTypeLength(o);
 
     /* convert negative indexes */
@@ -888,40 +1044,50 @@ void ltrimCommand(redisClient *c) {
 
     /* Invariant: start >= 0, so this test will be true when end < 0.
      * The range is empty when start > end or start >= length. */
-    if (start > end || start >= llen) {
+    if (start > end || start >= llen)
+    {
         /* Out of range start or start > end result in empty list */
         ltrim = llen;
         rtrim = 0;
-    } else {
+    }
+    else
+    {
         if (end >= llen) end = llen-1;
         ltrim = start;
         rtrim = llen-end-1;
     }
 
     /* Remove list elements to perform the trim */
-    // åˆ é™¤
-    if (o->encoding == REDIS_ENCODING_ZIPLIST) {
+    // É¾³ı
+    if (o->encoding == REDIS_ENCODING_ZIPLIST)
+    {
         // O(N^2)
         o->ptr = ziplistDeleteRange(o->ptr,0,ltrim);
         // O(N^2)
         o->ptr = ziplistDeleteRange(o->ptr,-rtrim,rtrim);
-    } else if (o->encoding == REDIS_ENCODING_LINKEDLIST) {
+    }
+    else if (o->encoding == REDIS_ENCODING_LINKEDLIST)
+    {
         list = o->ptr;
-        // ä»è¡¨å¤´å‘è¡¨å°¾åˆ é™¤, O(N)
-        for (j = 0; j < ltrim; j++) {
+        // ´Ó±íÍ·Ïò±íÎ²É¾³ı, O(N)
+        for (j = 0; j < ltrim; j++)
+        {
             ln = listFirst(list);
             listDelNode(list,ln);
         }
-        // ä»è¡¨å°¾å‘è¡¨å¤´åˆ é™¤, O(N)
-        for (j = 0; j < rtrim; j++) {
+        // ´Ó±íÎ²Ïò±íÍ·É¾³ı, O(N)
+        for (j = 0; j < rtrim; j++)
+        {
             ln = listLast(list);
             listDelNode(list,ln);
         }
-    } else {
+    }
+    else
+    {
         redisPanic("Unknown list encoding");
     }
 
-    // åˆ—è¡¨ä¸ºç©ºï¼Ÿåˆ é™¤å®ƒ
+    // ÁĞ±íÎª¿Õ£¿É¾³ıËü
     if (listTypeLength(o) == 0) dbDelete(c->db,c->argv[1]);
 
     signalModifiedKey(c->db,c->argv[1]);
@@ -932,43 +1098,49 @@ void ltrimCommand(redisClient *c) {
 /*
  * T = O(N^3)
  */
-void lremCommand(redisClient *c) {
+void lremCommand(redisClient *c)
+{
     robj *subject, *obj;
 
-    // obj æ˜¯è¦åˆ é™¤çš„ç›®æ ‡å¯¹è±¡
+    // obj ÊÇÒªÉ¾³ıµÄÄ¿±ê¶ÔÏó
     obj = c->argv[3] = tryObjectEncoding(c->argv[3]);
 
     long toremove;
     long removed = 0;
     listTypeEntry entry;
 
-    // toremove å†³å®šåˆ é™¤å€¼çš„æ–¹å¼
+    // toremove ¾ö¶¨É¾³ıÖµµÄ·½Ê½
     if ((getLongFromObjectOrReply(c, c->argv[2], &toremove, NULL) != REDIS_OK))
         return;
 
-    // è·å–å¯¹è±¡ï¼Œæˆ–è€…è¿”å›ç©ºå€¼
+    // »ñÈ¡¶ÔÏó£¬»òÕß·µ»Ø¿ÕÖµ
     subject = lookupKeyWriteOrReply(c,c->argv[1],shared.czero);
-    // ç±»å‹æ£€æŸ¥
+    // ÀàĞÍ¼ì²é
     if (subject == NULL || checkType(c,subject,REDIS_LIST)) return;
 
     /* Make sure obj is raw when we're dealing with a ziplist */
     if (subject->encoding == REDIS_ENCODING_ZIPLIST)
         obj = getDecodedObject(obj);
 
-    // æ ¹æ® toremove ï¼Œå†³å®šæ˜¯è¿­ä»£å™¨éå†çš„æ–¹å¼ï¼ˆä»å¤´åˆ°å°¾æˆ–è€…ä»å°¾åˆ°å¤´ï¼‰
+    // ¸ù¾İ toremove £¬¾ö¶¨ÊÇµü´úÆ÷±éÀúµÄ·½Ê½£¨´ÓÍ·µ½Î²»òÕß´ÓÎ²µ½Í·£©
     listTypeIterator *li;
-    if (toremove < 0) {
-        // ä¿®æ”¹ä¸ºç»å¯¹å€¼
+    if (toremove < 0)
+    {
+        // ĞŞ¸ÄÎª¾ø¶ÔÖµ
         toremove = -toremove;
         li = listTypeInitIterator(subject,-1,REDIS_HEAD);
-    } else {
+    }
+    else
+    {
         li = listTypeInitIterator(subject,0,REDIS_TAIL);
     }
 
-    // éå†, O(N)
-    while (listTypeNext(li,&entry)) {
-        if (listTypeEqual(&entry,obj)) {
-            // åˆ é™¤, O(N^2)
+    // ±éÀú, O(N)
+    while (listTypeNext(li,&entry))
+    {
+        if (listTypeEqual(&entry,obj))
+        {
+            // É¾³ı, O(N^2)
             listTypeDelete(&entry);
             server.dirty++;
             removed++;
@@ -981,7 +1153,7 @@ void lremCommand(redisClient *c) {
     if (subject->encoding == REDIS_ENCODING_ZIPLIST)
         decrRefCount(obj);
 
-    // åˆ—è¡¨ä¸ºç©ºï¼Ÿåˆ é™¤å®ƒ
+    // ÁĞ±íÎª¿Õ£¿É¾³ıËü
     if (listTypeLength(subject) == 0) dbDelete(c->db,c->argv[1]);
 
     addReplyLongLong(c,removed);
@@ -1005,26 +1177,28 @@ void lremCommand(redisClient *c) {
  */
 
 /*
- * å°† value æ·»åŠ åˆ° dstkey åˆ—è¡¨é‡Œ
- * å¦‚æœ dstkey ä¸ºç©ºï¼Œé‚£ä¹ˆåˆ›å»ºä¸€ä¸ªæ–°åˆ—è¡¨ï¼Œç„¶åæ‰§è¡Œæ·»åŠ åŠ¨ä½œ
+ * ½« value Ìí¼Óµ½ dstkey ÁĞ±íÀï
+ * Èç¹û dstkey Îª¿Õ£¬ÄÇÃ´´´½¨Ò»¸öĞÂÁĞ±í£¬È»ºóÖ´ĞĞÌí¼Ó¶¯×÷
  *
  * T = O(N^2)
  */
-void rpoplpushHandlePush(redisClient *c, robj *dstkey, robj *dstobj, robj *value) {
+void rpoplpushHandlePush(redisClient *c, robj *dstkey, robj *dstobj, robj *value)
+{
     /* Create the list if the key does not exist */
-    // åˆ—è¡¨ä¸å­˜åœ¨ï¼Œåˆ›å»ºåˆ—è¡¨
-    if (!dstobj) {
-        // åˆ›å»º ziplist
+    // ÁĞ±í²»´æÔÚ£¬´´½¨ÁĞ±í
+    if (!dstobj)
+    {
+        // ´´½¨ ziplist
         dstobj = createZiplistObject();
-        // æ·»åŠ åˆ° db
+        // Ìí¼Óµ½ db
         dbAdd(c->db,dstkey,dstobj);
-        // å°† dstkey æ·»åŠ åˆ° server.ready_keys åˆ—è¡¨é‡Œ
+        // ½« dstkey Ìí¼Óµ½ server.ready_keys ÁĞ±íÀï
         signalListAsReady(c,dstkey);
     }
 
     signalModifiedKey(c->db,dstkey);
 
-    // æ·»åŠ  value åˆ° dstobj
+    // Ìí¼Ó value µ½ dstobj
     // O(N^2)
     listTypePush(dstobj,value,REDIS_HEAD);
 
@@ -1035,30 +1209,34 @@ void rpoplpushHandlePush(redisClient *c, robj *dstkey, robj *dstobj, robj *value
 /*
  * T = O(N^2)
  */
-void rpoplpushCommand(redisClient *c) {
+void rpoplpushCommand(redisClient *c)
+{
     robj *sobj, *value;
 
-    // è·å–æºå¯¹è±¡ï¼Œå¯¹è±¡ä¸å­˜åœ¨åˆ™è¿”å› NULL
+    // »ñÈ¡Ô´¶ÔÏó£¬¶ÔÏó²»´æÔÚÔò·µ»Ø NULL
     if ((sobj = lookupKeyWriteOrReply(c,c->argv[1],shared.nullbulk)) == NULL ||
-        checkType(c,sobj,REDIS_LIST)) return;
+            checkType(c,sobj,REDIS_LIST)) return;
 
-    // åˆ—è¡¨ä¸ºç©ºï¼Ÿ
-    if (listTypeLength(sobj) == 0) {
+    // ÁĞ±íÎª¿Õ£¿
+    if (listTypeLength(sobj) == 0)
+    {
         /* This may only happen after loading very old RDB files. Recent
          * versions of Redis delete keys of empty lists. */
         addReply(c,shared.nullbulk);
-    } else {
-        // åˆ—è¡¨éç©º
+    }
+    else
+    {
+        // ÁĞ±í·Ç¿Õ
 
-        // è·å–ç›®æ ‡å¯¹è±¡
+        // »ñÈ¡Ä¿±ê¶ÔÏó
         robj *dobj = lookupKeyWrite(c->db,c->argv[2]);
-        // æºå¯¹è±¡çš„ key
+        // Ô´¶ÔÏóµÄ key
         robj *touchedkey = c->argv[1];
 
-        // å¯¹ç›®æ ‡å¯¹è±¡è¿›è¡Œç±»å‹æ£€æŸ¥
+        // ¶ÔÄ¿±ê¶ÔÏó½øĞĞÀàĞÍ¼ì²é
         if (dobj && checkType(c,dobj,REDIS_LIST)) return;
 
-        // å¼¹å‡ºç›®æ ‡å¯¹è±¡çš„è¡¨å°¾å€¼, O(1)
+        // µ¯³öÄ¿±ê¶ÔÏóµÄ±íÎ²Öµ, O(1)
         value = listTypePop(sobj,REDIS_TAIL);
         /* We saved touched key, and protect it, since rpoplpushHandlePush
          * may change the client command argument vector (it does not
@@ -1084,12 +1262,12 @@ void rpoplpushCommand(redisClient *c) {
  *----------------------------------------------------------------------------*/
 
 /* This is how the current blocking POP works, we use BLPOP as example:
- * ä»¥ä¸‹æ˜¯é˜»å¡å¼¹å‡ºçš„ç›¸å…³åŸç†ï¼Œç”¨ BLPOP ä¸ºä¾‹å­ï¼š
+ * ÒÔÏÂÊÇ×èÈûµ¯³öµÄÏà¹ØÔ­Àí£¬ÓÃ BLPOP ÎªÀı×Ó£º
  *
  * - If the user calls BLPOP and the key exists and contains a non empty list
  *   then LPOP is called instead. So BLPOP is semantically the same as LPOP
  *   if blocking is not required.
- * - å¦‚æœ BLPOP è¢«è°ƒç”¨ï¼Œå¹¶ä¸”ç»™å®š key ä¸ä¸ºç©ºï¼Œé‚£ä¹ˆç›´æ¥è°ƒç”¨ POP ã€‚
+ * - Èç¹û BLPOP ±»µ÷ÓÃ£¬²¢ÇÒ¸ø¶¨ key ²»Îª¿Õ£¬ÄÇÃ´Ö±½Óµ÷ÓÃ POP ¡£
  *
  * - If instead BLPOP is called and the key does not exists or the list is
  *   empty we need to block. In order to do so we remove the notification for
@@ -1097,60 +1275,63 @@ void rpoplpushCommand(redisClient *c) {
  *   requests if the blocking request is not served). Also we put the client
  *   in a dictionary (db->blocking_keys) mapping keys to a list of clients
  *   blocking for this keys.
- * - å¦‚æœ BLPOP è¢«è°ƒç”¨ï¼Œä¸” key ä¸å­˜åœ¨æˆ–åˆ—è¡¨ä¸ºç©ºï¼Œé‚£ä¹ˆå¯¹å®¢æˆ·ç«¯è¿›è¡Œé˜»å¡ã€‚
- *   åœ¨å¯¹å®¢æˆ·ç«¯è¿›è¡Œé˜»å¡æ—¶ï¼Œåªæœ‰åœ¨æœ‰æ–°æ•°æ®å¯è¯»çš„æƒ…å†µä¸‹ï¼Œæ‰å‘å®¢æˆ·ç«¯å‘é€é€šçŸ¥ï¼Œ
- *   ï¼ˆè¿™æ ·å°±å¯ä»¥åœ¨æ²¡æœ‰æ•°æ®æ•°æ®æ—¶ï¼Œä¸å¯¹é˜»å¡å®¢æˆ·ç«¯è¿›è¡Œå¤„ç†ï¼‰ã€‚
- *   å¦å¤–è¿˜å°†ä¸€ä¸ª client åˆ° key çš„æ˜ å°„æ·»åŠ åˆ°ç”±é˜»å¡ key ç»„æˆçš„é“¾è¡¨é‡Œé¢ï¼Œ
- *   è¿™ä¸ªé“¾è¡¨æŒ‰ key ä¸ºé”®ï¼Œä¿å­˜åœ¨å­—å…¸ db->blocking_keys ã€‚
+ * - Èç¹û BLPOP ±»µ÷ÓÃ£¬ÇÒ key ²»´æÔÚ»òÁĞ±íÎª¿Õ£¬ÄÇÃ´¶Ô¿Í»§¶Ë½øĞĞ×èÈû¡£
+ *   ÔÚ¶Ô¿Í»§¶Ë½øĞĞ×èÈûÊ±£¬Ö»ÓĞÔÚÓĞĞÂÊı¾İ¿É¶ÁµÄÇé¿öÏÂ£¬²ÅÏò¿Í»§¶Ë·¢ËÍÍ¨Öª£¬
+ *   £¨ÕâÑù¾Í¿ÉÒÔÔÚÃ»ÓĞÊı¾İÊı¾İÊ±£¬²»¶Ô×èÈû¿Í»§¶Ë½øĞĞ´¦Àí£©¡£
+ *   ÁíÍâ»¹½«Ò»¸ö client µ½ key µÄÓ³ÉäÌí¼Óµ½ÓÉ×èÈû key ×é³ÉµÄÁ´±íÀïÃæ£¬
+ *   Õâ¸öÁ´±í°´ key Îª¼ü£¬±£´æÔÚ×Öµä db->blocking_keys ¡£
  *
  * - If a PUSH operation against a key with blocked clients waiting is
  *   performed, we mark this key as "ready", and after the current command,
  *   MULTI/EXEC block, or script, is executed, we serve all the clients waiting
  *   for this list, from the one that blocked first, to the last, accordingly
  *   to the number of elements we have in the ready list.
- *   ä¸€æ—¦æŸä¸ªé€ æˆå®¢æˆ·ç«¯é˜»å¡çš„ key æ¥å—äº† PUSH æ“ä½œï¼Œ
- *   é‚£ä¹ˆå°†è¿™ä¸ª key æ ‡è®°ä¸ºã€å°±ç»ªã€ï¼Œå¹¶åœ¨è¿™ä¸ªå‘½ä»¤/äº‹åŠ¡/è„šæœ¬æ‰§è¡Œå®Œä¹‹åï¼Œ
- *   æŒ‰å…ˆé˜»å¡å…ˆæœåŠ¡çš„é¡ºåºï¼Œå¤„ç†æ‰€æœ‰å› è¿™ä¸ª key è€Œè¢«é˜»å¡çš„å®¢æˆ·ç«¯ã€‚
+ *   Ò»µ©Ä³¸öÔì³É¿Í»§¶Ë×èÈûµÄ key ½ÓÊÜÁË PUSH ²Ù×÷£¬
+ *   ÄÇÃ´½«Õâ¸ö key ±ê¼ÇÎª¡º¾ÍĞ÷¡»£¬²¢ÔÚÕâ¸öÃüÁî/ÊÂÎñ/½Å±¾Ö´ĞĞÍêÖ®ºó£¬
+ *   °´ÏÈ×èÈûÏÈ·şÎñµÄË³Ğò£¬´¦ÀíËùÓĞÒòÕâ¸ö key ¶ø±»×èÈûµÄ¿Í»§¶Ë¡£
  */
 
 /* Set a client in blocking mode for the specified key, with the specified
  * timeout */
 /*
- * æ ¹æ®ç»™å®šæ•°é‡çš„ key ï¼Œå¯¹ç»™å®šå®¢æˆ·ç«¯è¿›è¡Œé˜»å¡
+ * ¸ù¾İ¸ø¶¨ÊıÁ¿µÄ key £¬¶Ô¸ø¶¨¿Í»§¶Ë½øĞĞ×èÈû
  *
- * å‚æ•°ï¼š
- *  keys    å¤šä¸ª key
- *  numkeys key çš„æ•°é‡
- *  timeout é˜»å¡çš„æœ€é•¿æ—¶é™
- *  target  åœ¨è§£é™¤é˜»å¡æ—¶ï¼Œå°†ç»“æœä¿å­˜åˆ°è¿™ä¸ª key å¯¹è±¡ï¼Œè€Œä¸æ˜¯è¿”å›ç»™å®¢æˆ·ç«¯
- *          åªç”¨äº BRPOPLPUSH å‘½ä»¤
+ * ²ÎÊı£º
+ *  keys    ¶à¸ö key
+ *  numkeys key µÄÊıÁ¿
+ *  timeout ×èÈûµÄ×î³¤Ê±ÏŞ
+ *  target  ÔÚ½â³ı×èÈûÊ±£¬½«½á¹û±£´æµ½Õâ¸ö key ¶ÔÏó£¬¶ø²»ÊÇ·µ»Ø¸ø¿Í»§¶Ë
+ *          Ö»ÓÃÓÚ BRPOPLPUSH ÃüÁî
  *
  * T = O(N)
  */
-void blockForKeys(redisClient *c, robj **keys, int numkeys, time_t timeout, robj *target) {
+void blockForKeys(redisClient *c, robj **keys, int numkeys, time_t timeout, robj *target)
+{
     dictEntry *de;
     list *l;
     int j;
 
-    // è®¾ç½®é˜»å¡çŠ¶æ€çš„è¶…æ—¶å’Œç›®æ ‡é€‰é¡¹
+    // ÉèÖÃ×èÈû×´Ì¬µÄ³¬Ê±ºÍÄ¿±êÑ¡Ïî
     c->bpop.timeout = timeout;
     c->bpop.target = target;
 
     if (target != NULL) incrRefCount(target);
 
-    // å°†æ‰€æœ‰ key åŠ å…¥åˆ° client.bpop.keys å­—å…¸é‡Œï¼ŒO(N)
-    for (j = 0; j < numkeys; j++) {
+    // ½«ËùÓĞ key ¼ÓÈëµ½ client.bpop.keys ×ÖµäÀï£¬O(N)
+    for (j = 0; j < numkeys; j++)
+    {
         /* If the key already exists in the dict ignore it. */
-        // è®°å½•é˜»å¡ key åˆ°å®¢æˆ·ç«¯, O(1)
+        // ¼ÇÂ¼×èÈû key µ½¿Í»§¶Ë, O(1)
         if (dictAdd(c->bpop.keys,keys[j],NULL) != DICT_OK) continue;
         incrRefCount(keys[j]);
 
         /* And in the other "side", to map keys -> clients */
-        // å°†è¢«é˜»å¡çš„å®¢æˆ·ç«¯æ·»åŠ åˆ° db->blocking_keys å­—å…¸çš„é“¾è¡¨ä¸­
+        // ½«±»×èÈûµÄ¿Í»§¶ËÌí¼Óµ½ db->blocking_keys ×ÖµäµÄÁ´±íÖĞ
         // O(1)
         de = dictFind(c->db->blocking_keys,keys[j]);
-        if (de == NULL) {
-            // è¿™ä¸ª key ç¬¬ä¸€æ¬¡è¢«é˜»å¡ï¼Œåˆ›å»ºä¸€ä¸ªé“¾è¡¨
+        if (de == NULL)
+        {
+            // Õâ¸ö key µÚÒ»´Î±»×èÈû£¬´´½¨Ò»¸öÁ´±í
             int retval;
 
             /* For every key we take a list of clients blocked for it */
@@ -1158,29 +1339,32 @@ void blockForKeys(redisClient *c, robj **keys, int numkeys, time_t timeout, robj
             retval = dictAdd(c->db->blocking_keys,keys[j],l);
             incrRefCount(keys[j]);
             redisAssertWithInfo(c,keys[j],retval == DICT_OK);
-        } else {
-            // å·²ç»æœ‰å…¶ä»–å®¢æˆ·ç«¯è¢«è¿™ä¸ª key é˜»å¡ 
+        }
+        else
+        {
+            // ÒÑ¾­ÓĞÆäËû¿Í»§¶Ë±»Õâ¸ö key ×èÈû
             l = dictGetVal(de);
         }
-        // åŠ å…¥é“¾è¡¨
+        // ¼ÓÈëÁ´±í
         listAddNodeTail(l,c);
     }
 
     /* Mark the client as a blocked client */
-    // å°†å®¢æˆ·ç«¯çš„çŠ¶æ€è®¾ç½®ä¸ºé˜»å¡
+    // ½«¿Í»§¶ËµÄ×´Ì¬ÉèÖÃÎª×èÈû
     c->flags |= REDIS_BLOCKED;
 
-    // ä¸ºæœåŠ¡å™¨çš„é˜»å¡å®¢æˆ·ç«¯æ•°é‡å¢ä¸€
+    // Îª·şÎñÆ÷µÄ×èÈû¿Í»§¶ËÊıÁ¿ÔöÒ»
     server.bpop_blocked_clients++;
 }
 
 /* Unblock a client that's waiting in a blocking operation such as BLPOP */
 /*
- * å–æ¶ˆå®¢æˆ·ç«¯çš„é˜»å¡çŠ¶æ€
+ * È¡Ïû¿Í»§¶ËµÄ×èÈû×´Ì¬
  *
  * T = O(N)
  */
-void unblockClientWaitingData(redisClient *c) {
+void unblockClientWaitingData(redisClient *c)
+{
     dictEntry *de;
     dictIterator *di;
     list *l;
@@ -1188,41 +1372,43 @@ void unblockClientWaitingData(redisClient *c) {
     redisAssertWithInfo(c,NULL,dictSize(c->bpop.keys) != 0);
 
     /* The client may wait for multiple keys, so unblock it for every key. */
-    // éå†æ‰€æœ‰ key ï¼Œå°†å®ƒä»¬ä»å®¢æˆ·ç«¯ db->blocking_keys çš„é“¾è¡¨ä¸­ç§»é™¤
+    // ±éÀúËùÓĞ key £¬½«ËüÃÇ´Ó¿Í»§¶Ë db->blocking_keys µÄÁ´±íÖĞÒÆ³ı
     // O(N)
     di = dictGetIterator(c->bpop.keys);
-    while((de = dictNext(di)) != NULL) {
+    while((de = dictNext(di)) != NULL)
+    {
         robj *key = dictGetKey(de);
 
         /* Remove this client from the list of clients waiting for this key. */
-        // è·å–é˜»å¡ key çš„æ‰€æœ‰å®¢æˆ·ç«¯é“¾è¡¨
+        // »ñÈ¡×èÈû key µÄËùÓĞ¿Í»§¶ËÁ´±í
         l = dictFetchValue(c->db->blocking_keys,key);
         redisAssertWithInfo(c,key,l != NULL);
-        // å°†æœ¬å®¢æˆ·ç«¯ä»è¯¥é“¾è¡¨ä¸­ç§»é™¤
+        // ½«±¾¿Í»§¶Ë´Ó¸ÃÁ´±íÖĞÒÆ³ı
         listDelNode(l,listSearchKey(l,c));
         /* If the list is empty we need to remove it to avoid wasting memory */
-        // å¦‚æœæ²¡æœ‰å…¶ä»–å®¢æˆ·ç«¯é˜»å¡åœ¨è¿™ä¸ª key ä¸Šï¼Œé‚£ä¹ˆåˆ é™¤è¿™ä¸ªé“¾è¡¨
+        // Èç¹ûÃ»ÓĞÆäËû¿Í»§¶Ë×èÈûÔÚÕâ¸ö key ÉÏ£¬ÄÇÃ´É¾³ıÕâ¸öÁ´±í
         if (listLength(l) == 0)
             dictDelete(c->db->blocking_keys,key);
     }
     dictReleaseIterator(di);
 
     /* Cleanup the client structure */
-    // æ¸…ç©º bpop.keys å­—å…¸
+    // Çå¿Õ bpop.keys ×Öµä
     dictEmpty(c->bpop.keys);
-    if (c->bpop.target) {
+    if (c->bpop.target)
+    {
         decrRefCount(c->bpop.target);
         c->bpop.target = NULL;
     }
 
-    // å–æ¶ˆå®¢æˆ·ç«¯çš„é˜»å¡çŠ¶æ€
+    // È¡Ïû¿Í»§¶ËµÄ×èÈû×´Ì¬
     c->flags &= ~REDIS_BLOCKED;
     c->flags |= REDIS_UNBLOCKED;
 
     server.bpop_blocked_clients--;
 
-    // å°†å®¢æˆ·ç«¯æ·»åŠ åˆ°ä¸‹ä¸€æ¬¡äº‹ä»¶ loop å‰ï¼Œ
-    // è¦å–æ¶ˆé˜»å¡çš„å®¢æˆ·ç«¯åˆ—è¡¨å½“ä¸­
+    // ½«¿Í»§¶ËÌí¼Óµ½ÏÂÒ»´ÎÊÂ¼ş loop Ç°£¬
+    // ÒªÈ¡Ïû×èÈûµÄ¿Í»§¶ËÁĞ±íµ±ÖĞ
     listAddNodeTail(server.unblocked_clients,c);
 }
 
@@ -1234,31 +1420,32 @@ void unblockClientWaitingData(redisClient *c) {
  *
  * The list will be finally processed by handleClientsBlockedOnLists()
  *
- * å¦‚æœæœ‰å®¢æˆ·ç«¯æ­£å› ä¸ºç­‰å¾…ç»™å®š key è¢« push è€Œé˜»å¡ï¼Œ
- * é‚£ä¹ˆå°†è¿™ä¸ª key çš„å¼•ç”¨æ”¾è¿› server.ready_keys åˆ—è¡¨é‡Œé¢ã€‚
+ * Èç¹ûÓĞ¿Í»§¶ËÕıÒòÎªµÈ´ı¸ø¶¨ key ±» push ¶ø×èÈû£¬
+ * ÄÇÃ´½«Õâ¸ö key µÄÒıÓÃ·Å½ø server.ready_keys ÁĞ±íÀïÃæ¡£
  *
- * æ³¨æ„ db->ready_keys æ˜¯ä¸€ä¸ªå“ˆå¸Œè¡¨ï¼Œ
- * è¿™å¯ä»¥é¿å…åœ¨äº‹åŠ¡æˆ–è€…è„šæœ¬ä¸­ï¼Œå°†åŒä¸€ä¸ª key ä¸€æ¬¡åˆä¸€æ¬¡æ·»åŠ åˆ°åˆ—è¡¨çš„æƒ…å†µå‡ºç°ã€‚
- * 
- * åˆ—è¡¨æœ€ç»ˆä¼šè¢« handleClientsBlockedOnLists() å‡½æ•°å¤„ç†
+ * ×¢Òâ db->ready_keys ÊÇÒ»¸ö¹şÏ£±í£¬
+ * Õâ¿ÉÒÔ±ÜÃâÔÚÊÂÎñ»òÕß½Å±¾ÖĞ£¬½«Í¬Ò»¸ö key Ò»´ÎÓÖÒ»´ÎÌí¼Óµ½ÁĞ±íµÄÇé¿ö³öÏÖ¡£
+ *
+ * ÁĞ±í×îÖÕ»á±» handleClientsBlockedOnLists() º¯Êı´¦Àí
  *
  * T = O(1)
  */
-void signalListAsReady(redisClient *c, robj *key) {
+void signalListAsReady(redisClient *c, robj *key)
+{
     readyList *rl;
 
     /* No clients blocking for this key? No need to queue it. */
-    // æ²¡æœ‰å®¢æˆ·ç«¯åœ¨ç­‰å¾…è¿™ä¸ª key ï¼Œç›´æ¥è¿”å›
+    // Ã»ÓĞ¿Í»§¶ËÔÚµÈ´ıÕâ¸ö key £¬Ö±½Ó·µ»Ø
     // O(1)
     if (dictFind(c->db->blocking_keys,key) == NULL) return;
 
     /* Key was already signaled? No need to queue it again. */
-    // key å·²ç»ä½äºå°±ç»ªåˆ—è¡¨ï¼Œç›´æ¥è¿”å›
+    // key ÒÑ¾­Î»ÓÚ¾ÍĞ÷ÁĞ±í£¬Ö±½Ó·µ»Ø
     // O(1)
     if (dictFind(c->db->ready_keys,key) != NULL) return;
 
     /* Ok, we need to queue this key into server.ready_keys. */
-    // æ·»åŠ åŒ…å« key åŠå…¶ db ä¿¡æ¯çš„ readyList ç»“æ„åˆ°æœåŠ¡å™¨ç«¯çš„å°±ç»ªåˆ—è¡¨
+    // Ìí¼Ó°üº¬ key ¼°Æä db ĞÅÏ¢µÄ readyList ½á¹¹µ½·şÎñÆ÷¶ËµÄ¾ÍĞ÷ÁĞ±í
     // O(1)
     rl = zmalloc(sizeof(*rl));
     rl->key = key;
@@ -1269,8 +1456,8 @@ void signalListAsReady(redisClient *c, robj *key) {
     /* We also add the key in the db->ready_keys dictionary in order
      * to avoid adding it multiple times into a list with a simple O(1)
      * check. */
-    // åŒæ—¶å°† key æ·»åŠ åˆ° db çš„ ready_keys å­—å…¸ä¸­
-    // æä¾› O(1) å¤æ‚åº¦æ¥æŸ¥è¯¢æŸä¸ª key æ˜¯å¦å·²ç»å°±ç»ª
+    // Í¬Ê±½« key Ìí¼Óµ½ db µÄ ready_keys ×ÖµäÖĞ
+    // Ìá¹© O(1) ¸´ÔÓ¶ÈÀ´²éÑ¯Ä³¸ö key ÊÇ·ñÒÑ¾­¾ÍĞ÷
     incrRefCount(key);
     redisAssert(dictAdd(c->db->ready_keys,key,NULL) == DICT_OK);
 }
@@ -1279,34 +1466,34 @@ void signalListAsReady(redisClient *c, robj *key) {
  * is to serve a specific client (receiver) that is blocked on 'key'
  * in the context of the specified 'db', doing the following:
  *
- * å‡½æ•°å¯¹è¢«é˜»å¡çš„å®¢æˆ·ç«¯ receiver ã€é€ æˆé˜»å¡çš„ key ã€ key æ‰€åœ¨çš„æ•°æ®åº“ db
- * ä»¥åŠä¸€ä¸ªå€¼ value å’Œä¸€ä¸ªä½ç½®å€¼ where æ‰§è¡Œä»¥ä¸‹åŠ¨ä½œï¼š
+ * º¯Êı¶Ô±»×èÈûµÄ¿Í»§¶Ë receiver ¡¢Ôì³É×èÈûµÄ key ¡¢ key ËùÔÚµÄÊı¾İ¿â db
+ * ÒÔ¼°Ò»¸öÖµ value ºÍÒ»¸öÎ»ÖÃÖµ where Ö´ĞĞÒÔÏÂ¶¯×÷£º
  *
  * 1) Provide the client with the 'value' element.
- *    å°† value æä¾›ç»™ receiver
+ *    ½« value Ìá¹©¸ø receiver
  * 2) If the dstkey is not NULL (we are serving a BRPOPLPUSH) also push the
  *    'value' element on the destionation list (the LPUSH side of the command).
- *    å¦‚æœ dstkey ä¸ä¸ºç©ºï¼ˆBRPOPLPUSHçš„æƒ…å†µï¼‰ï¼Œ
- *    é‚£ä¹ˆä¹Ÿå°† value æ¨å…¥åˆ° dstkey æŒ‡å®šçš„åˆ—è¡¨ä¸­ã€‚
+ *    Èç¹û dstkey ²»Îª¿Õ£¨BRPOPLPUSHµÄÇé¿ö£©£¬
+ *    ÄÇÃ´Ò²½« value ÍÆÈëµ½ dstkey Ö¸¶¨µÄÁĞ±íÖĞ¡£
  * 3) Propagate the resulting BRPOP, BLPOP and additional LPUSH if any into
  *    the AOF and replication channel.
- *    å°† BRPOP ã€ BLPOP å’Œå¯èƒ½æœ‰çš„ LPUSH ä¼ æ’­åˆ° AOF å’ŒåŒæ­¥èŠ‚ç‚¹
+ *    ½« BRPOP ¡¢ BLPOP ºÍ¿ÉÄÜÓĞµÄ LPUSH ´«²¥µ½ AOF ºÍÍ¬²½½Úµã
  *
  * The argument 'where' is REDIS_TAIL or REDIS_HEAD, and indicates if the
  * 'value' element was popped fron the head (BLPOP) or tail (BRPOP) so that
  * we can propagate the command properly.
- * where å¯èƒ½æ˜¯ REDIS_TAIL æˆ–è€… REDIS_HEAD ï¼Œç”¨äºè¯†åˆ«è¯¥ value æ˜¯ä»é‚£ä¸ªåœ°æ–¹ POP
- * å‡ºæ¥ï¼Œä¾é è¿™ä¸ªå‚æ•°ï¼Œå¯ä»¥åŒæ ·ä¼ æ’­ BLPOP æˆ–è€… BRPOP ã€‚
+ * where ¿ÉÄÜÊÇ REDIS_TAIL »òÕß REDIS_HEAD £¬ÓÃÓÚÊ¶±ğ¸Ã value ÊÇ´ÓÄÇ¸öµØ·½ POP
+ * ³öÀ´£¬ÒÀ¿¿Õâ¸ö²ÎÊı£¬¿ÉÒÔÍ¬Ñù´«²¥ BLPOP »òÕß BRPOP ¡£
  *
  * The function returns REDIS_OK if we are able to serve the client, otherwise
  * REDIS_ERR is returned to signal the caller that the list POP operation
  * should be undoed as the client was not served: This only happens for
  * BRPOPLPUSH that fails to push the value to the destination key as it is
- * of the wrong type. 
- * å¦‚æœä¸€åˆ‡æˆåŠŸï¼Œè¿”å› REDIS_OK ã€‚
- * å¦‚æœæ‰§è¡Œå¤±è´¥ï¼Œé‚£ä¹ˆè¿”å› REDIS_ERR ï¼Œè®© Redis æ’¤é”€å¯¹ç›®æ ‡èŠ‚ç‚¹çš„ POP æ“ä½œã€‚
- * å¤±è´¥çš„æƒ…å†µåªä¼šå‡ºç°åœ¨ BRPOPLPUSH å‘½ä»¤ä¸­ï¼Œ
- * æ¯”å¦‚ POP åˆ—è¡¨æˆåŠŸï¼Œå´å‘ç°æƒ³ PUSH çš„ç›®æ ‡ä¸æ˜¯åˆ—è¡¨æ—¶ã€‚
+ * of the wrong type.
+ * Èç¹ûÒ»ÇĞ³É¹¦£¬·µ»Ø REDIS_OK ¡£
+ * Èç¹ûÖ´ĞĞÊ§°Ü£¬ÄÇÃ´·µ»Ø REDIS_ERR £¬ÈÃ Redis ³·Ïú¶ÔÄ¿±ê½ÚµãµÄ POP ²Ù×÷¡£
+ * Ê§°ÜµÄÇé¿öÖ»»á³öÏÖÔÚ BRPOPLPUSH ÃüÁîÖĞ£¬
+ * ±ÈÈç POP ÁĞ±í³É¹¦£¬È´·¢ÏÖÏë PUSH µÄÄ¿±ê²»ÊÇÁĞ±íÊ±¡£
  *
  * T = O(N^2)
  */
@@ -1314,58 +1501,63 @@ int serveClientBlockedOnList(redisClient *receiver, robj *key, robj *dstkey, red
 {
     robj *argv[3];
 
-    // ä¸æ˜¯ BLPOPRPUSH ï¼Ÿ
-    if (dstkey == NULL) {
+    // ²»ÊÇ BLPOPRPUSH £¿
+    if (dstkey == NULL)
+    {
         /* Propagate the [LR]POP operation. */
-        // ä¼ æ’­ [LR]POP æ“ä½œ
+        // ´«²¥ [LR]POP ²Ù×÷
         argv[0] = (where == REDIS_HEAD) ? shared.lpop :
-                                          shared.rpop;
+                  shared.rpop;
         argv[1] = key;
         // O(N)
         propagate((where == REDIS_HEAD) ?
-            server.lpopCommand : server.rpopCommand,
-            db->id,argv,2,REDIS_PROPAGATE_AOF|REDIS_PROPAGATE_REPL);
+                  server.lpopCommand : server.rpopCommand,
+                  db->id,argv,2,REDIS_PROPAGATE_AOF|REDIS_PROPAGATE_REPL);
 
         /* BRPOP/BLPOP */
-        // å›å¤å®¢æˆ·ç«¯
+        // »Ø¸´¿Í»§¶Ë
         addReplyMultiBulkLen(receiver,2);
-        addReplyBulk(receiver,key);     // å¼¹å‡º value çš„ key
+        addReplyBulk(receiver,key);     // µ¯³ö value µÄ key
         addReplyBulk(receiver,value);   // value
-    } else {
+    }
+    else
+    {
         /* BRPOPLPUSH */
 
-        // è·å– dstkey å¯¹è±¡
+        // »ñÈ¡ dstkey ¶ÔÏó
         robj *dstobj = lookupKeyWrite(receiver->db,dstkey);
 
-        // å¯¹è±¡ä¸ä¸ºç©ºï¼Œä¸”ç±»å‹æ­£ç¡®ï¼Ÿ
+        // ¶ÔÏó²»Îª¿Õ£¬ÇÒÀàĞÍÕıÈ·£¿
         if (!(dstobj &&
-             checkType(receiver,dstobj,REDIS_LIST)))
+                checkType(receiver,dstobj,REDIS_LIST)))
         {
             /* Propagate the RPOP operation. */
-            // ä¼ æ’­ RPOP æ“ä½œ
+            // ´«²¥ RPOP ²Ù×÷
             argv[0] = shared.rpop;
             argv[1] = key;
             propagate(server.rpopCommand,
-                db->id,argv,2,
-                REDIS_PROPAGATE_AOF|
-                REDIS_PROPAGATE_REPL);
-            // å°† value æ·»åŠ åˆ° dstkey åˆ—è¡¨é‡Œ
-            // å¦‚æœ dstkey ä¸å­˜åœ¨ï¼Œé‚£ä¹ˆåˆ›å»ºä¸€ä¸ªæ–°åˆ—è¡¨ï¼Œ
-            // ç„¶åè¿›è¡Œæ·»åŠ æ“ä½œ
+                      db->id,argv,2,
+                      REDIS_PROPAGATE_AOF|
+                      REDIS_PROPAGATE_REPL);
+            // ½« value Ìí¼Óµ½ dstkey ÁĞ±íÀï
+            // Èç¹û dstkey ²»´æÔÚ£¬ÄÇÃ´´´½¨Ò»¸öĞÂÁĞ±í£¬
+            // È»ºó½øĞĞÌí¼Ó²Ù×÷
             // O(N^2)
             rpoplpushHandlePush(receiver,dstkey,dstobj,
-                value);
+                                value);
             /* Propagate the LPUSH operation. */
-            // ä¼ æ’­ LPUSH æ“ä½œ
+            // ´«²¥ LPUSH ²Ù×÷
             argv[0] = shared.lpush;
             argv[1] = dstkey;
             argv[2] = value;
             // O(N)
             propagate(server.lpushCommand,
-                db->id,argv,3,
-                REDIS_PROPAGATE_AOF|
-                REDIS_PROPAGATE_REPL);
-        } else {
+                      db->id,argv,3,
+                      REDIS_PROPAGATE_AOF|
+                      REDIS_PROPAGATE_REPL);
+        }
+        else
+        {
             /* BRPOPLPUSH failed because of wrong
              * destination type. */
             return REDIS_ERR;
@@ -1378,123 +1570,132 @@ int serveClientBlockedOnList(redisClient *receiver, robj *key, robj *dstkey, red
  * a MULTI/EXEC block, or a Lua script, terminated its execution after
  * being called by a client.
  *
- * è¿™ä¸ªå‡½æ•°ä¼šåœ¨æ¯æ¬¡å®¢æˆ·ç«¯æ‰§è¡Œå•ä¸ªå‘½ä»¤/äº‹åŠ¡/è„šæœ¬ç»“æŸä¹‹åè¢«è°ƒç”¨ã€‚
+ * Õâ¸öº¯Êı»áÔÚÃ¿´Î¿Í»§¶ËÖ´ĞĞµ¥¸öÃüÁî/ÊÂÎñ/½Å±¾½áÊøÖ®ºó±»µ÷ÓÃ¡£
  *
  * All the keys with at least one client blocked that received at least
  * one new element via some PUSH operation are accumulated into
  * the server.ready_keys list. This function will run the list and will
  * serve clients accordingly. Note that the function will iterate again and
  * again as a result of serving BRPOPLPUSH we can have new blocking clients
- * to serve because of the PUSH side of BRPOPLPUSH. 
+ * to serve because of the PUSH side of BRPOPLPUSH.
  *
- * å¯¹æ‰€æœ‰è¢«é˜»å¡åœ¨æŸä¸ªå®¢æˆ·ç«¯çš„ key æ¥è¯´ï¼Œåªè¦è¿™ä¸ª key è¢«æ‰§è¡Œäº†æŸç§ PUSH æ“ä½œ
- * é‚£ä¹ˆè¿™ä¸ª key å°±ä¼šè¢«æ”¾åˆ° serve.ready_keys å»ã€‚
- * 
- * è¿™ä¸ªå‡½æ•°ä¼šéå†æ•´ä¸ª serve.ready_keys é“¾è¡¨ï¼Œå¹¶å¯¹é‡Œé¢çš„ key è¿›è¡Œå¤„ç†ã€‚
+ * ¶ÔËùÓĞ±»×èÈûÔÚÄ³¸ö¿Í»§¶ËµÄ key À´Ëµ£¬Ö»ÒªÕâ¸ö key ±»Ö´ĞĞÁËÄ³ÖÖ PUSH ²Ù×÷
+ * ÄÇÃ´Õâ¸ö key ¾Í»á±»·Åµ½ serve.ready_keys È¥¡£
  *
- * å‡½æ•°ä¼šä¸€æ¬¡åˆä¸€æ¬¡åœ°è¿›è¡Œè¿­ä»£ï¼Œ
- * å› æ­¤å®ƒåœ¨æ‰§è¡Œ BRPOPLPUSH å‘½ä»¤çš„æƒ…å†µä¸‹ä¹Ÿå¯ä»¥æ­£å¸¸è·å–åˆ°æ­£ç¡®çš„æ–°è¢«é˜»å¡å®¢æˆ·ç«¯ã€‚
+ * Õâ¸öº¯Êı»á±éÀúÕû¸ö serve.ready_keys Á´±í£¬²¢¶ÔÀïÃæµÄ key ½øĞĞ´¦Àí¡£
+ *
+ * º¯Êı»áÒ»´ÎÓÖÒ»´ÎµØ½øĞĞµü´ú£¬
+ * Òò´ËËüÔÚÖ´ĞĞ BRPOPLPUSH ÃüÁîµÄÇé¿öÏÂÒ²¿ÉÒÔÕı³£»ñÈ¡µ½ÕıÈ·µÄĞÂ±»×èÈû¿Í»§¶Ë¡£
  */
-void handleClientsBlockedOnLists(void) {
-    // éå†ç›´åˆ°æ•´ä¸ªåˆ—è¡¨ä¸ºç©ºä¸ºæ­¢ï¼ŒO(N^3)
-    while(listLength(server.ready_keys) != 0) {
+void handleClientsBlockedOnLists(void)
+{
+    // ±éÀúÖ±µ½Õû¸öÁĞ±íÎª¿ÕÎªÖ¹£¬O(N^3)
+    while(listLength(server.ready_keys) != 0)
+    {
         list *l;
 
         /* Point server.ready_keys to a fresh list and save the current one
          * locally. This way as we run the old list we are free to call
          * signalListAsReady() that may push new elements in server.ready_keys
          * when handling clients blocked into BRPOPLPUSH. */
-        // å¤‡ä»½æ—§çš„ ready_keys ï¼Œå†ç»™æœåŠ¡å™¨ç«¯èµ‹å€¼ä¸€ä¸ªæ–°çš„
+        // ±¸·İ¾ÉµÄ ready_keys £¬ÔÙ¸ø·şÎñÆ÷¶Ë¸³ÖµÒ»¸öĞÂµÄ
         l = server.ready_keys;
         server.ready_keys = listCreate();
 
-        // éå†æ•´ä¸ª ready_keys é“¾è¡¨ï¼ŒO(N^2)
-        while(listLength(l) != 0) {
-            // 
+        // ±éÀúÕû¸ö ready_keys Á´±í£¬O(N^2)
+        while(listLength(l) != 0)
+        {
+            //
             listNode *ln = listFirst(l);
-            // è·å–å…ƒç´ çš„å€¼ï¼Œä¸€ä¸ªåŒ…å«è¢«é˜»å¡çš„ key å’Œ db çš„ readyList
+            // »ñÈ¡ÔªËØµÄÖµ£¬Ò»¸ö°üº¬±»×èÈûµÄ key ºÍ db µÄ readyList
             readyList *rl = ln->value;
 
             /* First of all remove this key from db->ready_keys so that
              * we can safely call signalListAsReady() against this key. */
-            // ä» db->ready_keys ä¸­åˆ é™¤ç»™å®š key
+            // ´Ó db->ready_keys ÖĞÉ¾³ı¸ø¶¨ key
             dictDelete(rl->db->ready_keys,rl->key);
 
             /* If the key exists and it's a list, serve blocked clients
              * with data. */
-            // è·å– key å¯¹è±¡
+            // »ñÈ¡ key ¶ÔÏó
             robj *o = lookupKeyWrite(rl->db,rl->key);
-            // å¯¹è±¡ä¸ä¸ºç©ºä¸”æ˜¯åˆ—è¡¨
-            if (o != NULL && o->type == REDIS_LIST) {
+            // ¶ÔÏó²»Îª¿ÕÇÒÊÇÁĞ±í
+            if (o != NULL && o->type == REDIS_LIST)
+            {
                 dictEntry *de;
 
                 /* We serve clients in the same order they blocked for
                  * this key, from the first blocked to the last. */
-                // å–å‡ºé“¾è¡¨ä¸­åŒ…å«çš„æ‰€æœ‰è¢«ç»™å®š key é˜»å¡çš„å®¢æˆ·ç«¯
+                // È¡³öÁ´±íÖĞ°üº¬µÄËùÓĞ±»¸ø¶¨ key ×èÈûµÄ¿Í»§¶Ë
                 de = dictFind(rl->db->blocking_keys,rl->key);
-                if (de) {
-                    // è¿”å›æ‰€æœ‰å› ä¸º key è€Œé˜»å¡çš„å®¢æˆ·ç«¯
+                if (de)
+                {
+                    // ·µ»ØËùÓĞÒòÎª key ¶ø×èÈûµÄ¿Í»§¶Ë
                     list *clients = dictGetVal(de);
-                    // è®¡ç®—è¢«é˜»å¡å®¢æˆ·ç«¯çš„æ•°é‡
+                    // ¼ÆËã±»×èÈû¿Í»§¶ËµÄÊıÁ¿
                     int numclients = listLength(clients);
 
-                    // éå†æ‰€æœ‰å®¢æˆ·ç«¯ï¼Œä¸ºå®ƒä»¬å–å‡ºé˜»å¡ key çš„å€¼
-                    // ç›´åˆ°é˜»å¡ key çš„å€¼è¢«å…¨éƒ¨å–å‡ºï¼Œ
-                    // æˆ–è€…æ‰€æœ‰å®¢æˆ·ç«¯éƒ½è¢«å¤„ç†å®Œä¸ºæ­¢
-                    while(numclients--) {
-                        // å–å‡ºé“¾è¡¨ä¸­çš„é¦–ä¸ªå®¢æˆ·ç«¯
+                    // ±éÀúËùÓĞ¿Í»§¶Ë£¬ÎªËüÃÇÈ¡³ö×èÈû key µÄÖµ
+                    // Ö±µ½×èÈû key µÄÖµ±»È«²¿È¡³ö£¬
+                    // »òÕßËùÓĞ¿Í»§¶Ë¶¼±»´¦ÀíÍêÎªÖ¹
+                    while(numclients--)
+                    {
+                        // È¡³öÁ´±íÖĞµÄÊ×¸ö¿Í»§¶Ë
                         listNode *clientnode = listFirst(clients);
                         redisClient *receiver = clientnode->value;
 
-                        // è®¾ç½®å¼¹å‡ºçš„ç›®æ ‡ï¼ˆåªç”¨äº BRPOPLPUSHï¼‰
+                        // ÉèÖÃµ¯³öµÄÄ¿±ê£¨Ö»ÓÃÓÚ BRPOPLPUSH£©
                         robj *dstkey = receiver->bpop.target;
 
-                        // è¦å¼¹å‡ºå…ƒç´ çš„ä½ç½®
+                        // Òªµ¯³öÔªËØµÄÎ»ÖÃ
                         int where = (receiver->lastcmd &&
                                      receiver->lastcmd->proc == blpopCommand) ?
                                     REDIS_HEAD : REDIS_TAIL;
 
-                        // è¢«å¼¹å‡ºçš„å€¼
+                        // ±»µ¯³öµÄÖµ
                         robj *value = listTypePop(o,where);
 
-                        // å¦‚æœåˆ—è¡¨é‡Œè¿˜æœ‰å€¼å¯ä»¥è¢«å¼¹å‡ºçš„è¯
-                        // é‚£ä¹ˆå°†å®ƒä¿å­˜åˆ° dstkey ï¼Œæˆ–è€…è¿”å›ç»™å®¢æˆ·ç«¯
-                        if (value) {
+                        // Èç¹ûÁĞ±íÀï»¹ÓĞÖµ¿ÉÒÔ±»µ¯³öµÄ»°
+                        // ÄÇÃ´½«Ëü±£´æµ½ dstkey £¬»òÕß·µ»Ø¸ø¿Í»§¶Ë
+                        if (value)
+                        {
                             /* Protect receiver->bpop.target, that will be
                              * freed by the next unblockClientWaitingData()
                              * call. */
                             if (dstkey) incrRefCount(dstkey);
 
-                            // å–æ¶ˆ receiver å®¢æˆ·ç«¯çš„é˜»å¡çŠ¶æ€
+                            // È¡Ïû receiver ¿Í»§¶ËµÄ×èÈû×´Ì¬
                             unblockClientWaitingData(receiver);
 
-                            // å°†å€¼ value æ·»åŠ åˆ°
-                            // é€ æˆå®¢æˆ·ç«¯ receiver é˜»å¡çš„ key ä¸Š
+                            // ½«Öµ value Ìí¼Óµ½
+                            // Ôì³É¿Í»§¶Ë receiver ×èÈûµÄ key ÉÏ
                             if (serveClientBlockedOnList(
-                                receiver,   // è¢«é˜»å¡çš„å®¢æˆ·ç«¯
-                                rl->key,    // é€ æˆé˜»å¡çš„ key
-                                dstkey,     // ç›®æ ‡ key ï¼ˆä»…ç”¨äº BRPOPLPUSHï¼‰
-                                rl->db,     // æ•°æ®åº“
-                                value,      // å€¼
-                                where) == REDIS_ERR)
+                                        receiver,   // ±»×èÈûµÄ¿Í»§¶Ë
+                                        rl->key,    // Ôì³É×èÈûµÄ key
+                                        dstkey,     // Ä¿±ê key £¨½öÓÃÓÚ BRPOPLPUSH£©
+                                        rl->db,     // Êı¾İ¿â
+                                        value,      // Öµ
+                                        where) == REDIS_ERR)
                             {
                                 /* If we failed serving the client we need
                                  * to also undo the POP operation. */
-                                // å¦‚æœå¤„ç†å¤±è´¥ï¼Œéœ€è¦é‡æ–°å°† POP å‡ºæ¥çš„
-                                // å…ƒç´  PUSH å›å»
+                                // Èç¹û´¦ÀíÊ§°Ü£¬ĞèÒªÖØĞÂ½« POP ³öÀ´µÄ
+                                // ÔªËØ PUSH »ØÈ¥
                                 listTypePush(o,value,where);
                             }
 
                             if (dstkey) decrRefCount(dstkey);
                             decrRefCount(value);
-                        } else {
-                            // éƒ¨åˆ†å®¢æˆ·ç«¯æ²¡æœ‰å–åˆ°å€¼ï¼Œå®ƒä»¬ä»ç„¶éœ€è¦é˜»å¡
+                        }
+                        else
+                        {
+                            // ²¿·Ö¿Í»§¶ËÃ»ÓĞÈ¡µ½Öµ£¬ËüÃÇÈÔÈ»ĞèÒª×èÈû
                             break;
                         }
                     }
                 }
-               
-                // å¦‚æœ key å·²ç»ä¸ºç©ºï¼Œé‚£ä¹ˆåˆ é™¤å®ƒ
+
+                // Èç¹û key ÒÑ¾­Îª¿Õ£¬ÄÇÃ´É¾³ıËü
                 if (listTypeLength(o) == 0) dbDelete(rl->db,rl->key);
                 /* We don't call signalModifiedKey() as it was already called
                  * when an element was pushed on the list. */
@@ -1509,14 +1710,16 @@ void handleClientsBlockedOnLists(void) {
     }
 }
 
-int getTimeoutFromObjectOrReply(redisClient *c, robj *object, time_t *timeout) {
+int getTimeoutFromObjectOrReply(redisClient *c, robj *object, time_t *timeout)
+{
     long tval;
 
     if (getLongFromObjectOrReply(c,object,&tval,
-        "timeout is not an integer or out of range") != REDIS_OK)
+                                 "timeout is not an integer or out of range") != REDIS_OK)
         return REDIS_ERR;
 
-    if (tval < 0) {
+    if (tval < 0)
+    {
         addReplyError(c,"timeout is negative");
         return REDIS_ERR;
     }
@@ -1529,34 +1732,41 @@ int getTimeoutFromObjectOrReply(redisClient *c, robj *object, time_t *timeout) {
 
 /* Blocking RPOP/LPOP */
 /*
- * BLPOP/BRPOP çš„åº•å±‚å®ç°
+ * BLPOP/BRPOP µÄµ×²ãÊµÏÖ
  */
-void blockingPopGenericCommand(redisClient *c, int where) {
+void blockingPopGenericCommand(redisClient *c, int where)
+{
     robj *o;
     time_t timeout;
     int j;
 
-    // è·å– timeout å‚æ•°
+    // »ñÈ¡ timeout ²ÎÊı
     if (getTimeoutFromObjectOrReply(c,c->argv[c->argc-1],&timeout) != REDIS_OK)
         return;
 
-    // éå†æ‰€æœ‰ key 
-    // å¦‚æœæ‰¾åˆ°ç¬¬ä¸€ä¸ªä¸ä¸ºç©ºçš„åˆ—è¡¨å¯¹è±¡ï¼Œé‚£ä¹ˆå¯¹å®ƒè¿›è¡Œ POP ï¼Œç„¶åè¿”å›
-    for (j = 1; j < c->argc-1; j++) {
-        
+    // ±éÀúËùÓĞ key
+    // Èç¹ûÕÒµ½µÚÒ»¸ö²»Îª¿ÕµÄÁĞ±í¶ÔÏó£¬ÄÇÃ´¶ÔËü½øĞĞ POP £¬È»ºó·µ»Ø
+    for (j = 1; j < c->argc-1; j++)
+    {
+
         o = lookupKeyWrite(c->db,c->argv[j]);
 
-        // å¯¹è±¡ä¸ä¸ºç©ºï¼Ÿ
-        if (o != NULL) {
-            // ç±»å‹æ£€æŸ¥
-            if (o->type != REDIS_LIST) {
+        // ¶ÔÏó²»Îª¿Õ£¿
+        if (o != NULL)
+        {
+            // ÀàĞÍ¼ì²é
+            if (o->type != REDIS_LIST)
+            {
                 addReply(c,shared.wrongtypeerr);
                 return;
-            } else {
-                // key ä¸ºéç©ºåˆ—è¡¨ï¼Ÿ
-                if (listTypeLength(o) != 0) {
+            }
+            else
+            {
+                // key Îª·Ç¿ÕÁĞ±í£¿
+                if (listTypeLength(o) != 0)
+                {
                     /* Non empty list, this is like a non normal [LR]POP. */
-                    // éç©ºåˆ—è¡¨ï¼Œæ‰§è¡Œæ™®é€šçš„ [LR]POP
+                    // ·Ç¿ÕÁĞ±í£¬Ö´ĞĞÆÕÍ¨µÄ [LR]POP
                     robj *value = listTypePop(o,where);
                     redisAssert(value != NULL);
 
@@ -1566,7 +1776,7 @@ void blockingPopGenericCommand(redisClient *c, int where) {
 
                     decrRefCount(value);
 
-                    // åˆ é™¤ç©ºåˆ—è¡¨
+                    // É¾³ı¿ÕÁĞ±í
                     if (listTypeLength(o) == 0) dbDelete(c->db,c->argv[j]);
 
                     signalModifiedKey(c->db,c->argv[j]);
@@ -1574,8 +1784,8 @@ void blockingPopGenericCommand(redisClient *c, int where) {
 
                     /* Replicate it as an [LR]POP instead of B[LR]POP. */
                     rewriteClientCommandVector(c,2,
-                        (where == REDIS_HEAD) ? shared.lpop : shared.rpop,
-                        c->argv[j]);
+                                               (where == REDIS_HEAD) ? shared.lpop : shared.rpop,
+                                               c->argv[j]);
                     return;
                 }
             }
@@ -1584,51 +1794,64 @@ void blockingPopGenericCommand(redisClient *c, int where) {
 
     /* If we are inside a MULTI/EXEC and the list is empty the only thing
      * we can do is treating it as a timeout (even with timeout 0). */
-    // å¦‚æœå‘½ä»¤æ­£è¢«äº‹åŠ¡åŒ…å«ï¼Œé‚£ä¹ˆåªèƒ½è¿”å›ç­‰å¾…è¶…æ—¶
-    // ï¼ˆé˜»å¡ä¸èƒ½ç”¨åœ¨äº‹åŠ¡é‡Œï¼Œå› ä¸ºè¿™å›é€ æˆäº‹åŠ¡ä¸€ç›´ç­‰å¾…ä¸‹å»ï¼‰
-    if (c->flags & REDIS_MULTI) {
+    // Èç¹ûÃüÁîÕı±»ÊÂÎñ°üº¬£¬ÄÇÃ´Ö»ÄÜ·µ»ØµÈ´ı³¬Ê±
+    // £¨×èÈû²»ÄÜÓÃÔÚÊÂÎñÀï£¬ÒòÎªÕâ»ØÔì³ÉÊÂÎñÒ»Ö±µÈ´ıÏÂÈ¥£©
+    if (c->flags & REDIS_MULTI)
+    {
         addReply(c,shared.nullmultibulk);
         return;
     }
 
     /* If the list is empty or the key does not exists we must block */
-    // æ‰€æœ‰ç»™å®š key éƒ½ä¸ºç©ºï¼Œè¿›è¡Œ block
+    // ËùÓĞ¸ø¶¨ key ¶¼Îª¿Õ£¬½øĞĞ block
     blockForKeys(c, c->argv + 1, c->argc - 2, timeout, NULL);
 }
 
-void blpopCommand(redisClient *c) {
+void blpopCommand(redisClient *c)
+{
     blockingPopGenericCommand(c,REDIS_HEAD);
 }
 
-void brpopCommand(redisClient *c) {
+void brpopCommand(redisClient *c)
+{
     blockingPopGenericCommand(c,REDIS_TAIL);
 }
 
-void brpoplpushCommand(redisClient *c) {
+void brpoplpushCommand(redisClient *c)
+{
     time_t timeout;
 
-    // è·å– timeout å‚æ•°
+    // »ñÈ¡ timeout ²ÎÊı
     if (getTimeoutFromObjectOrReply(c,c->argv[3],&timeout) != REDIS_OK)
         return;
 
-    // æŸ¥æ‰¾ key å¯¹è±¡
+    // ²éÕÒ key ¶ÔÏó
     robj *key = lookupKeyWrite(c->db, c->argv[1]);
 
-    // ä¸å­˜åœ¨ï¼Ÿ
-    if (key == NULL) {
-        if (c->flags & REDIS_MULTI) {
+    // ²»´æÔÚ£¿
+    if (key == NULL)
+    {
+        if (c->flags & REDIS_MULTI)
+        {
             /* Blocking against an empty list in a multi state
              * returns immediately. */
             addReply(c, shared.nullbulk);
-        } else {
+        }
+        else
+        {
             /* The list is empty and the client blocks. */
-            // ç›´æ¥ç­‰å¾…å…ƒç´  push åˆ° key
+            // Ö±½ÓµÈ´ıÔªËØ push µ½ key
             blockForKeys(c, c->argv + 1, 1, timeout, c->argv[2]);
         }
-    } else {
-        if (key->type != REDIS_LIST) {
+    }
+    else
+    {
+        if (key->type != REDIS_LIST)
+        {
             addReply(c, shared.wrongtypeerr);
-        } else {
+        }
+        else
+        {
             /* The list exists and has elements, so
              * the regular rpoplpushCommand is executed. */
             redisAssertWithInfo(c,key,listTypeLength(key) > 0);

@@ -50,7 +50,8 @@ static int _dictInit(dict *ht, dictType *type, void *privDataPtr);
 
 /* Generic hash function (a popular one from Bernstein).
  * I tested a few and this was the best. */
-static unsigned int dictGenHashFunction(const unsigned char *buf, int len) {
+static unsigned int dictGenHashFunction(const unsigned char *buf, int len)
+{
     unsigned int hash = 5381;
 
     while (len--)
@@ -62,7 +63,8 @@ static unsigned int dictGenHashFunction(const unsigned char *buf, int len) {
 
 /* Reset an hashtable already initialized with ht_init().
  * NOTE: This function should only called by ht_destroy(). */
-static void _dictReset(dict *ht) {
+static void _dictReset(dict *ht)
+{
     ht->table = NULL;
     ht->size = 0;
     ht->sizemask = 0;
@@ -70,14 +72,16 @@ static void _dictReset(dict *ht) {
 }
 
 /* Create a new hash table */
-static dict *dictCreate(dictType *type, void *privDataPtr) {
+static dict *dictCreate(dictType *type, void *privDataPtr)
+{
     dict *ht = malloc(sizeof(*ht));
     _dictInit(ht,type,privDataPtr);
     return ht;
 }
 
 /* Initialize the hash table */
-static int _dictInit(dict *ht, dictType *type, void *privDataPtr) {
+static int _dictInit(dict *ht, dictType *type, void *privDataPtr)
+{
     _dictReset(ht);
     ht->type = type;
     ht->privdata = privDataPtr;
@@ -85,7 +89,8 @@ static int _dictInit(dict *ht, dictType *type, void *privDataPtr) {
 }
 
 /* Expand or create the hashtable */
-static int dictExpand(dict *ht, unsigned long size) {
+static int dictExpand(dict *ht, unsigned long size)
+{
     dict n; /* the new hashtable */
     unsigned long realsize = _dictNextPower(size), i;
 
@@ -103,14 +108,16 @@ static int dictExpand(dict *ht, unsigned long size) {
      * note that if the old hash table is empty ht->size is zero,
      * so dictExpand just creates an hash table. */
     n.used = ht->used;
-    for (i = 0; i < ht->size && ht->used > 0; i++) {
+    for (i = 0; i < ht->size && ht->used > 0; i++)
+    {
         dictEntry *he, *nextHe;
 
         if (ht->table[i] == NULL) continue;
 
         /* For each hash entry on this slot... */
         he = ht->table[i];
-        while(he) {
+        while(he)
+        {
             unsigned int h;
 
             nextHe = he->next;
@@ -132,7 +139,8 @@ static int dictExpand(dict *ht, unsigned long size) {
 }
 
 /* Add an element to the target hash table */
-static int dictAdd(dict *ht, void *key, void *val) {
+static int dictAdd(dict *ht, void *key, void *val)
+{
     int index;
     dictEntry *entry;
 
@@ -157,7 +165,8 @@ static int dictAdd(dict *ht, void *key, void *val) {
  * Return 1 if the key was added from scratch, 0 if there was already an
  * element with such key and dictReplace() just performed a value update
  * operation. */
-static int dictReplace(dict *ht, void *key, void *val) {
+static int dictReplace(dict *ht, void *key, void *val)
+{
     dictEntry *entry, auxentry;
 
     /* Try to add the element. If the key
@@ -179,7 +188,8 @@ static int dictReplace(dict *ht, void *key, void *val) {
 }
 
 /* Search and remove an element */
-static int dictDelete(dict *ht, const void *key) {
+static int dictDelete(dict *ht, const void *key)
+{
     unsigned int h;
     dictEntry *de, *prevde;
 
@@ -189,8 +199,10 @@ static int dictDelete(dict *ht, const void *key) {
     de = ht->table[h];
 
     prevde = NULL;
-    while(de) {
-        if (dictCompareHashKeys(ht,key,de->key)) {
+    while(de)
+    {
+        if (dictCompareHashKeys(ht,key,de->key))
+        {
             /* Unlink the element from the list */
             if (prevde)
                 prevde->next = de->next;
@@ -210,15 +222,18 @@ static int dictDelete(dict *ht, const void *key) {
 }
 
 /* Destroy an entire hash table */
-static int _dictClear(dict *ht) {
+static int _dictClear(dict *ht)
+{
     unsigned long i;
 
     /* Free all the elements */
-    for (i = 0; i < ht->size && ht->used > 0; i++) {
+    for (i = 0; i < ht->size && ht->used > 0; i++)
+    {
         dictEntry *he, *nextHe;
 
         if ((he = ht->table[i]) == NULL) continue;
-        while(he) {
+        while(he)
+        {
             nextHe = he->next;
             dictFreeEntryKey(ht, he);
             dictFreeEntryVal(ht, he);
@@ -235,19 +250,22 @@ static int _dictClear(dict *ht) {
 }
 
 /* Clear & Release the hash table */
-static void dictRelease(dict *ht) {
+static void dictRelease(dict *ht)
+{
     _dictClear(ht);
     free(ht);
 }
 
-static dictEntry *dictFind(dict *ht, const void *key) {
+static dictEntry *dictFind(dict *ht, const void *key)
+{
     dictEntry *he;
     unsigned int h;
 
     if (ht->size == 0) return NULL;
     h = dictHashKey(ht, key) & ht->sizemask;
     he = ht->table[h];
-    while(he) {
+    while(he)
+    {
         if (dictCompareHashKeys(ht, key, he->key))
             return he;
         he = he->next;
@@ -255,7 +273,8 @@ static dictEntry *dictFind(dict *ht, const void *key) {
     return NULL;
 }
 
-static dictIterator *dictGetIterator(dict *ht) {
+static dictIterator *dictGetIterator(dict *ht)
+{
     dictIterator *iter = malloc(sizeof(*iter));
 
     iter->ht = ht;
@@ -265,17 +284,23 @@ static dictIterator *dictGetIterator(dict *ht) {
     return iter;
 }
 
-static dictEntry *dictNext(dictIterator *iter) {
-    while (1) {
-        if (iter->entry == NULL) {
+static dictEntry *dictNext(dictIterator *iter)
+{
+    while (1)
+    {
+        if (iter->entry == NULL)
+        {
             iter->index++;
             if (iter->index >=
                     (signed)iter->ht->size) break;
             iter->entry = iter->ht->table[iter->index];
-        } else {
+        }
+        else
+        {
             iter->entry = iter->nextEntry;
         }
-        if (iter->entry) {
+        if (iter->entry)
+        {
             /* We need to save the 'next' here, the iterator user
              * may delete the entry we are returning. */
             iter->nextEntry = iter->entry->next;
@@ -285,14 +310,16 @@ static dictEntry *dictNext(dictIterator *iter) {
     return NULL;
 }
 
-static void dictReleaseIterator(dictIterator *iter) {
+static void dictReleaseIterator(dictIterator *iter)
+{
     free(iter);
 }
 
 /* ------------------------- private functions ------------------------------ */
 
 /* Expand the hash table if needed */
-static int _dictExpandIfNeeded(dict *ht) {
+static int _dictExpandIfNeeded(dict *ht)
+{
     /* If the hash table is empty expand it to the intial size,
      * if the table is "full" dobule its size. */
     if (ht->size == 0)
@@ -303,11 +330,13 @@ static int _dictExpandIfNeeded(dict *ht) {
 }
 
 /* Our hash table capability is a power of two */
-static unsigned long _dictNextPower(unsigned long size) {
+static unsigned long _dictNextPower(unsigned long size)
+{
     unsigned long i = DICT_HT_INITIAL_SIZE;
 
     if (size >= LONG_MAX) return LONG_MAX;
-    while(1) {
+    while(1)
+    {
         if (i >= size)
             return i;
         i *= 2;
@@ -317,7 +346,8 @@ static unsigned long _dictNextPower(unsigned long size) {
 /* Returns the index of a free slot that can be populated with
  * an hash entry for the given 'key'.
  * If the key already exists, -1 is returned. */
-static int _dictKeyIndex(dict *ht, const void *key) {
+static int _dictKeyIndex(dict *ht, const void *key)
+{
     unsigned int h;
     dictEntry *he;
 
@@ -328,7 +358,8 @@ static int _dictKeyIndex(dict *ht, const void *key) {
     h = dictHashKey(ht, key) & ht->sizemask;
     /* Search if this slot does not already contain the given key */
     he = ht->table[h];
-    while(he) {
+    while(he)
+    {
         if (dictCompareHashKeys(ht, key, he->key))
             return -1;
         he = he->next;

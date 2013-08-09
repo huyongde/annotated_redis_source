@@ -1,26 +1,26 @@
 /* String -> String Map data structure optimized for size.
  *
- * ä¸ºèŠ‚çº¦ç©ºé—´è€Œå®ç°çš„ String -> String Map ç»“æ„
+ * Îª½ÚÔ¼¿Õ¼ä¶øÊµÏÖµÄ String -> String Map ½á¹¹
  *
  * This file implements a data structure mapping strings to other strings
  * implementing an O(n) lookup data structure designed to be very memory
  * efficient.
  *
- * æœ¬æ–‡ä»¶å®ç°äº†ä¸€ä¸ªä» String åˆ° String çš„æ˜ å°„ç»“æ„ï¼Œ
- * å®ƒçš„æŸ¥æ‰¾å¤æ‚åº¦ä¸º O(n) ï¼Œå¹¶ä¸”éå¸¸èŠ‚çº¦å†…å­˜
+ * ±¾ÎÄ¼şÊµÏÖÁËÒ»¸ö´Ó String µ½ String µÄÓ³Éä½á¹¹£¬
+ * ËüµÄ²éÕÒ¸´ÔÓ¶ÈÎª O(n) £¬²¢ÇÒ·Ç³£½ÚÔ¼ÄÚ´æ
  *
  * The Redis Hash type uses this data structure for hashes composed of a small
  * number of elements, to switch to an hash table once a given number of
  * elements is reached.
  *
- * Redis Hash ç±»å‹ä½¿ç”¨è¿™ä¸ªæ•°æ®ç»“æ„å¯¹æ•°é‡ä¸å¤šçš„å…ƒç´ è¿›è¡Œå‚¨å­˜ï¼Œ
- * ä¸€æ—¦å…ƒç´ çš„æ•°é‡è¶…è¿‡æŸä¸ªç»™å®šå€¼ï¼Œå®ƒå°±ä¼šè‡ªåŠ¨è½¬æ¢æˆå“ˆå¸Œè¡¨
+ * Redis Hash ÀàĞÍÊ¹ÓÃÕâ¸öÊı¾İ½á¹¹¶ÔÊıÁ¿²»¶àµÄÔªËØ½øĞĞ´¢´æ£¬
+ * Ò»µ©ÔªËØµÄÊıÁ¿³¬¹ıÄ³¸ö¸ø¶¨Öµ£¬Ëü¾Í»á×Ô¶¯×ª»»³É¹şÏ£±í
  *
  * Given that many times Redis Hashes are used to represent objects composed
  * of few fields, this is a very big win in terms of used memory.
  *
- * å› ä¸ºå¾ˆå¤šæ—¶å€™ï¼Œä¸€ä¸ª Hash éƒ½åªä¿å­˜å°‘æ•°å‡ ä¸ª key-value å¯¹ï¼Œ
- * æ‰€ä»¥ä½¿ç”¨ zipmap æ¯”èµ·ç›´æ¥ä½¿ç”¨çœŸæ­£çš„å“ˆå¸Œè¡¨è¦èŠ‚çº¦ä¸å°‘å†…å­˜ã€‚
+ * ÒòÎªºÜ¶àÊ±ºò£¬Ò»¸ö Hash ¶¼Ö»±£´æÉÙÊı¼¸¸ö key-value ¶Ô£¬
+ * ËùÒÔÊ¹ÓÃ zipmap ±ÈÆğÖ±½ÓÊ¹ÓÃÕæÕıµÄ¹şÏ£±íÒª½ÚÔ¼²»ÉÙÄÚ´æ¡£
  *
  * --------------------------------------------------------------------------
  *
@@ -54,7 +54,7 @@
 
 /* Memory layout of a zipmap, for the map "foo" => "bar", "hello" => "world":
  *
- * å¯¹äºæ˜ å°„ "foo" => "bar", "hello" => "world" ï¼Œ zipmap æœ‰ä»¥ä¸‹å†…å­˜ç»“æ„ï¼š
+ * ¶ÔÓÚÓ³Éä "foo" => "bar", "hello" => "world" £¬ zipmap ÓĞÒÔÏÂÄÚ´æ½á¹¹£º
  *
  * <zmlen><len>"foo"<len><free>"bar"<len>"hello"<len><free>"world"<ZIPMAP_END>
  *
@@ -62,9 +62,9 @@
  * When the zipmap length is greater than or equal to 254, this value
  * is not used and the zipmap needs to be traversed to find out the length.
  *
- * <zmlen> çš„é•¿åº¦ä¸º 1 å­—èŠ‚ï¼Œå®ƒä¿å­˜äº† zipmap çš„å½“å‰å¤§å°ï¼ˆsizeï¼‰ã€‚
- * åªæœ‰ zipmap çš„é•¿åº¦ < 254 æ—¶ï¼Œè¿™ä¸ªå€¼æ‰è¢«ä½¿ç”¨ã€‚
- * å½“ zipmap çš„é•¿åº¦ >= 254 ï¼Œéœ€è¦éå†æ•´ä¸ª zipmap æ‰èƒ½çŸ¥é“å®ƒçš„å¤§å°ã€‚
+ * <zmlen> µÄ³¤¶ÈÎª 1 ×Ö½Ú£¬Ëü±£´æÁË zipmap µÄµ±Ç°´óĞ¡£¨size£©¡£
+ * Ö»ÓĞ zipmap µÄ³¤¶È < 254 Ê±£¬Õâ¸öÖµ²Å±»Ê¹ÓÃ¡£
+ * µ± zipmap µÄ³¤¶È >= 254 £¬ĞèÒª±éÀúÕû¸ö zipmap ²ÅÄÜÖªµÀËüµÄ´óĞ¡¡£
  *
  * <len> is the length of the following string (key or value).
  * <len> lengths are encoded in a single value or in a 5 bytes value.
@@ -74,50 +74,50 @@
  * signal the end of the hash. The special value 254 is used to mark
  * empty space that can be used to add new key/value pairs.
  *
- * <len> è¡¨ç¤ºè·Ÿåœ¨å®ƒåé¢çš„å­—ç¬¦ä¸²(é”®æˆ–å€¼)çš„é•¿åº¦ã€‚
+ * <len> ±íÊ¾¸úÔÚËüºóÃæµÄ×Ö·û´®(¼ü»òÖµ)µÄ³¤¶È¡£
  *
- * <len> å¯ä»¥ç”¨ 1 å­—èŠ‚æˆ–è€… 5 å­—èŠ‚æ¥ç¼–ç ï¼š
+ * <len> ¿ÉÒÔÓÃ 1 ×Ö½Ú»òÕß 5 ×Ö½ÚÀ´±àÂë£º
  *
- *   * å¦‚æœ <len> çš„ç¬¬ä¸€å­—èŠ‚(æ— ç¬¦å· 8 bit)æ˜¯ä»‹äº 0 è‡³ 252 ä¹‹é—´çš„å€¼ï¼Œ
- *     é‚£ä¹ˆè¿™ä¸ªå­—èŠ‚å°±æ˜¯å­—ç¬¦ä¸²çš„é•¿åº¦ã€‚
+ *   * Èç¹û <len> µÄµÚÒ»×Ö½Ú(ÎŞ·ûºÅ 8 bit)ÊÇ½éÓÚ 0 ÖÁ 252 Ö®¼äµÄÖµ£¬
+ *     ÄÇÃ´Õâ¸ö×Ö½Ú¾ÍÊÇ×Ö·û´®µÄ³¤¶È¡£
  *
- *   * å¦‚æœç¬¬ä¸€å­—èŠ‚çš„å€¼ä¸º 253 ï¼Œé‚£ä¹ˆè¿™ä¸ªå­—èŠ‚ä¹‹åçš„ 4 å­—èŠ‚æ— ç¬¦å·æ•´æ•°
- *     (å¤§/å°ç«¯ç”±æ‰€å®¿ä¸»æœºå™¨å†³å®š)å°±æ˜¯å­—ç¬¦ä¸²çš„é•¿åº¦ã€‚
+ *   * Èç¹ûµÚÒ»×Ö½ÚµÄÖµÎª 253 £¬ÄÇÃ´Õâ¸ö×Ö½ÚÖ®ºóµÄ 4 ×Ö½ÚÎŞ·ûºÅÕûÊı
+ *     (´ó/Ğ¡¶ËÓÉËùËŞÖ÷»úÆ÷¾ö¶¨)¾ÍÊÇ×Ö·û´®µÄ³¤¶È¡£
  *
- *   * å€¼ 254 ç”¨äºæ ‡è¯†æœªè¢«ä½¿ç”¨çš„ã€å¯ä»¥æ·»åŠ æ–° key-value å¯¹çš„ç©ºé—´ã€‚
+ *   * Öµ 254 ÓÃÓÚ±êÊ¶Î´±»Ê¹ÓÃµÄ¡¢¿ÉÒÔÌí¼ÓĞÂ key-value ¶ÔµÄ¿Õ¼ä¡£
  *
- *   * å€¼ 255 ç”¨äºè¡¨ç¤ºæ•°æ®ç»“æ„çš„æœ«å°¾ã€‚
- * 
- * <free> is the number of free unused bytes after the string, resulting 
+ *   * Öµ 255 ÓÃÓÚ±íÊ¾Êı¾İ½á¹¹µÄÄ©Î²¡£
+ *
+ * <free> is the number of free unused bytes after the string, resulting
  * from modification of values associated to a key. For instance if "foo"
  * is set to "bar", and later "foo" will be set to "hi", it will have a
  * free byte to use if the value will enlarge again later, or even in
  * order to add a key/value pair if it fits.
  *
- * <free> æ˜¯å­—ç¬¦ä¸²ä¹‹åï¼Œæœªè¢«ä½¿ç”¨çš„å­—èŠ‚æ•°é‡ã€‚
+ * <free> ÊÇ×Ö·û´®Ö®ºó£¬Î´±»Ê¹ÓÃµÄ×Ö½ÚÊıÁ¿¡£
  *
- * è¿™ä¸ªå€¼ç”¨äºè®°å½•é‚£äº›å› ä¸ºå€¼è¢«ä¿®æ”¹ï¼Œè€Œè¢«èŠ‚çº¦ä¸‹æ¥çš„ç©ºé—´ã€‚
- * ä¸¾ä¸ªä¾‹å­ï¼š
- * zimap é‡ŒåŸæœ¬æœ‰ä¸€ä¸ª "foo" -> "bar" çš„æ˜ å°„ï¼Œ
- * ä½†æ˜¯åæ¥å®ƒè¢«ä¿®æ”¹ä¸º "foo" -> "hi" ï¼Œ
- * ç°åœ¨ï¼Œåœ¨å­—ç¬¦ä¸² "hi" ä¹‹åå°±æœ‰ä¸€ä¸ªå­—èŠ‚çš„æœªä½¿ç”¨ç©ºé—´ã€‚
+ * Õâ¸öÖµÓÃÓÚ¼ÇÂ¼ÄÇĞ©ÒòÎªÖµ±»ĞŞ¸Ä£¬¶ø±»½ÚÔ¼ÏÂÀ´µÄ¿Õ¼ä¡£
+ * ¾Ù¸öÀı×Ó£º
+ * zimap ÀïÔ­±¾ÓĞÒ»¸ö "foo" -> "bar" µÄÓ³Éä£¬
+ * µ«ÊÇºóÀ´Ëü±»ĞŞ¸ÄÎª "foo" -> "hi" £¬
+ * ÏÖÔÚ£¬ÔÚ×Ö·û´® "hi" Ö®ºó¾ÍÓĞÒ»¸ö×Ö½ÚµÄÎ´Ê¹ÓÃ¿Õ¼ä¡£
  *
- * ä¼¼ä¹æƒ…å†µï¼Œæœªä½¿ç”¨çš„ç©ºé—´å¯ä»¥ç”¨äºå°†æ¥å†æ¬¡å¯¹å€¼åšä¿®æ”¹
- * ï¼ˆæ¯”å¦‚ï¼Œå†æ¬¡å°† "foo" çš„å€¼ä¿®æ”¹ä¸º "yoo" ï¼Œç­‰ç­‰ï¼‰
- * å¦‚æœæœªä½¿ç”¨ç©ºé—´è¶³å¤Ÿå¤§ï¼Œé‚£ä¹ˆåœ¨å®ƒé‡Œé¢æ·»åŠ ä¸€ä¸ªæ–°çš„ key-value å¯¹ä¹Ÿæ˜¯å¯èƒ½çš„ã€‚
+ * ËÆºõÇé¿ö£¬Î´Ê¹ÓÃµÄ¿Õ¼ä¿ÉÒÔÓÃÓÚ½«À´ÔÙ´Î¶ÔÖµ×öĞŞ¸Ä
+ * £¨±ÈÈç£¬ÔÙ´Î½« "foo" µÄÖµĞŞ¸ÄÎª "yoo" £¬µÈµÈ£©
+ * Èç¹ûÎ´Ê¹ÓÃ¿Õ¼ä×ã¹»´ó£¬ÄÇÃ´ÔÚËüÀïÃæÌí¼ÓÒ»¸öĞÂµÄ key-value ¶ÔÒ²ÊÇ¿ÉÄÜµÄ¡£
  *
  * <free> is always an unsigned 8 bit number, because if after an
  * update operation there are more than a few free bytes, the zipmap will be
  * reallocated to make sure it is as small as possible.
  *
- * <free> æ€»æ˜¯ä¸€ä¸ªæ— ç¬¦å· 8 ä½æ•°å­—ã€‚
- * å› ä¸ºåœ¨æ‰§è¡Œæ›´æ–°æ“ä½œä¹‹åï¼Œå¦‚æœå‰©ä½™å­—èŠ‚æ•°å¤§äºç­‰äº ZIPMAP_VALUE_MAX_FREE ï¼Œ
- * é‚£ä¹ˆ zipmap å°±ä¼šè¿›è¡Œé‡åˆ†é…ï¼Œå¹¶å¯¹è‡ªèº«ç©ºé—´è¿›è¡Œç´§ç¼©ï¼Œ
- * å› æ­¤ï¼Œ <free> çš„å€¼ä¸ä¼šå¾ˆå¤§ï¼Œ8 ä½çš„é•¿åº¦å¯¹äºä¿å­˜ <free> æ¥è¯´å·²ç»è¶³å¤Ÿã€‚
+ * <free> ×ÜÊÇÒ»¸öÎŞ·ûºÅ 8 Î»Êı×Ö¡£
+ * ÒòÎªÔÚÖ´ĞĞ¸üĞÂ²Ù×÷Ö®ºó£¬Èç¹ûÊ£Óà×Ö½ÚÊı´óÓÚµÈÓÚ ZIPMAP_VALUE_MAX_FREE £¬
+ * ÄÇÃ´ zipmap ¾Í»á½øĞĞÖØ·ÖÅä£¬²¢¶Ô×ÔÉí¿Õ¼ä½øĞĞ½ôËõ£¬
+ * Òò´Ë£¬ <free> µÄÖµ²»»áºÜ´ó£¬8 Î»µÄ³¤¶È¶ÔÓÚ±£´æ <free> À´ËµÒÑ¾­×ã¹»¡£
  *
  * The most compact representation of the above two elements hash is actually:
  *
- * "foo" -> "bar" å’Œ "hello" -> "world" æœ€ç´§å‡‘çš„è¡¨ç¤ºå¦‚ä¸‹ï¼š
+ * "foo" -> "bar" ºÍ "hello" -> "world" ×î½ô´ÕµÄ±íÊ¾ÈçÏÂ£º
  *
  * "\x02\x03foo\x03\x00bar\x05hello\x05\x00world\xff"
  *
@@ -126,9 +126,9 @@
  * in the zipmap and *not* the number of bytes needed to represent the zipmap.
  * This lowers the constant times considerably.
  *
- * æ³¨æ„ï¼Œå› ä¸º key å’Œ value éƒ½æ˜¯å¸¦æœ‰é•¿åº¦çš„å¯¹è±¡ï¼Œ
- * å› æ­¤ zipmap çš„æŸ¥æ‰¾æ“ä½œçš„å¤æ‚åº¦ä¸º O(N) ï¼Œ
- * å…¶ä¸­ N æ˜¯å…ƒç´ çš„æ•°é‡ï¼Œè€Œä¸æ˜¯ zipmap çš„å­—èŠ‚æ•°é‡ï¼ˆå‰è€…çš„å¸¸æ•°æ›´å°ä¸€äº›ï¼‰ã€‚
+ * ×¢Òâ£¬ÒòÎª key ºÍ value ¶¼ÊÇ´øÓĞ³¤¶ÈµÄ¶ÔÏó£¬
+ * Òò´Ë zipmap µÄ²éÕÒ²Ù×÷µÄ¸´ÔÓ¶ÈÎª O(N) £¬
+ * ÆäÖĞ N ÊÇÔªËØµÄÊıÁ¿£¬¶ø²»ÊÇ zipmap µÄ×Ö½ÚÊıÁ¿£¨Ç°ÕßµÄ³£Êı¸üĞ¡Ò»Ğ©£©¡£
  */
 
 #include <stdio.h>
@@ -137,27 +137,28 @@
 #include "zmalloc.h"
 #include "endianconv.h"
 
-// ä¸€ä¸ªå­—èŠ‚æ‰€èƒ½ä¿å­˜çš„ zipmap å…ƒç´ æ•°é‡ä¸èƒ½è¶…è¿‡è¿™ä¸ªå€¼
+// Ò»¸ö×Ö½ÚËùÄÜ±£´æµÄ zipmap ÔªËØÊıÁ¿²»ÄÜ³¬¹ıÕâ¸öÖµ
 #define ZIPMAP_BIGLEN 254
 
-// æ ‡è¯† zipmap çš„ç»“æŸ
+// ±êÊ¶ zipmap µÄ½áÊø
 #define ZIPMAP_END 255
 
 /* The following defines the max value for the <free> field described in the
  * comments above, that is, the max number of trailing bytes in a value. */
-// å…è®¸æ›´æ–°ä¹‹åï¼Œå€¼ç•™ç©ºçš„å­—èŠ‚æ•°é‡
+// ÔÊĞí¸üĞÂÖ®ºó£¬ÖµÁô¿ÕµÄ×Ö½ÚÊıÁ¿
 #define ZIPMAP_VALUE_MAX_FREE 4
 
 /* The following macro returns the number of bytes needed to encode the length
  * for the integer value _l, that is, 1 byte for lengths < ZIPMAP_BIGLEN and
  * 5 bytes for all the other lengths. */
-// è¿”å›ç¼–ç ç»™å®š <len> æ‰€éœ€çš„å­—èŠ‚æ•°
+// ·µ»Ø±àÂë¸ø¶¨ <len> ËùĞèµÄ×Ö½ÚÊı
 #define ZIPMAP_LEN_BYTES(_l) (((_l) < ZIPMAP_BIGLEN) ? 1 : sizeof(unsigned int)+1)
 
 /*
- * åˆ›å»ºä¸€ä¸ªæ–°çš„ zipmap
+ * ´´½¨Ò»¸öĞÂµÄ zipmap
  */
-unsigned char *zipmapNew(void) {
+unsigned char *zipmapNew(void)
+{
     unsigned char *zm = zmalloc(2);
 
     zm[0] = 0; /* Length */
@@ -166,32 +167,40 @@ unsigned char *zipmapNew(void) {
 }
 
 /*
- * è¿”å›å®ä½“çš„ <len> å€¼
+ * ·µ»ØÊµÌåµÄ <len> Öµ
  */
-static unsigned int zipmapDecodeLength(unsigned char *p) {
+static unsigned int zipmapDecodeLength(unsigned char *p)
+{
     unsigned int len = *p;
 
-    // <len> ä¿å­˜åœ¨p ï¼Œç›´æ¥è¿”å›
+    // <len> ±£´æÔÚp £¬Ö±½Ó·µ»Ø
     if (len < ZIPMAP_BIGLEN) return len;
 
-    // <len> ä¿å­˜åœ¨p ä¹‹åçš„ 4 ä¸ªå­—èŠ‚ä¸­
+    // <len> ±£´æÔÚp Ö®ºóµÄ 4 ¸ö×Ö½ÚÖĞ
     memcpy(&len,p+1,sizeof(unsigned int));
     memrev32ifbe(&len);
     return len;
 }
 
 /*
- * ç¼–ç é•¿åº¦ l ï¼Œå¹¶å°†å®ƒå†™å…¥åˆ° p å½“ä¸­ã€‚
- * å¦‚æœ p æ˜¯ NULL ï¼Œé‚£ä¹ˆå®ƒåªè¿”å›ç¼–ç  l æ‰€éœ€çš„å­—èŠ‚æ•°ã€‚
+ * ±àÂë³¤¶È l £¬²¢½«ËüĞ´Èëµ½ p µ±ÖĞ¡£
+ * Èç¹û p ÊÇ NULL £¬ÄÇÃ´ËüÖ»·µ»Ø±àÂë l ËùĞèµÄ×Ö½ÚÊı¡£
  */
-static unsigned int zipmapEncodeLength(unsigned char *p, unsigned int len) {
-    if (p == NULL) {
+static unsigned int zipmapEncodeLength(unsigned char *p, unsigned int len)
+{
+    if (p == NULL)
+    {
         return ZIPMAP_LEN_BYTES(len);
-    } else {
-        if (len < ZIPMAP_BIGLEN) {
+    }
+    else
+    {
+        if (len < ZIPMAP_BIGLEN)
+        {
             p[0] = len;
             return 1;
-        } else {
+        }
+        else
+        {
             p[0] = ZIPMAP_BIGLEN;
             memcpy(p+1,&len,sizeof(len));
             memrev32ifbe(p+1);
@@ -206,64 +215,68 @@ static unsigned int zipmapEncodeLength(unsigned char *p, unsigned int len) {
  * If NULL is returned, and totlen is not NULL, it is set to the entire
  * size of the zimap, so that the calling function will be able to
  * reallocate the original zipmap to make room for more entries. */
-/* 
- * æŸ¥æ‰¾ç»™å®š key ï¼Œæ‰¾åˆ°è¿”å›æŒ‡å‘ zipmap ä¸­æŸä¸ªå®ä½“çš„ä¸€ä¸ªæŒ‡é’ˆï¼Œå¦åˆ™è¿”å› NULLã€‚
- * 
- * å¦‚æœæŸ¥æ‰¾å¤±è´¥ï¼Œä¸” totlen ä¸ä¸º NULL ï¼Œ
- * é‚£ä¹ˆå°† totlen è®¾ç½®ä¸º zipmap å®ä½“çš„å¤§å°(size)ï¼Œ
- * å› æ­¤ï¼Œè°ƒç”¨å‡½æ•°å¯ä»¥é€šè¿‡å¯¹åŸ zipmap è¿›è¡Œé‡åˆ†é…ï¼Œä»
- * è€Œä¸º zipmap çš„å®ä½“åˆ†é…æ›´å¤šç©ºé—´ã€‚
+/*
+ * ²éÕÒ¸ø¶¨ key £¬ÕÒµ½·µ»ØÖ¸Ïò zipmap ÖĞÄ³¸öÊµÌåµÄÒ»¸öÖ¸Õë£¬·ñÔò·µ»Ø NULL¡£
+ *
+ * Èç¹û²éÕÒÊ§°Ü£¬ÇÒ totlen ²»Îª NULL £¬
+ * ÄÇÃ´½« totlen ÉèÖÃÎª zipmap ÊµÌåµÄ´óĞ¡(size)£¬
+ * Òò´Ë£¬µ÷ÓÃº¯Êı¿ÉÒÔÍ¨¹ı¶ÔÔ­ zipmap ½øĞĞÖØ·ÖÅä£¬´Ó
+ * ¶øÎª zipmap µÄÊµÌå·ÖÅä¸ü¶à¿Õ¼ä¡£
  */
 static unsigned char *zipmapLookupRaw(
     unsigned char *zm,
     unsigned char *key,
     unsigned int klen,
     unsigned int *totlen
-) 
+)
 {
-    unsigned char *p = zm+1,    // æ è¿‡ <zmlen> ï¼ŒæŒ‡å‘ç¬¬ä¸€ä¸ªå®ä½“
-                  *k = NULL;
+    unsigned char *p = zm+1,    // ÂÓ¹ı <zmlen> £¬Ö¸ÏòµÚÒ»¸öÊµÌå
+                   *k = NULL;
     unsigned int l,llen;
 
-    // éå† zipmap
-    while(*p != ZIPMAP_END) {
+    // ±éÀú zipmap
+    while(*p != ZIPMAP_END)
+    {
         unsigned char free;
 
         /* Match or skip the key */
-        // è·å–å®ä½“çš„ <len> é•¿åº¦
+        // »ñÈ¡ÊµÌåµÄ <len> ³¤¶È
         l = zipmapDecodeLength(p);
-        // è®¡ç®—ç¼–ç  <len> æ‰€éœ€çš„é•¿åº¦
+        // ¼ÆËã±àÂë <len> ËùĞèµÄ³¤¶È
         llen = zipmapEncodeLength(NULL,l);
 
-        if (key != NULL &&          // key ä¸ä¸ºç©º
-            k == NULL &&            // è¿˜æ²¡æ‰¾åˆ°è¿‡ç»™å®š key
-            l == klen &&            // å®ä½“çš„ <len> å’Œ klen ç›¸åŒ
-            !memcmp(p+llen,key,l)   // key åŒ¹é…
-        ) 
+        if (key != NULL &&          // key ²»Îª¿Õ
+                k == NULL &&            // »¹Ã»ÕÒµ½¹ı¸ø¶¨ key
+                l == klen &&            // ÊµÌåµÄ <len> ºÍ klen ÏàÍ¬
+                !memcmp(p+llen,key,l)   // key Æ¥Åä
+           )
         {
-            // åŒ¹é…æˆåŠŸ
+            // Æ¥Åä³É¹¦
             /* Only return when the user doesn't care
              * for the total length of the zipmap. */
-            if (totlen != NULL) {
+            if (totlen != NULL)
+            {
                 k = p;
-                // å½“æ‰§è¡Œåˆ°è¿™é‡Œï¼Œå†è®¡ç®—ä¸‹å»å·²ç»æ²¡æœ‰æ„ä¹‰äº†
-                // å¯ä»¥è€ƒè™‘ç”¨ä¸€ä¸ª goto è·³åˆ° if (totlen != NUL) ...
+                // µ±Ö´ĞĞµ½ÕâÀï£¬ÔÙ¼ÆËãÏÂÈ¥ÒÑ¾­Ã»ÓĞÒâÒåÁË
+                // ¿ÉÒÔ¿¼ÂÇÓÃÒ»¸ö goto Ìøµ½ if (totlen != NUL) ...
                 // goto key_founded;
-            } else {
+            }
+            else
+            {
                 return p;
             }
         }
 
-        // è·³è¿‡ key
+        // Ìø¹ı key
         p += llen+l;
 
-        // è·³è¿‡ value
-        l = zipmapDecodeLength(p);          // value çš„é•¿åº¦
-        p += zipmapEncodeLength(NULL,l);    // è·³è¿‡ value çš„ <len> çš„é•¿åº¦
-        free = p[0];                        // è·å– <free> çš„å€¼
-        p += l+1+free; // è·³è¿‡ value ï¼Œ <free> å­—èŠ‚ï¼Œä»¥åŠ <free> çš„é•¿åº¦
+        // Ìø¹ı value
+        l = zipmapDecodeLength(p);          // value µÄ³¤¶È
+        p += zipmapEncodeLength(NULL,l);    // Ìø¹ı value µÄ <len> µÄ³¤¶È
+        free = p[0];                        // »ñÈ¡ <free> µÄÖµ
+        p += l+1+free; // Ìø¹ı value £¬ <free> ×Ö½Ú£¬ÒÔ¼° <free> µÄ³¤¶È
     }
-   
+
     // key_founded:
 
     if (totlen != NULL) *totlen = (unsigned int)(p-zm)+1;
@@ -272,19 +285,20 @@ static unsigned char *zipmapLookupRaw(
 }
 
 /*
- * è¿”å›ä¿å­˜ key-value å¯¹æ‰€éœ€é•¿åº¦
+ * ·µ»Ø±£´æ key-value ¶ÔËùĞè³¤¶È
  *
- * ä¸€ä¸ª key-value å¯¹æœ‰ä»¥ä¸‹ç»“æ„ <len>key<len><free>value
- * å…¶ä¸­ä¸¤ä¸ª <len> éƒ½ä¸º 1 å­—èŠ‚æˆ–è€… 5 å­—èŠ‚
- * è€Œ <free> ä¸ºä¸€å­—èŠ‚
+ * Ò»¸ö key-value ¶ÔÓĞÒÔÏÂ½á¹¹ <len>key<len><free>value
+ * ÆäÖĞÁ½¸ö <len> ¶¼Îª 1 ×Ö½Ú»òÕß 5 ×Ö½Ú
+ * ¶ø <free> ÎªÒ»×Ö½Ú
  */
-static unsigned long zipmapRequiredLength(unsigned int klen, unsigned int vlen) {
+static unsigned long zipmapRequiredLength(unsigned int klen, unsigned int vlen)
+{
     unsigned int l;
 
-    // æœ€å°‘éœ€è¦ 3 å­—èŠ‚åŠ ä¸Š key å’Œ value çš„é•¿åº¦
+    // ×îÉÙĞèÒª 3 ×Ö½Ú¼ÓÉÏ key ºÍ value µÄ³¤¶È
     l = klen+vlen+3;
 
-    // å¦‚æœæœ‰éœ€è¦çš„è¯ï¼Œä¸º <len> åŠ ä¸Šé¢å¤–çš„ç©ºé—´
+    // Èç¹ûÓĞĞèÒªµÄ»°£¬Îª <len> ¼ÓÉÏ¶îÍâµÄ¿Õ¼ä
     if (klen >= ZIPMAP_BIGLEN) l += 4;
     if (vlen >= ZIPMAP_BIGLEN) l += 4;
 
@@ -292,49 +306,53 @@ static unsigned long zipmapRequiredLength(unsigned int klen, unsigned int vlen) 
 }
 
 /*
- * è¿”å› key çš„å®Œæ•´é•¿åº¦(åŒ…æ‹¬ <len> å’Œä¿å­˜å†…å®¹)
+ * ·µ»Ø key µÄÍêÕû³¤¶È(°üÀ¨ <len> ºÍ±£´æÄÚÈİ)
  */
-static unsigned int zipmapRawKeyLength(unsigned char *p) {
+static unsigned int zipmapRawKeyLength(unsigned char *p)
+{
     unsigned int l = zipmapDecodeLength(p);
     return zipmapEncodeLength(NULL,l) + l;
 }
 
 /*
- * è¿”å› value çš„å®Œæ•´é•¿åº¦
- * (åŒ…æ‹¬ <len> ï¼Œä¿å­˜çš„å†…å®¹å’Œç©ºä½™ç©ºé—´ï¼Œä»¥åŠ <free> ä¸€ä¸ªå­—èŠ‚)
+ * ·µ»Ø value µÄÍêÕû³¤¶È
+ * (°üÀ¨ <len> £¬±£´æµÄÄÚÈİºÍ¿ÕÓà¿Õ¼ä£¬ÒÔ¼° <free> Ò»¸ö×Ö½Ú)
  */
-static unsigned int zipmapRawValueLength(unsigned char *p) {
+static unsigned int zipmapRawValueLength(unsigned char *p)
+{
     unsigned int l = zipmapDecodeLength(p);
     unsigned int used;
-    
+
     used = zipmapEncodeLength(NULL,l);
     used += p[used] + 1 + l;
     return used;
 }
 
 /*
- * å¦‚æœ p æŒ‡å‘ä¸€ä¸ª key ï¼Œé‚£ä¹ˆè¿”å›æ•´ä¸ªå‚¨å­˜è¿™ä¸ªå®ä½“æ‰€éœ€çš„å­—èŠ‚æ•°
- * (å®ä½“ = key + å…³è” value + (å¯èƒ½æœ‰çš„)ç©ºä½™ç©ºé—´)
+ * Èç¹û p Ö¸ÏòÒ»¸ö key £¬ÄÇÃ´·µ»ØÕû¸ö´¢´æÕâ¸öÊµÌåËùĞèµÄ×Ö½ÚÊı
+ * (ÊµÌå = key + ¹ØÁª value + (¿ÉÄÜÓĞµÄ)¿ÕÓà¿Õ¼ä)
  */
-static unsigned int zipmapRawEntryLength(unsigned char *p) {
+static unsigned int zipmapRawEntryLength(unsigned char *p)
+{
     unsigned int l = zipmapRawKeyLength(p);
     return l + zipmapRawValueLength(p+l);
 }
 
 /*
- * è°ƒæ•´ zipmap çš„å¤§å°ä¸º len å­—èŠ‚
+ * µ÷Õû zipmap µÄ´óĞ¡Îª len ×Ö½Ú
  */
-static inline unsigned char *zipmapResize(unsigned char *zm, unsigned int len) {
+static inline unsigned char *zipmapResize(unsigned char *zm, unsigned int len)
+{
     zm = zrealloc(zm, len);
     zm[len-1] = ZIPMAP_END;
     return zm;
 }
 
 /*
- * å°† key æ˜ å°„åˆ° value ï¼Œå¦‚æœ key ä¸å­˜åœ¨å°±åˆ›å»ºä¸€ä¸ªæ–°çš„ã€‚
+ * ½« key Ó³Éäµ½ value £¬Èç¹û key ²»´æÔÚ¾Í´´½¨Ò»¸öĞÂµÄ¡£
  *
- * å¦‚æœ key åŸæœ¬å·²ç»å­˜åœ¨ï¼Œå¹¶ä¸” update ä¸ä¸º NULL ï¼Œ
- * é‚£ä¹ˆå°† *update è®¾ä¸º 1 ï¼Œå¦åˆ™è®¾ç½®ä¸º 0 ã€‚
+ * Èç¹û key Ô­±¾ÒÑ¾­´æÔÚ£¬²¢ÇÒ update ²»Îª NULL £¬
+ * ÄÇÃ´½« *update ÉèÎª 1 £¬·ñÔòÉèÖÃÎª 0 ¡£
  */
 unsigned char *zipmapSet(
     unsigned char *zm,
@@ -343,53 +361,57 @@ unsigned char *zipmapSet(
     unsigned char *val,
     unsigned int vlen,
     int *update
-) 
+)
 {
     unsigned int zmlen, offset;
     unsigned int freelen,
-                 reqlen = zipmapRequiredLength(klen,vlen);  // ä¿å­˜å®ä½“æ‰€éœ€çš„ç©ºé—´å¤§å°
+             reqlen = zipmapRequiredLength(klen,vlen);  // ±£´æÊµÌåËùĞèµÄ¿Õ¼ä´óĞ¡
     unsigned int empty, vempty;
     unsigned char *p;
-   
+
     freelen = reqlen;
     if (update) *update = 0;
 
-    // æŒ‰ key æŸ¥æ‰¾æ˜ å°„
+    // °´ key ²éÕÒÓ³Éä
     p = zipmapLookupRaw(zm,key,klen,&zmlen);
-    if (p == NULL) {
-        // key ä¸å­˜åœ¨ï¼Œæ‰©å±• zipmap 
+    if (p == NULL)
+    {
+        // key ²»´æÔÚ£¬À©Õ¹ zipmap
         zm = zipmapResize(zm, zmlen+reqlen);
-        p = zm+zmlen-1; // -1 å›é€€åˆ° ZIPMAP_END ä¸Š
+        p = zm+zmlen-1; // -1 »ØÍËµ½ ZIPMAP_END ÉÏ
 
-        // æ›´æ–° zipmap çš„é•¿åº¦
+        // ¸üĞÂ zipmap µÄ³¤¶È
         zmlen = zmlen+reqlen;
         if (zm[0] < ZIPMAP_BIGLEN) zm[0]++;
-    } else {
+    }
+    else
+    {
         /* Key found. Is there enough space for the new value? */
         /* Compute the total length: */
         if (update) *update = 1;
 
-        // è·å–å®ä½“çš„ç©ºé—´
+        // »ñÈ¡ÊµÌåµÄ¿Õ¼ä
         freelen = zipmapRawEntryLength(p);
-        if (freelen < reqlen) {
+        if (freelen < reqlen)
+        {
             /* Store the offset of this key within the current zipmap, so
              * it can be resized. Then, move the tail backwards so this
              * pair fits at the current position. */
-            // æ‰€éœ€ç©ºé—´æ¯”å®ä½“ç°æœ‰ç©ºé—´å¤§ï¼Œæ‰©å¤§ zipmap ç©ºé—´
+            // ËùĞè¿Õ¼ä±ÈÊµÌåÏÖÓĞ¿Õ¼ä´ó£¬À©´ó zipmap ¿Õ¼ä
             offset = p-zm;
             zm = zipmapResize(zm, zmlen-freelen+reqlen);
             p = zm+offset;
 
             /* The +1 in the number of bytes to be moved is caused by the
              * end-of-zipmap byte. Note: the *original* zmlen is used. */
-            // åç§»æ•°æ®
-            // ä¹‹å‰ï¼š
+            // ºóÒÆÊı¾İ
+            // Ö®Ç°£º
             // <many-bytes><p><remain-bytes>
-            // ä¹‹åï¼š
+            // Ö®ºó£º
             // <many-bytes>< ... p ... ><remain-bytes>
             memmove(p+reqlen, p+freelen, zmlen-(offset+freelen+1));
 
-            // æ›´æ–°é•¿åº¦å˜é‡
+            // ¸üĞÂ³¤¶È±äÁ¿
             zmlen = zmlen-freelen+reqlen;
             freelen = reqlen;
         }
@@ -399,9 +421,10 @@ unsigned char *zipmapSet(
      * be written. If there is too much free space, move the tail
      * of the zipmap a few bytes to the front and shrink the zipmap,
      * as we want zipmaps to be very space efficient. */
-    // è®¡ç®—æ›´æ–° value ä¹‹åçš„ç©ºä½™ç©ºé—´é•¿åº¦ï¼Œå¦‚æœæœ‰éœ€è¦å°±å¯¹ zipmap è¿›è¡Œç´§ç¼©
+    // ¼ÆËã¸üĞÂ value Ö®ºóµÄ¿ÕÓà¿Õ¼ä³¤¶È£¬Èç¹ûÓĞĞèÒª¾Í¶Ô zipmap ½øĞĞ½ôËõ
     empty = freelen-reqlen;
-    if (empty >= ZIPMAP_VALUE_MAX_FREE) {
+    if (empty >= ZIPMAP_VALUE_MAX_FREE)
+    {
         /* First, move the tail <empty> bytes to the front, then resize
          * the zipmap to be <empty> bytes smaller. */
         offset = p-zm;
@@ -410,7 +433,9 @@ unsigned char *zipmapSet(
         zm = zipmapResize(zm, zmlen);
         p = zm+offset;
         vempty = 0;
-    } else {
+    }
+    else
+    {
         vempty = empty;
     }
 
@@ -427,34 +452,38 @@ unsigned char *zipmapSet(
 }
 
 /*
- * ç§»é™¤æŒ‡å®šçš„ key ï¼Œå¹¶è¿”å›ä¿®æ”¹åçš„ zipmap ã€‚
+ * ÒÆ³ıÖ¸¶¨µÄ key £¬²¢·µ»ØĞŞ¸ÄºóµÄ zipmap ¡£
  *
- * å¦‚æœ deleted ä¸ä¸º NULL ï¼Œé‚£ä¹ˆï¼š
- *   - key æ²¡æ‰¾åˆ°æ‰€ä»¥åˆ é™¤å¤±è´¥ï¼Œè®¾ç½®ä¸º 0 ã€‚
- *   - key æ‰¾åˆ°ï¼Œå¹¶ä¸”åˆ é™¤æˆåŠŸï¼Œè®¾ç½®ä¸º 1 ã€‚
+ * Èç¹û deleted ²»Îª NULL £¬ÄÇÃ´£º
+ *   - key Ã»ÕÒµ½ËùÒÔÉ¾³ıÊ§°Ü£¬ÉèÖÃÎª 0 ¡£
+ *   - key ÕÒµ½£¬²¢ÇÒÉ¾³ı³É¹¦£¬ÉèÖÃÎª 1 ¡£
  */
-unsigned char *zipmapDel(unsigned char *zm, unsigned char *key, unsigned int klen, int *deleted) {
+unsigned char *zipmapDel(unsigned char *zm, unsigned char *key, unsigned int klen, int *deleted)
+{
 
     unsigned int zmlen, freelen;
     unsigned char *p = zipmapLookupRaw(zm,key,klen,&zmlen);
 
-    if (p) {
-        // è®¡ç®—è¦é‡Šæ”¾çš„ç©ºé—´é•¿åº¦
+    if (p)
+    {
+        // ¼ÆËãÒªÊÍ·ÅµÄ¿Õ¼ä³¤¶È
         freelen = zipmapRawEntryLength(p);
-        // å‰ç§»æ•°æ®
-        // ä¹‹å‰ï¼š
+        // Ç°ÒÆÊı¾İ
+        // Ö®Ç°£º
         // <many-bytes>< ... p ... ><remain-bytes>
-        // ä¹‹å:
+        // Ö®ºó:
         // <many-bytes><p><remain-bytes>
         memmove(p, p+freelen, zmlen-((p-zm)+freelen+1));
-        // ç´§ç¼©ç©ºé—´
+        // ½ôËõ¿Õ¼ä
         zm = zipmapResize(zm, zmlen-freelen);
 
-        // æ›´æ–° zipmap é•¿åº¦
+        // ¸üĞÂ zipmap ³¤¶È
         if (zm[0] < ZIPMAP_BIGLEN) zm[0]--;
 
         if (deleted) *deleted = 1;
-    } else {
+    }
+    else
+    {
         if (deleted) *deleted = 0;
     }
 
@@ -462,34 +491,38 @@ unsigned char *zipmapDel(unsigned char *zm, unsigned char *key, unsigned int kle
 }
 
 /*
- * æ ¹æ®ç»™å®šçš„ zipmap ï¼Œç”Ÿæˆè¿­ä»£å¯¹è±¡
+ * ¸ù¾İ¸ø¶¨µÄ zipmap £¬Éú³Éµü´ú¶ÔÏó
  */
-unsigned char *zipmapRewind(unsigned char *zm) {
+unsigned char *zipmapRewind(unsigned char *zm)
+{
     return zm+1;
 }
 
 /*
- * è¿­ä»£ zipmap
+ * µü´ú zipmap
  *
- * å‡½æ•°çš„ zm å‚æ•°æ˜¯ä¸€ä¸ªå¸¦çŠ¶æ€çš„è¿­ä»£å¯¹è±¡ï¼Œç”± zipmapRewind() åˆ›å»ºã€‚
- * 
- * ç”¨ä¾‹ï¼š
- * 
+ * º¯ÊıµÄ zm ²ÎÊıÊÇÒ»¸ö´ø×´Ì¬µÄµü´ú¶ÔÏó£¬ÓÉ zipmapRewind() ´´½¨¡£
+ *
+ * ÓÃÀı£º
+ *
  * unsigned char *i = zipmapRewind(my_zipmap);
  * while((i = zipmapNext(i,&key,&klen,&value,&vlen)) != NULL) {
  *     printf("%d bytes key at $p\n", klen, key);
  *     printf("%d bytes value at $p\n", vlen, value);
  * }
  */
-unsigned char *zipmapNext(unsigned char *zm, unsigned char **key, unsigned int *klen, unsigned char **value, unsigned int *vlen) {
+unsigned char *zipmapNext(unsigned char *zm, unsigned char **key, unsigned int *klen, unsigned char **value, unsigned int *vlen)
+{
     if (zm[0] == ZIPMAP_END) return NULL;
-    if (key) {
+    if (key)
+    {
         *key = zm;
         *klen = zipmapDecodeLength(zm);
         *key += ZIPMAP_LEN_BYTES(*klen);
     }
     zm += zipmapRawKeyLength(zm);
-    if (value) {
+    if (value)
+    {
         *value = zm+1;
         *vlen = zipmapDecodeLength(zm);
         *value += ZIPMAP_LEN_BYTES(*vlen);
@@ -501,10 +534,11 @@ unsigned char *zipmapNext(unsigned char *zm, unsigned char **key, unsigned int *
 /* Search a key and retrieve the pointer and len of the associated value.
  * If the key is found the function returns 1, otherwise 0. */
 /*
- * æŸ¥æ‰¾ç»™å®š key ï¼Œå¹¶å°†å®ƒçš„ value å’Œ value çš„é•¿åº¦ä¿å­˜åˆ°æŒ‡é’ˆä¸Šã€‚
- * å¦‚æœæ‰¾åˆ°åˆ™è¿”å› 1 ï¼Œå¦åˆ™è¿”å› 0 ã€‚
+ * ²éÕÒ¸ø¶¨ key £¬²¢½«ËüµÄ value ºÍ value µÄ³¤¶È±£´æµ½Ö¸ÕëÉÏ¡£
+ * Èç¹ûÕÒµ½Ôò·µ»Ø 1 £¬·ñÔò·µ»Ø 0 ¡£
  */
-int zipmapGet(unsigned char *zm, unsigned char *key, unsigned int klen, unsigned char **value, unsigned int *vlen) {
+int zipmapGet(unsigned char *zm, unsigned char *key, unsigned int klen, unsigned char **value, unsigned int *vlen)
+{
     unsigned char *p;
 
     if ((p = zipmapLookupRaw(zm,key,klen,NULL)) == NULL) return 0;
@@ -515,20 +549,25 @@ int zipmapGet(unsigned char *zm, unsigned char *key, unsigned int klen, unsigned
 }
 
 /*
- * å¦‚æœç»™å®š key å­˜åœ¨äº zipmap ï¼Œé‚£ä¹ˆè¿”å› 1 ï¼Œå¦åˆ™è¿”å› 0 ã€‚
+ * Èç¹û¸ø¶¨ key ´æÔÚÓÚ zipmap £¬ÄÇÃ´·µ»Ø 1 £¬·ñÔò·µ»Ø 0 ¡£
  */
-int zipmapExists(unsigned char *zm, unsigned char *key, unsigned int klen) {
+int zipmapExists(unsigned char *zm, unsigned char *key, unsigned int klen)
+{
     return zipmapLookupRaw(zm,key,klen,NULL) != NULL;
 }
 
 /*
- * è¿”å› zipmap é‡Œï¼Œå®ä½“çš„æ•°é‡
+ * ·µ»Ø zipmap Àï£¬ÊµÌåµÄÊıÁ¿
  */
-unsigned int zipmapLen(unsigned char *zm) {
+unsigned int zipmapLen(unsigned char *zm)
+{
     unsigned int len = 0;
-    if (zm[0] < ZIPMAP_BIGLEN) {
+    if (zm[0] < ZIPMAP_BIGLEN)
+    {
         len = zm[0];
-    } else {
+    }
+    else
+    {
         unsigned char *p = zipmapRewind(zm);
         while((p = zipmapNext(p,NULL,NULL,NULL,NULL)) != NULL) len++;
 
@@ -542,24 +581,30 @@ unsigned int zipmapLen(unsigned char *zm) {
  * the zipmap on disk (or everywhere is needed) just writing the returned
  * amount of bytes of the C array starting at the zipmap pointer. */
 /*
- * è¿”å›æ•´ä¸ª zipmap çš„é•¿åº¦
+ * ·µ»ØÕû¸ö zipmap µÄ³¤¶È
  */
-size_t zipmapBlobLen(unsigned char *zm) {
+size_t zipmapBlobLen(unsigned char *zm)
+{
     unsigned int totlen;
     zipmapLookupRaw(zm,NULL,0,&totlen);
     return totlen;
 }
 
 #ifdef ZIPMAP_TEST_MAIN
-void zipmapRepr(unsigned char *p) {
+void zipmapRepr(unsigned char *p)
+{
     unsigned int l;
 
     printf("{status %u}",*p++);
-    while(1) {
-        if (p[0] == ZIPMAP_END) {
+    while(1)
+    {
+        if (p[0] == ZIPMAP_END)
+        {
             printf("{end}");
             break;
-        } else {
+        }
+        else
+        {
             unsigned char e;
 
             l = zipmapDecodeLength(p);
@@ -574,7 +619,8 @@ void zipmapRepr(unsigned char *p) {
             e = *p++;
             if (l != 0 && fwrite(p,l,1,stdout) == 0) perror("fwrite");
             p += l+e;
-            if (e) {
+            if (e)
+            {
                 printf("[");
                 while(e--) printf(".");
                 printf("]");
@@ -584,7 +630,8 @@ void zipmapRepr(unsigned char *p) {
     printf("\n");
 }
 
-int main(void) {
+int main(void)
+{
     unsigned char *zm;
 
     zm = zipmapNew();
@@ -614,9 +661,10 @@ int main(void) {
         for (i = 0; i < 512; i++) buf[i] = 'a';
 
         zm = zipmapSet(zm,buf,512,(unsigned char*) "long",4,NULL);
-        if (zipmapGet(zm,buf,512,&value,&vlen)) {
+        if (zipmapGet(zm,buf,512,&value,&vlen))
+        {
             printf("  <long key> is associated to the %d bytes value: %.*s\n",
-                vlen, vlen, value);
+                   vlen, vlen, value);
         }
     }
 
@@ -625,9 +673,10 @@ int main(void) {
         unsigned char *value;
         unsigned int vlen;
 
-        if (zipmapGet(zm,(unsigned char*) "foo",3,&value,&vlen)) {
+        if (zipmapGet(zm,(unsigned char*) "foo",3,&value,&vlen))
+        {
             printf("  foo is associated to the %d bytes value: %.*s\n",
-                vlen, vlen, value);
+                   vlen, vlen, value);
         }
     }
     printf("\nIterate through elements:\n");
@@ -636,7 +685,8 @@ int main(void) {
         unsigned char *key, *value;
         unsigned int klen, vlen;
 
-        while((i = zipmapNext(i,&key,&klen,&value,&vlen)) != NULL) {
+        while((i = zipmapNext(i,&key,&klen,&value,&vlen)) != NULL)
+        {
             printf("  %d:%.*s => %d:%.*s\n", klen, klen, key, vlen, vlen, value);
         }
     }

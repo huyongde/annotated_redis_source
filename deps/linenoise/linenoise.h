@@ -36,9 +36,10 @@
 #ifndef __LINENOISE_H
 #define __LINENOISE_H
 
-typedef struct linenoiseCompletions {
-  size_t len;
-  char **cvec;
+typedef struct linenoiseCompletions
+{
+    size_t len;
+    char **cvec;
 } linenoiseCompletions;
 
 typedef void(linenoiseCompletionCallback)(const char *, linenoiseCompletions *);

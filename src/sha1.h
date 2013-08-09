@@ -5,7 +5,8 @@ By Steve Reid <steve@edmweb.com>
 100% Public Domain
 */
 
-typedef struct {
+typedef struct
+{
     u_int32_t state[5];
     u_int32_t count[2];
     unsigned char buffer[64];

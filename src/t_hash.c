@@ -35,27 +35,29 @@
  *----------------------------------------------------------------------------*/
 
 /*
- * å¯¹ argv æ•°ç»„ä¸­çš„å¯¹è±¡è¿›è¡Œæ£€æŸ¥ï¼Œ
- * çœ‹ä¿å­˜å®ƒä»¬æ˜¯å¦éœ€è¦å°† o çš„ç¼–ç ä»
- * REDIS_ENCODING_ZIPLIST è½¬æ¢ä¸º REDIS_ENCODING_HT
+ * ¶Ô argv Êı×éÖĞµÄ¶ÔÏó½øĞĞ¼ì²é£¬
+ * ¿´±£´æËüÃÇÊÇ·ñĞèÒª½« o µÄ±àÂë´Ó
+ * REDIS_ENCODING_ZIPLIST ×ª»»Îª REDIS_ENCODING_HT
  *
- * å¤æ‚åº¦ï¼šO(N)
+ * ¸´ÔÓ¶È£ºO(N)
  *
- * è¿”å›å€¼ï¼švoid
+ * ·µ»ØÖµ£ºvoid
  */
-void hashTypeTryConversion(robj *o, robj **argv, int start, int end) {
+void hashTypeTryConversion(robj *o, robj **argv, int start, int end)
+{
     int i;
 
-    // å¦‚æœå¯¹è±¡ä¸æ˜¯ ziplist ç¼–ç ï¼ˆçš„hashï¼‰ï¼Œç›´æ¥è¿”å›
+    // Èç¹û¶ÔÏó²»ÊÇ ziplist ±àÂë£¨µÄhash£©£¬Ö±½Ó·µ»Ø
     if (o->encoding != REDIS_ENCODING_ZIPLIST) return;
 
-    // æ£€æŸ¥æ‰€æœ‰å­—ç¬¦ä¸²å‚æ•°çš„é•¿åº¦ï¼Œçœ‹æ˜¯å¦è¶…è¿‡ server.hash_max_ziplist_value
-    // å¦‚æœæœ‰ä¸€ä¸ªç»“æœä¸ºçœŸçš„è¯ï¼Œå°±å¯¹ o è¿›è¡Œè½¬æ¢
-    for (i = start; i <= end; i++) {
+    // ¼ì²éËùÓĞ×Ö·û´®²ÎÊıµÄ³¤¶È£¬¿´ÊÇ·ñ³¬¹ı server.hash_max_ziplist_value
+    // Èç¹ûÓĞÒ»¸ö½á¹ûÎªÕæµÄ»°£¬¾Í¶Ô o ½øĞĞ×ª»»
+    for (i = start; i <= end; i++)
+    {
         if (argv[i]->encoding == REDIS_ENCODING_RAW &&
-            sdslen(argv[i]->ptr) > server.hash_max_ziplist_value)
+                sdslen(argv[i]->ptr) > server.hash_max_ziplist_value)
         {
-            // è½¬æ¢
+            // ×ª»»
             hashTypeConvert(o, REDIS_ENCODING_HT);
             break;
         }
@@ -63,15 +65,17 @@ void hashTypeTryConversion(robj *o, robj **argv, int start, int end) {
 }
 
 /*
- * å½“ subject æ˜¯ HASH ç¼–ç æ—¶ï¼Œå°è¯•å¯¹ o1 å’Œ o2 è¿›è¡Œå°±åœ°(in-place)ç¼–ç 
- * è¯¥ç¼–ç å¯ä»¥å°è¯•èŠ‚çœå­—ç¬¦ä¸²çš„ç©ºé—´
+ * µ± subject ÊÇ HASH ±àÂëÊ±£¬³¢ÊÔ¶Ô o1 ºÍ o2 ½øĞĞ¾ÍµØ(in-place)±àÂë
+ * ¸Ã±àÂë¿ÉÒÔ³¢ÊÔ½ÚÊ¡×Ö·û´®µÄ¿Õ¼ä
  *
- * å¤æ‚åº¦ï¼šO(1)
+ * ¸´ÔÓ¶È£ºO(1)
  *
- * è¿”å›å€¼ï¼švoid
+ * ·µ»ØÖµ£ºvoid
  */
-void hashTypeTryObjectEncoding(robj *subject, robj **o1, robj **o2) {
-    if (subject->encoding == REDIS_ENCODING_HT) {
+void hashTypeTryObjectEncoding(robj *subject, robj **o1, robj **o2)
+{
+    if (subject->encoding == REDIS_ENCODING_HT)
+    {
         if (o1) *o1 = tryObjectEncoding(*o1);
         if (o2) *o2 = tryObjectEncoding(*o2);
     }
@@ -80,18 +84,18 @@ void hashTypeTryObjectEncoding(robj *subject, robj **o1, robj **o2) {
 /* Get the value from a ziplist encoded hash, identified by field.
  * Returns -1 when the field cannot be found. */
 /*
- * ä» ziplist ä¸­å–å‡ºå’Œ field ç›¸å¯¹åº”çš„å€¼
+ * ´Ó ziplist ÖĞÈ¡³öºÍ field Ïà¶ÔÓ¦µÄÖµ
  *
- * å¤æ‚åº¦ï¼šO(n)
+ * ¸´ÔÓ¶È£ºO(n)
  *
- * å‚æ•°ï¼š
- *  field   åŸŸ
- *  vstr    å€¼æ˜¯å­—ç¬¦ä¸²æ—¶ï¼Œå°†å®ƒä¿å­˜åˆ°è¿™ä¸ªæŒ‡é’ˆ
- *  vlen    ä¿å­˜å­—ç¬¦ä¸²çš„é•¿åº¦
- *  ll      å€¼æ—¶æ•´æ•°æ—¶ï¼Œå°†å®ƒä¿å­˜åˆ°è¿™ä¸ªæŒ‡é’ˆ
+ * ²ÎÊı£º
+ *  field   Óò
+ *  vstr    ÖµÊÇ×Ö·û´®Ê±£¬½«Ëü±£´æµ½Õâ¸öÖ¸Õë
+ *  vlen    ±£´æ×Ö·û´®µÄ³¤¶È
+ *  ll      ÖµÊ±ÕûÊıÊ±£¬½«Ëü±£´æµ½Õâ¸öÖ¸Õë
  *
- * è¿”å›å€¼ï¼š
- *  æŸ¥æ‰¾å¤±è´¥è¿”å› -1 ï¼Œå¦åˆ™è¿”å› 0 ã€‚
+ * ·µ»ØÖµ£º
+ *  ²éÕÒÊ§°Ü·µ»Ø -1 £¬·ñÔò·µ»Ø 0 ¡£
  */
 int hashTypeGetFromZiplist(robj *o, robj *field,
                            unsigned char **vstr,
@@ -99,24 +103,26 @@ int hashTypeGetFromZiplist(robj *o, robj *field,
                            long long *vll)
 {
     unsigned char *zl,
-                  *fptr = NULL,
-                  *vptr = NULL;
+             *fptr = NULL,
+              *vptr = NULL;
     int ret;
 
     redisAssert(o->encoding == REDIS_ENCODING_ZIPLIST);
-    
-    // è§£ç åŸŸï¼Œå› ä¸º ziplist ä¸èƒ½ä½¿ç”¨å¯¹è±¡
+
+    // ½âÂëÓò£¬ÒòÎª ziplist ²»ÄÜÊ¹ÓÃ¶ÔÏó
     field = getDecodedObject(field);
 
-    // éå† ziplist ï¼Œå®šä½åŸŸçš„ä½ç½®
+    // ±éÀú ziplist £¬¶¨Î»ÓòµÄÎ»ÖÃ
     zl = o->ptr;
     fptr = ziplistIndex(zl, ZIPLIST_HEAD);
-    if (fptr != NULL) {
-        // å®šä½åŸŸèŠ‚ç‚¹çš„ä½ç½®
+    if (fptr != NULL)
+    {
+        // ¶¨Î»Óò½ÚµãµÄÎ»ÖÃ
         fptr = ziplistFind(fptr, field->ptr, sdslen(field->ptr), 1);
-        if (fptr != NULL) {
+        if (fptr != NULL)
+        {
             /* Grab pointer to the value (fptr points to the field) */
-            // å®šä½å€¼èŠ‚ç‚¹çš„ä½ç½®
+            // ¶¨Î»Öµ½ÚµãµÄÎ»ÖÃ
             vptr = ziplistNext(zl, fptr);
             redisAssert(vptr != NULL);
         }
@@ -124,8 +130,9 @@ int hashTypeGetFromZiplist(robj *o, robj *field,
 
     decrRefCount(field);
 
-    // ä» ziplist èŠ‚ç‚¹ä¸­å–å‡ºå€¼
-    if (vptr != NULL) {
+    // ´Ó ziplist ½ÚµãÖĞÈ¡³öÖµ
+    if (vptr != NULL)
+    {
         ret = ziplistGet(vptr, vstr, vlen, vll);
         redisAssert(ret);
         return 0;
@@ -137,18 +144,19 @@ int hashTypeGetFromZiplist(robj *o, robj *field,
 /* Get the value from a hash table encoded hash, identified by field.
  * Returns -1 when the field cannot be found. */
 /*
- * ä» HT ç¼–ç çš„å“ˆå¸Œè¡¨ä¸­è·å–ç»™å®š field çš„å€¼ã€‚
+ * ´Ó HT ±àÂëµÄ¹şÏ£±íÖĞ»ñÈ¡¸ø¶¨ field µÄÖµ¡£
  *
- * å¤æ‚åº¦ï¼šO(1)
+ * ¸´ÔÓ¶È£ºO(1)
  *
- * å‚æ•°ï¼š
- *  field   åŸŸ
- *  value   ä¿å­˜å€¼å¯¹è±¡çš„æŒ‡é’ˆ
+ * ²ÎÊı£º
+ *  field   Óò
+ *  value   ±£´æÖµ¶ÔÏóµÄÖ¸Õë
  *
- * è¿”å›å€¼ï¼š
- *  æ‰¾åˆ°å€¼æ—¶è¿”å› 0 ï¼Œæ²¡æ‰¾åˆ°è¿”å› -1 ã€‚
+ * ·µ»ØÖµ£º
+ *  ÕÒµ½ÖµÊ±·µ»Ø 0 £¬Ã»ÕÒµ½·µ»Ø -1 ¡£
  */
-int hashTypeGetFromHashTable(robj *o, robj *field, robj **value) {
+int hashTypeGetFromHashTable(robj *o, robj *field, robj **value)
+{
     dictEntry *de;
 
     redisAssert(o->encoding == REDIS_ENCODING_HT);
@@ -166,42 +174,53 @@ int hashTypeGetFromHashTable(robj *o, robj *field, robj **value) {
  * The lower level function can prevent copy on write so it is
  * the preferred way of doing read operations. */
 /*
- * å¤šæ€è·å–å‡½æ•°
+ * ¶àÌ¬»ñÈ¡º¯Êı
  *
- * å¤æ‚åº¦ï¼šO(N)
+ * ¸´ÔÓ¶È£ºO(N)
  *
- * è¿”å›å€¼ï¼š
- *  redisObject ä¿å­˜äº† field åŸŸåœ¨å“ˆå¸Œè¡¨ä¸­å¯¹åº”çš„å€¼
+ * ·µ»ØÖµ£º
+ *  redisObject ±£´æÁË field ÓòÔÚ¹şÏ£±íÖĞ¶ÔÓ¦µÄÖµ
  */
-robj *hashTypeGetObject(robj *o, robj *field) {
+robj *hashTypeGetObject(robj *o, robj *field)
+{
     robj *value = NULL;
 
-    // ä» ziplist ä¸­è·å–
-    if (o->encoding == REDIS_ENCODING_ZIPLIST) {
+    // ´Ó ziplist ÖĞ»ñÈ¡
+    if (o->encoding == REDIS_ENCODING_ZIPLIST)
+    {
         unsigned char *vstr = NULL;
         unsigned int vlen = UINT_MAX;
         long long vll = LLONG_MAX;
 
-        if (hashTypeGetFromZiplist(o, field, &vstr, &vlen, &vll) == 0) {
-            if (vstr) {
-                // å°†å­—é¢å€¼åŒ…è£…æˆå¯¹è±¡å†è¿”å›
+        if (hashTypeGetFromZiplist(o, field, &vstr, &vlen, &vll) == 0)
+        {
+            if (vstr)
+            {
+                // ½«×ÖÃæÖµ°ü×°³É¶ÔÏóÔÙ·µ»Ø
                 value = createStringObject((char*)vstr, vlen);
-            } else {
+            }
+            else
+            {
                 value = createStringObjectFromLongLong(vll);
             }
         }
 
-    // ä»å­—å…¸ä¸­è·å–
-    } else if (o->encoding == REDIS_ENCODING_HT) {
+        // ´Ó×ÖµäÖĞ»ñÈ¡
+    }
+    else if (o->encoding == REDIS_ENCODING_HT)
+    {
         robj *aux;
 
-        if (hashTypeGetFromHashTable(o, field, &aux) == 0) {
+        if (hashTypeGetFromHashTable(o, field, &aux) == 0)
+        {
             incrRefCount(aux);
             value = aux;
         }
 
-    // ç¼–ç é”™è¯¯
-    } else {
+        // ±àÂë´íÎó
+    }
+    else
+    {
         redisPanic("Unknown hash encoding");
     }
 
@@ -211,31 +230,37 @@ robj *hashTypeGetObject(robj *o, robj *field) {
 /* Test if the specified field exists in the given hash. Returns 1 if the field
  * exists, and 0 when it doesn't. */
 /*
- * æ£€æŸ¥ç»™å®š field æ˜¯å¦å­˜åœ¨äº hash å¯¹è±¡ o ä¸­ã€‚
+ * ¼ì²é¸ø¶¨ field ÊÇ·ñ´æÔÚÓÚ hash ¶ÔÏó o ÖĞ¡£
  *
- * å¤æ‚åº¦ï¼šO(N)
+ * ¸´ÔÓ¶È£ºO(N)
  *
- * è¿”å›å€¼ï¼š
- *  å­˜åœ¨è¿”å› 1 ï¼Œ å¦åˆ™è¿”å› 0 ã€‚
+ * ·µ»ØÖµ£º
+ *  ´æÔÚ·µ»Ø 1 £¬ ·ñÔò·µ»Ø 0 ¡£
  */
-int hashTypeExists(robj *o, robj *field) {
+int hashTypeExists(robj *o, robj *field)
+{
 
-    // æ£€æŸ¥ ziplist
-    if (o->encoding == REDIS_ENCODING_ZIPLIST) {
+    // ¼ì²é ziplist
+    if (o->encoding == REDIS_ENCODING_ZIPLIST)
+    {
         unsigned char *vstr = NULL;
         unsigned int vlen = UINT_MAX;
         long long vll = LLONG_MAX;
 
         if (hashTypeGetFromZiplist(o, field, &vstr, &vlen, &vll) == 0) return 1;
 
-    // æ£€æŸ¥å­—å…¸
-    } else if (o->encoding == REDIS_ENCODING_HT) {
+        // ¼ì²é×Öµä
+    }
+    else if (o->encoding == REDIS_ENCODING_HT)
+    {
         robj *aux;
 
         if (hashTypeGetFromHashTable(o, field, &aux) == 0) return 1;
 
-    // ç¼–ç é”™è¯¯
-    } else {
+        // ±àÂë´íÎó
+    }
+    else
+    {
         redisPanic("Unknown hash encoding");
     }
 
@@ -243,53 +268,58 @@ int hashTypeExists(robj *o, robj *field) {
 }
 
 /*
- * å°†ç»™å®šçš„ field-value pair æ·»åŠ åˆ° hash ã€‚
+ * ½«¸ø¶¨µÄ field-value pair Ìí¼Óµ½ hash ¡£
  *
- * è¿™ä¸ªå‡½æ•°è´Ÿè´£å¯¹ field å’Œ value å‚æ•°è¿›è¡Œå¼•ç”¨è®¡æ•°è‡ªå¢ã€‚
+ * Õâ¸öº¯Êı¸ºÔğ¶Ô field ºÍ value ²ÎÊı½øĞĞÒıÓÃ¼ÆÊı×ÔÔö¡£
  *
- * å¤æ‚åº¦ï¼šO(N)
+ * ¸´ÔÓ¶È£ºO(N)
  *
- * è¿”å›å€¼ï¼š
- *  è¿”å› 0 è¡¨ç¤ºå…ƒç´ å·²å­˜åœ¨ï¼Œå®ƒçš„å€¼å·²è¢«æ›´æ–°ã€‚
- *  è¿”å› 1 è¡¨ç¤ºå…ƒç´ æ˜¯æ–°æ·»åŠ çš„ã€‚
+ * ·µ»ØÖµ£º
+ *  ·µ»Ø 0 ±íÊ¾ÔªËØÒÑ´æÔÚ£¬ËüµÄÖµÒÑ±»¸üĞÂ¡£
+ *  ·µ»Ø 1 ±íÊ¾ÔªËØÊÇĞÂÌí¼ÓµÄ¡£
  */
-int hashTypeSet(robj *o, robj *field, robj *value) {
+int hashTypeSet(robj *o, robj *field, robj *value)
+{
     int update = 0;
-    
-    // æ·»åŠ åˆ° ziplist
-    if (o->encoding == REDIS_ENCODING_ZIPLIST) {
+
+    // Ìí¼Óµ½ ziplist
+    if (o->encoding == REDIS_ENCODING_ZIPLIST)
+    {
         unsigned char *zl, *fptr, *vptr;
 
-        // è§£ç æˆå­—ç¬¦ä¸²æˆ–è€…æ•°å­—
+        // ½âÂë³É×Ö·û´®»òÕßÊı×Ö
         field = getDecodedObject(field);
         value = getDecodedObject(value);
 
-        // éå†æ•´ä¸ª ziplist ï¼Œå°è¯•æŸ¥æ‰¾å¹¶æ›´æ–° field ï¼ˆå¦‚æœå®ƒå·²ç»å­˜åœ¨ï¼‰
+        // ±éÀúÕû¸ö ziplist £¬³¢ÊÔ²éÕÒ²¢¸üĞÂ field £¨Èç¹ûËüÒÑ¾­´æÔÚ£©
         zl = o->ptr;
         fptr = ziplistIndex(zl, ZIPLIST_HEAD);
-        if (fptr != NULL) {
-            // å®šä½åˆ°åŸŸï¼ŒO(N)
+        if (fptr != NULL)
+        {
+            // ¶¨Î»µ½Óò£¬O(N)
             fptr = ziplistFind(fptr, field->ptr, sdslen(field->ptr), 1);
-            if (fptr != NULL) {
+            if (fptr != NULL)
+            {
                 /* Grab pointer to the value (fptr points to the field) */
-                // å®šä½åˆ°å€¼
+                // ¶¨Î»µ½Öµ
                 vptr = ziplistNext(zl, fptr);
                 redisAssert(vptr != NULL);
 
-                // æ ‡è¯†è¿™æ¬¡æ“ä½œä¸ºæ›´æ–°æ“ä½œ
+                // ±êÊ¶Õâ´Î²Ù×÷Îª¸üĞÂ²Ù×÷
                 update = 1;
 
-                // åˆ é™¤æ—§å€¼
+                // É¾³ı¾ÉÖµ
                 zl = ziplistDelete(zl, &vptr);
 
-                // æ’å…¥æ–°å€¼
+                // ²åÈëĞÂÖµ
                 zl = ziplistInsert(zl, vptr, value->ptr, sdslen(value->ptr));
             }
         }
 
-        // å¦‚æœè¿™ä¸æ˜¯æ›´æ–°æ“ä½œï¼Œé‚£ä¹ˆè¿™å°±æ˜¯ä¸€ä¸ªæ·»åŠ æ“ä½œ
-        if (!update) {
-            // å°†æ–°çš„åŸŸ/å€¼å¯¹ push åˆ° ziplist çš„æœ«å°¾
+        // Èç¹ûÕâ²»ÊÇ¸üĞÂ²Ù×÷£¬ÄÇÃ´Õâ¾ÍÊÇÒ»¸öÌí¼Ó²Ù×÷
+        if (!update)
+        {
+            // ½«ĞÂµÄÓò/Öµ¶Ô push µ½ ziplist µÄÄ©Î²
             zl = ziplistPush(zl, field->ptr, sdslen(field->ptr), ZIPLIST_TAIL);
             zl = ziplistPush(zl, value->ptr, sdslen(value->ptr), ZIPLIST_TAIL);
         }
@@ -301,17 +331,24 @@ int hashTypeSet(robj *o, robj *field, robj *value) {
         if (hashTypeLength(o) > server.hash_max_ziplist_entries)
             hashTypeConvert(o, REDIS_ENCODING_HT);
 
-    // æ·»åŠ åˆ°å­—å…¸ï¼ŒO(1)
-    } else if (o->encoding == REDIS_ENCODING_HT) {
-        if (dictReplace(o->ptr, field, value)) { /* Insert */
+        // Ìí¼Óµ½×Öµä£¬O(1)
+    }
+    else if (o->encoding == REDIS_ENCODING_HT)
+    {
+        if (dictReplace(o->ptr, field, value))   /* Insert */
+        {
             incrRefCount(field);
-        } else { /* Update */
+        }
+        else     /* Update */
+        {
             update = 1;
         }
         incrRefCount(value);
 
-    // ç¼–ç é”™è¯¯
-    } else {
+        // ±àÂë´íÎó
+    }
+    else
+    {
         redisPanic("Unknown hash encoding");
     }
 
@@ -321,30 +358,34 @@ int hashTypeSet(robj *o, robj *field, robj *value) {
 /* Delete an element from a hash.
  * Return 1 on deleted and 0 on not found. */
 /*
- * å°†ç»™å®š field åŠå…¶ value ä»å“ˆå¸Œè¡¨ä¸­åˆ é™¤
+ * ½«¸ø¶¨ field ¼°Æä value ´Ó¹şÏ£±íÖĞÉ¾³ı
  *
- * å¤æ‚åº¦ï¼š
+ * ¸´ÔÓ¶È£º
  *  O(N)
  *
- * è¿”å›å€¼ï¼š
- *  åˆ é™¤æˆåŠŸè¿”å› 1 ï¼Œå¦åˆ™è¿”å› 0 ã€‚
+ * ·µ»ØÖµ£º
+ *  É¾³ı³É¹¦·µ»Ø 1 £¬·ñÔò·µ»Ø 0 ¡£
  */
-int hashTypeDelete(robj *o, robj *field) {
+int hashTypeDelete(robj *o, robj *field)
+{
     int deleted = 0;
 
     // ziplist
-    if (o->encoding == REDIS_ENCODING_ZIPLIST) {
+    if (o->encoding == REDIS_ENCODING_ZIPLIST)
+    {
         unsigned char *zl, *fptr;
 
         field = getDecodedObject(field);
 
-        // éå† ziplist ï¼Œå°è¯•åˆ é™¤ field-value å¯¹
+        // ±éÀú ziplist £¬³¢ÊÔÉ¾³ı field-value ¶Ô
         zl = o->ptr;
         fptr = ziplistIndex(zl, ZIPLIST_HEAD);
-        if (fptr != NULL) {
+        if (fptr != NULL)
+        {
             fptr = ziplistFind(fptr, field->ptr, sdslen(field->ptr), 1);
-            // æ‰¾åˆ°ç›®æ ‡ field
-            if (fptr != NULL) {
+            // ÕÒµ½Ä¿±ê field
+            if (fptr != NULL)
+            {
                 zl = ziplistDelete(zl,&fptr);
                 zl = ziplistDelete(zl,&fptr);
                 o->ptr = zl;
@@ -354,15 +395,20 @@ int hashTypeDelete(robj *o, robj *field) {
 
         decrRefCount(field);
 
-    } else if (o->encoding == REDIS_ENCODING_HT) {
-        if (dictDelete((dict*)o->ptr, field) == REDIS_OK) {
+    }
+    else if (o->encoding == REDIS_ENCODING_HT)
+    {
+        if (dictDelete((dict*)o->ptr, field) == REDIS_OK)
+        {
             deleted = 1;
 
             /* Always check if the dictionary needs a resize after a delete. */
             if (htNeedsResize(o->ptr)) dictResize(o->ptr);
         }
 
-    } else {
+    }
+    else
+    {
         redisPanic("Unknown hash encoding");
     }
 
@@ -371,27 +417,33 @@ int hashTypeDelete(robj *o, robj *field) {
 
 /* Return the number of elements in a hash. */
 /*
- * è¿”å›å“ˆå¸Œè¡¨çš„ field-value å¯¹æ•°é‡
+ * ·µ»Ø¹şÏ£±íµÄ field-value ¶ÔÊıÁ¿
  *
- * å¤æ‚åº¦ï¼šO(1)
+ * ¸´ÔÓ¶È£ºO(1)
  *
- * è¿”å›å€¼ï¼š
+ * ·µ»ØÖµ£º
  *  length
  */
-unsigned long hashTypeLength(robj *o) {
+unsigned long hashTypeLength(robj *o)
+{
     unsigned long length = ULONG_MAX;
 
     // ziplist
-    if (o->encoding == REDIS_ENCODING_ZIPLIST) {
-        // ä¸€ä¸ª field-value å¯¹å ç”¨ä¸¤ä¸ªèŠ‚ç‚¹
+    if (o->encoding == REDIS_ENCODING_ZIPLIST)
+    {
+        // Ò»¸ö field-value ¶ÔÕ¼ÓÃÁ½¸ö½Úµã
         length = ziplistLen(o->ptr) / 2;
 
-    // dict
-    } else if (o->encoding == REDIS_ENCODING_HT) {
+        // dict
+    }
+    else if (o->encoding == REDIS_ENCODING_HT)
+    {
         length = dictSize((dict*)o->ptr);
-    
-    // wrong encoding
-    } else {
+
+        // wrong encoding
+    }
+    else
+    {
         redisPanic("Unknown hash encoding");
     }
 
@@ -399,30 +451,36 @@ unsigned long hashTypeLength(robj *o) {
 }
 
 /*
- * åˆ›å»ºä¸€ä¸ªå“ˆå¸Œç±»å‹çš„è¿­ä»£å™¨
- * hashTypeIterator ç±»å‹å®šä¹‰åœ¨ redis.h
+ * ´´½¨Ò»¸ö¹şÏ£ÀàĞÍµÄµü´úÆ÷
+ * hashTypeIterator ÀàĞÍ¶¨ÒåÔÚ redis.h
  *
- * å¤æ‚åº¦ï¼šO(1)
+ * ¸´ÔÓ¶È£ºO(1)
  *
- * è¿”å›å€¼ï¼š
+ * ·µ»ØÖµ£º
  *  hashTypeIterator
  */
-hashTypeIterator *hashTypeInitIterator(robj *subject) {
+hashTypeIterator *hashTypeInitIterator(robj *subject)
+{
     hashTypeIterator *hi = zmalloc(sizeof(hashTypeIterator));
-    // ä¿å­˜å¯¹è±¡å’Œç¼–ç æ–¹å¼
+    // ±£´æ¶ÔÏóºÍ±àÂë·½Ê½
     hi->subject = subject;
     hi->encoding = subject->encoding;
 
-    // ziplist ç¼–ç 
-    if (hi->encoding == REDIS_ENCODING_ZIPLIST) {
+    // ziplist ±àÂë
+    if (hi->encoding == REDIS_ENCODING_ZIPLIST)
+    {
         hi->fptr = NULL;
         hi->vptr = NULL;
 
-    // dict ç¼–ç 
-    } else if (hi->encoding == REDIS_ENCODING_HT) {
+        // dict ±àÂë
+    }
+    else if (hi->encoding == REDIS_ENCODING_HT)
+    {
         hi->di = dictGetIterator(subject->ptr);
 
-    } else {
+    }
+    else
+    {
         redisPanic("Unknown hash encoding");
     }
 
@@ -430,36 +488,40 @@ hashTypeIterator *hashTypeInitIterator(robj *subject) {
 }
 
 /*
- * é‡Šæ”¾è¿­ä»£å™¨
+ * ÊÍ·Åµü´úÆ÷
  *
- * å¤æ‚åº¦ï¼šO(1)
+ * ¸´ÔÓ¶È£ºO(1)
  *
- * è¿”å›å€¼ï¼švoid
+ * ·µ»ØÖµ£ºvoid
  */
-void hashTypeReleaseIterator(hashTypeIterator *hi) {
-    // é‡Šæ”¾å­—å…¸è¿­ä»£å™¨
-    if (hi->encoding == REDIS_ENCODING_HT) {
+void hashTypeReleaseIterator(hashTypeIterator *hi)
+{
+    // ÊÍ·Å×Öµäµü´úÆ÷
+    if (hi->encoding == REDIS_ENCODING_HT)
+    {
         dictReleaseIterator(hi->di);
     }
 
-    // é‡Šæ”¾ ziplist çš„è¿­ä»£å™¨
+    // ÊÍ·Å ziplist µÄµü´úÆ÷
     zfree(hi);
 }
 
 /* Move to the next entry in the hash. Return REDIS_OK when the next entry
  * could be found and REDIS_ERR when the iterator reaches the end. */
 /*
- * è·å– hash ä¸­çš„ä¸‹ä¸€ä¸ªèŠ‚ç‚¹ï¼Œå¹¶å°†å®ƒä¿å­˜åˆ°è¿­ä»£å™¨ã€‚
+ * »ñÈ¡ hash ÖĞµÄÏÂÒ»¸ö½Úµã£¬²¢½«Ëü±£´æµ½µü´úÆ÷¡£
  *
- * å¤æ‚åº¦ï¼šO(1)
+ * ¸´ÔÓ¶È£ºO(1)
  *
- * è¿”å›å€¼ï¼š
- *  å¦‚æœè·å–æˆåŠŸï¼Œè¿”å› REDIS_OK ï¼Œ
- *  å¦‚æœå·²ç»æ²¡æœ‰å…ƒç´ å¯è·å–ï¼Œé‚£ä¹ˆè¿”å› REDIS_ERR ã€‚
+ * ·µ»ØÖµ£º
+ *  Èç¹û»ñÈ¡³É¹¦£¬·µ»Ø REDIS_OK £¬
+ *  Èç¹ûÒÑ¾­Ã»ÓĞÔªËØ¿É»ñÈ¡£¬ÄÇÃ´·µ»Ø REDIS_ERR ¡£
  */
-int hashTypeNext(hashTypeIterator *hi) {
-    // è¿­ä»£ ziplist 
-    if (hi->encoding == REDIS_ENCODING_ZIPLIST) {
+int hashTypeNext(hashTypeIterator *hi)
+{
+    // µü´ú ziplist
+    if (hi->encoding == REDIS_ENCODING_ZIPLIST)
+    {
         unsigned char *zl;
         unsigned char *fptr, *vptr;
 
@@ -467,19 +529,22 @@ int hashTypeNext(hashTypeIterator *hi) {
         fptr = hi->fptr;
         vptr = hi->vptr;
 
-        // ç¬¬ä¸€æ¬¡æ‰§è¡Œæ—¶ï¼Œåˆå§‹åŒ–æŒ‡é’ˆ
-        if (fptr == NULL) {
+        // µÚÒ»´ÎÖ´ĞĞÊ±£¬³õÊ¼»¯Ö¸Õë
+        if (fptr == NULL)
+        {
             /* Initialize cursor */
             redisAssert(vptr == NULL);
             fptr = ziplistIndex(zl, 0);
-       
-        // è·å–ä¸‹ä¸€ä¸ªè¿­ä»£èŠ‚ç‚¹
-        } else {
+
+            // »ñÈ¡ÏÂÒ»¸öµü´ú½Úµã
+        }
+        else
+        {
             /* Advance cursor */
             redisAssert(vptr != NULL);
             fptr = ziplistNext(zl, vptr);
         }
-        // è¿­ä»£å®Œ
+        // µü´úÍê
         if (fptr == NULL) return REDIS_ERR;
 
         /* Grab pointer to the value (fptr points to the field) */
@@ -490,12 +555,16 @@ int hashTypeNext(hashTypeIterator *hi) {
         hi->fptr = fptr;
         hi->vptr = vptr;
 
-    // è¿­ä»£å­—å…¸
-    } else if (hi->encoding == REDIS_ENCODING_HT) {
+        // µü´ú×Öµä
+    }
+    else if (hi->encoding == REDIS_ENCODING_HT)
+    {
         if ((hi->de = dictNext(hi->di)) == NULL) return REDIS_ERR;
 
-    // wrong encoding
-    } else {
+        // wrong encoding
+    }
+    else
+    {
         redisPanic("Unknown hash encoding");
     }
 
@@ -505,9 +574,9 @@ int hashTypeNext(hashTypeIterator *hi) {
 /* Get the field or value at iterator cursor, for an iterator on a hash value
  * encoded as a ziplist. Prototype is similar to `hashTypeGetFromZiplist`. */
 /*
- * æ ¹æ®è¿­ä»£å™¨çš„æŒ‡é’ˆï¼Œä» ziplist ä¸­å–å‡ºæ‰€æŒ‡å‘çš„èŠ‚ç‚¹ field æˆ–è€… value ã€‚
+ * ¸ù¾İµü´úÆ÷µÄÖ¸Õë£¬´Ó ziplist ÖĞÈ¡³öËùÖ¸ÏòµÄ½Úµã field »òÕß value ¡£
  *
- * å¤æ‚åº¦ï¼šO(1)
+ * ¸´ÔÓ¶È£ºO(1)
  */
 void hashTypeCurrentFromZiplist(hashTypeIterator *hi, int what,
                                 unsigned char **vstr,
@@ -518,10 +587,13 @@ void hashTypeCurrentFromZiplist(hashTypeIterator *hi, int what,
 
     redisAssert(hi->encoding == REDIS_ENCODING_ZIPLIST);
 
-    if (what & REDIS_HASH_KEY) {
+    if (what & REDIS_HASH_KEY)
+    {
         ret = ziplistGet(hi->fptr, vstr, vlen, vll);
         redisAssert(ret);
-    } else {
+    }
+    else
+    {
         ret = ziplistGet(hi->vptr, vstr, vlen, vll);
         redisAssert(ret);
     }
@@ -530,16 +602,20 @@ void hashTypeCurrentFromZiplist(hashTypeIterator *hi, int what,
 /* Get the field or value at iterator cursor, for an iterator on a hash value
  * encoded as a ziplist. Prototype is similar to `hashTypeGetFromHashTable`. */
 /*
- * æ ¹æ®è¿­ä»£å™¨çš„æŒ‡é’ˆï¼Œä»å­—å…¸ä¸­å–å‡ºæ‰€æŒ‡å‘èŠ‚ç‚¹çš„ field æˆ–è€… value ã€‚
+ * ¸ù¾İµü´úÆ÷µÄÖ¸Õë£¬´Ó×ÖµäÖĞÈ¡³öËùÖ¸Ïò½ÚµãµÄ field »òÕß value ¡£
  *
- * å¤æ‚åº¦ï¼šO(1)
+ * ¸´ÔÓ¶È£ºO(1)
  */
-void hashTypeCurrentFromHashTable(hashTypeIterator *hi, int what, robj **dst) {
+void hashTypeCurrentFromHashTable(hashTypeIterator *hi, int what, robj **dst)
+{
     redisAssert(hi->encoding == REDIS_ENCODING_HT);
 
-    if (what & REDIS_HASH_KEY) {
+    if (what & REDIS_HASH_KEY)
+    {
         *dst = dictGetKey(hi->de);
-    } else {
+    }
+    else
+    {
         *dst = dictGetVal(hi->de);
     }
 }
@@ -548,35 +624,44 @@ void hashTypeCurrentFromHashTable(hashTypeIterator *hi, int what, robj **dst) {
  * that returns an object with incremented refcount (or a new object). It is up
  * to the caller to decrRefCount() the object if no reference is retained. */
 /*
- * ä»è¿­ä»£å™¨ä¸­å–å‡ºå½“å‰å€¼
+ * ´Óµü´úÆ÷ÖĞÈ¡³öµ±Ç°Öµ
  *
- * å¤æ‚åº¦ï¼šO(1)
+ * ¸´ÔÓ¶È£ºO(1)
  *
- * è¿”å›å€¼ï¼š robj ä¸€ä¸ªä¿å­˜å½“å‰å€¼çš„å¯¹è±¡
+ * ·µ»ØÖµ£º robj Ò»¸ö±£´æµ±Ç°ÖµµÄ¶ÔÏó
  */
-robj *hashTypeCurrentObject(hashTypeIterator *hi, int what) {
+robj *hashTypeCurrentObject(hashTypeIterator *hi, int what)
+{
     robj *dst;
 
     // ziplist
-    if (hi->encoding == REDIS_ENCODING_ZIPLIST) {
+    if (hi->encoding == REDIS_ENCODING_ZIPLIST)
+    {
         unsigned char *vstr = NULL;
         unsigned int vlen = UINT_MAX;
         long long vll = LLONG_MAX;
 
         hashTypeCurrentFromZiplist(hi, what, &vstr, &vlen, &vll);
-        if (vstr) {
-            // æ€»æ˜¯è¿”å›å€¼å¯¹è±¡
+        if (vstr)
+        {
+            // ×ÜÊÇ·µ»ØÖµ¶ÔÏó
             dst = createStringObject((char*)vstr, vlen);
-        } else {
+        }
+        else
+        {
             dst = createStringObjectFromLongLong(vll);
         }
-    
-    // å­—å…¸
-    } else if (hi->encoding == REDIS_ENCODING_HT) {
+
+        // ×Öµä
+    }
+    else if (hi->encoding == REDIS_ENCODING_HT)
+    {
         hashTypeCurrentFromHashTable(hi, what, &dst);
         incrRefCount(dst);
 
-    } else {
+    }
+    else
+    {
         redisPanic("Unknown hash encoding");
     }
 
@@ -584,27 +669,32 @@ robj *hashTypeCurrentObject(hashTypeIterator *hi, int what) {
 }
 
 /*
- * æŒ‰ key æŸ¥æ‰¾ hash å¯¹è±¡
+ * °´ key ²éÕÒ hash ¶ÔÏó
  *
- * å¤æ‚åº¦ï¼šO(1)
+ * ¸´ÔÓ¶È£ºO(1)
  *
- * è¿”å›å€¼ï¼š
- *  å¦‚æœå¯¹è±¡ä¸å­˜åœ¨ï¼Œå°±åˆ›å»ºä¸€ä¸ªæ–°çš„ hash å¹¶è¿”å›å®ƒã€‚
- *  å¦‚æœå¯¹è±¡ä¸æ˜¯ hash ï¼Œé‚£ä¹ˆè¿”å›é”™è¯¯ã€‚
+ * ·µ»ØÖµ£º
+ *  Èç¹û¶ÔÏó²»´æÔÚ£¬¾Í´´½¨Ò»¸öĞÂµÄ hash ²¢·µ»ØËü¡£
+ *  Èç¹û¶ÔÏó²»ÊÇ hash £¬ÄÇÃ´·µ»Ø´íÎó¡£
  */
-robj *hashTypeLookupWriteOrCreate(redisClient *c, robj *key) {
-    // åœ¨æ•°æ®åº“ä¸­æŸ¥æ‰¾
+robj *hashTypeLookupWriteOrCreate(redisClient *c, robj *key)
+{
+    // ÔÚÊı¾İ¿âÖĞ²éÕÒ
     robj *o = lookupKeyWrite(c->db,key);
 
-    // o ä¸å­˜åœ¨ï¼Œåˆ›å»ºä¸€ä¸ªæ–°çš„ hash
-    if (o == NULL) {
-    
+    // o ²»´æÔÚ£¬´´½¨Ò»¸öĞÂµÄ hash
+    if (o == NULL)
+    {
+
         o = createHashObject();
         dbAdd(c->db,key,o);
-    // o å­˜åœ¨
-    } else {
-        // o ä¸æ˜¯ hash ï¼Œé”™è¯¯
-        if (o->type != REDIS_HASH) {
+        // o ´æÔÚ
+    }
+    else
+    {
+        // o ²»ÊÇ hash £¬´íÎó
+        if (o->type != REDIS_HASH)
+        {
             addReply(c,shared.wrongtypeerr);
             return NULL;
         }
@@ -614,75 +704,89 @@ robj *hashTypeLookupWriteOrCreate(redisClient *c, robj *key) {
 }
 
 /*
- * å°†ä¸€ä¸ª ziplist ç¼–ç çš„å“ˆå¸Œå¯¹è±¡ o è½¬æ¢æˆå…¶ä»–ç¼–ç 
- * ï¼ˆæ¯”å¦‚ dictï¼‰
+ * ½«Ò»¸ö ziplist ±àÂëµÄ¹şÏ£¶ÔÏó o ×ª»»³ÉÆäËû±àÂë
+ * £¨±ÈÈç dict£©
  *
- * å¤æ‚åº¦ï¼šO(N)
+ * ¸´ÔÓ¶È£ºO(N)
  */
-void hashTypeConvertZiplist(robj *o, int enc) {
+void hashTypeConvertZiplist(robj *o, int enc)
+{
     redisAssert(o->encoding == REDIS_ENCODING_ZIPLIST);
 
-    if (enc == REDIS_ENCODING_ZIPLIST) {
+    if (enc == REDIS_ENCODING_ZIPLIST)
+    {
         /* Nothing to do... */
 
-    } else if (enc == REDIS_ENCODING_HT) {
+    }
+    else if (enc == REDIS_ENCODING_HT)
+    {
         hashTypeIterator *hi;
         dict *dict;
         int ret;
 
-        // åˆ›å»º o çš„è¿­ä»£å™¨
+        // ´´½¨ o µÄµü´úÆ÷
         hi = hashTypeInitIterator(o);
-        // åˆ›å»ºæ–°å­—å…¸
+        // ´´½¨ĞÂ×Öµä
         dict = dictCreate(&hashDictType, NULL);
 
-        // éå†æ•´ä¸ª ziplist 
-        while (hashTypeNext(hi) != REDIS_ERR) {
+        // ±éÀúÕû¸ö ziplist
+        while (hashTypeNext(hi) != REDIS_ERR)
+        {
             robj *field, *value;
 
-            // å–å‡º ziplist é‡Œçš„é”®
+            // È¡³ö ziplist ÀïµÄ¼ü
             field = hashTypeCurrentObject(hi, REDIS_HASH_KEY);
             field = tryObjectEncoding(field);
 
-            // å–å‡º ziplist é‡Œçš„å€¼
+            // È¡³ö ziplist ÀïµÄÖµ
             value = hashTypeCurrentObject(hi, REDIS_HASH_VALUE);
             value = tryObjectEncoding(value);
 
-            // å°†é”®å€¼å¯¹æ·»åŠ åˆ°å­—å…¸
+            // ½«¼üÖµ¶ÔÌí¼Óµ½×Öµä
             ret = dictAdd(dict, field, value);
-            if (ret != DICT_OK) {
+            if (ret != DICT_OK)
+            {
                 redisLogHexDump(REDIS_WARNING,"ziplist with dup elements dump",
-                    o->ptr,ziplistBlobLen(o->ptr));
+                                o->ptr,ziplistBlobLen(o->ptr));
                 redisAssert(ret == DICT_OK);
             }
         }
 
-        // é‡Šæ”¾ ziplist çš„è¿­ä»£å™¨
+        // ÊÍ·Å ziplist µÄµü´úÆ÷
         hashTypeReleaseIterator(hi);
-        // é‡Šæ”¾ ziplist
+        // ÊÍ·Å ziplist
         zfree(o->ptr);
 
-        // æ›´æ–° key å¯¹è±¡çš„ç¼–ç å’Œå€¼
+        // ¸üĞÂ key ¶ÔÏóµÄ±àÂëºÍÖµ
         o->encoding = REDIS_ENCODING_HT;
         o->ptr = dict;
 
-    } else {
+    }
+    else
+    {
         redisPanic("Unknown hash encoding");
     }
 }
 
 /*
- * å¯¹ hash å¯¹è±¡ o çš„ç¼–ç æ–¹å¼è¿›è¡Œè½¬æ¢
+ * ¶Ô hash ¶ÔÏó o µÄ±àÂë·½Ê½½øĞĞ×ª»»
  *
- * ç›®å‰åªæ”¯æŒä» ziplist è½¬æ¢ä¸º dict
+ * Ä¿Ç°Ö»Ö§³Ö´Ó ziplist ×ª»»Îª dict
  *
- * å¤æ‚åº¦ï¼šO(N)
+ * ¸´ÔÓ¶È£ºO(N)
  */
-void hashTypeConvert(robj *o, int enc) {
-    if (o->encoding == REDIS_ENCODING_ZIPLIST) {
+void hashTypeConvert(robj *o, int enc)
+{
+    if (o->encoding == REDIS_ENCODING_ZIPLIST)
+    {
         hashTypeConvertZiplist(o, enc);
-    } else if (o->encoding == REDIS_ENCODING_HT) {
+    }
+    else if (o->encoding == REDIS_ENCODING_HT)
+    {
         redisPanic("Not implemented");
-    } else {
+    }
+    else
+    {
         redisPanic("Unknown hash encoding");
     }
 }
@@ -692,28 +796,29 @@ void hashTypeConvert(robj *o, int enc) {
  *----------------------------------------------------------------------------*/
 
 /*
- * HSET å‘½ä»¤çš„å®ç°
+ * HSET ÃüÁîµÄÊµÏÖ
  *
  * T = O(N)
  */
-void hsetCommand(redisClient *c) {
+void hsetCommand(redisClient *c)
+{
     int update;
     robj *o;
 
-    // æŸ¥æ‰¾ hash
+    // ²éÕÒ hash
     if ((o = hashTypeLookupWriteOrCreate(c,c->argv[1])) == NULL) return;
 
-    // æ ¹æ®è¾“å…¥å‚æ•°ï¼Œå¦‚æœéœ€è¦çš„è¯ï¼Œå°† o è½¬æ¢ä¸º dict ç¼–ç 
+    // ¸ù¾İÊäÈë²ÎÊı£¬Èç¹ûĞèÒªµÄ»°£¬½« o ×ª»»Îª dict ±àÂë
     hashTypeTryConversion(o,c->argv,2,3);
 
-    // ç¼–ç  field å’Œ value ä»¥èŠ‚çœç©ºé—´
+    // ±àÂë field ºÍ value ÒÔ½ÚÊ¡¿Õ¼ä
     hashTypeTryObjectEncoding(o,&c->argv[2], &c->argv[3]);
 
-    // è®¾ç½® field å’Œ value åˆ° hash
+    // ÉèÖÃ field ºÍ value µ½ hash
     // O(N)
     update = hashTypeSet(o,c->argv[2],c->argv[3]);
 
-    // è¿”å›çŠ¶æ€ï¼šæ›´æ–°/æ–°æ·»åŠ 
+    // ·µ»Ø×´Ì¬£º¸üĞÂ/ĞÂÌí¼Ó
     addReply(c, update ? shared.czero : shared.cone);
 
     signalModifiedKey(c->db,c->argv[1]);
@@ -722,24 +827,28 @@ void hsetCommand(redisClient *c) {
 }
 
 /*
- * HSETNX å‘½ä»¤çš„å®ç°
+ * HSETNX ÃüÁîµÄÊµÏÖ
  *
  * T = O(N)
  */
-void hsetnxCommand(redisClient *c) {
+void hsetnxCommand(redisClient *c)
+{
     robj *o;
-    // åˆ›å»ºæˆ–æŸ¥æ‰¾ç»™å®š key å¯¹è±¡
+    // ´´½¨»ò²éÕÒ¸ø¶¨ key ¶ÔÏó
     if ((o = hashTypeLookupWriteOrCreate(c,c->argv[1])) == NULL) return;
 
-    // å¯¹è¾“å…¥å‚æ•°è¿›è¡Œæ£€æŸ¥ï¼Œçœ‹æ˜¯å¦éœ€è¦å°† o è½¬æ¢ä¸ºå­—å…¸ç¼–ç 
+    // ¶ÔÊäÈë²ÎÊı½øĞĞ¼ì²é£¬¿´ÊÇ·ñĞèÒª½« o ×ª»»Îª×Öµä±àÂë
     // O(N)
     hashTypeTryConversion(o,c->argv,2,3);
 
-    if (hashTypeExists(o, c->argv[2])) {
-        // å¦‚æœ field å·²å­˜åœ¨ï¼Œç›´æ¥è¿”å›
+    if (hashTypeExists(o, c->argv[2]))
+    {
+        // Èç¹û field ÒÑ´æÔÚ£¬Ö±½Ó·µ»Ø
         addReply(c, shared.czero);
-    } else {
-        // æœªå­˜åœ¨ï¼Œè¿›è¡Œè®¾ç½®
+    }
+    else
+    {
+        // Î´´æÔÚ£¬½øĞĞÉèÖÃ
 
         hashTypeTryObjectEncoding(o,&c->argv[2], &c->argv[3]);
 
@@ -753,31 +862,34 @@ void hsetnxCommand(redisClient *c) {
 }
 
 /*
- * HMSET å‘½ä»¤çš„å®ç°
+ * HMSET ÃüÁîµÄÊµÏÖ
  *
  * T = O(N^2)
  */
-void hmsetCommand(redisClient *c) {
+void hmsetCommand(redisClient *c)
+{
     int i;
     robj *o;
 
-    // å‚æ•°çš„ä¸ªæ•°å¿…é¡»æ˜¯æˆåŒæˆå¯¹çš„
-    if ((c->argc % 2) == 1) {
+    // ²ÎÊıµÄ¸öÊı±ØĞëÊÇ³ÉË«³É¶ÔµÄ
+    if ((c->argc % 2) == 1)
+    {
         addReplyError(c,"wrong number of arguments for HMSET");
         return;
     }
 
-    // æŸ¥æ‰¾æˆ–åˆ›å»º hash å¯¹è±¡
+    // ²éÕÒ»ò´´½¨ hash ¶ÔÏó
     if ((o = hashTypeLookupWriteOrCreate(c,c->argv[1])) == NULL) return;
 
-    // æ£€æŸ¥æ‰€æœ‰è¾“å…¥å‚æ•°ï¼Œçœ‹æ˜¯å¦éœ€è¦å°† hash çš„ç¼–ç è½¬æ¢ä¸ºå­—å…¸
+    // ¼ì²éËùÓĞÊäÈë²ÎÊı£¬¿´ÊÇ·ñĞèÒª½« hash µÄ±àÂë×ª»»Îª×Öµä
     hashTypeTryConversion(o,c->argv,2,c->argc-1);
 
-    // æ‰¹é‡æ’å…¥
-    for (i = 2; i < c->argc; i += 2) {
-        // å¯¹ field å’Œ value è¿›è¡Œç¼–ç 
+    // ÅúÁ¿²åÈë
+    for (i = 2; i < c->argc; i += 2)
+    {
+        // ¶Ô field ºÍ value ½øĞĞ±àÂë
         hashTypeTryObjectEncoding(o,&c->argv[i], &c->argv[i+1]);
-        // è®¾ç½®ï¼ŒO(N)
+        // ÉèÖÃ£¬O(N)
         hashTypeSet(o,c->argv[i],c->argv[i+1]);
     }
 
@@ -788,55 +900,61 @@ void hmsetCommand(redisClient *c) {
 }
 
 /*
- * HINCRBY å‘½ä»¤çš„å®ç°
+ * HINCRBY ÃüÁîµÄÊµÏÖ
  *
  * T = O(N)
  */
-void hincrbyCommand(redisClient *c) {
+void hincrbyCommand(redisClient *c)
+{
     long long value, incr, oldvalue;
     robj *o, *current, *new;
 
-    // å–å‡ºå¢é‡å‚æ•°
+    // È¡³öÔöÁ¿²ÎÊı
     if (getLongLongFromObjectOrReply(c,c->argv[3],&incr,NULL) != REDIS_OK) return;
 
-    // æŸ¥æ‰¾æˆ–åˆ›å»º hash å¯¹è±¡
+    // ²éÕÒ»ò´´½¨ hash ¶ÔÏó
     if ((o = hashTypeLookupWriteOrCreate(c,c->argv[1])) == NULL) return;
 
-    // field å·²å­˜åœ¨ï¼Ÿï¼ŒO(N)
-    if ((current = hashTypeGetObject(o,c->argv[2])) != NULL) {
-        // è·å– field çš„å€¼
+    // field ÒÑ´æÔÚ£¿£¬O(N)
+    if ((current = hashTypeGetObject(o,c->argv[2])) != NULL)
+    {
+        // »ñÈ¡ field µÄÖµ
         if (getLongLongFromObjectOrReply(c,current,&value,
-            "hash value is not an integer") != REDIS_OK) {
+                                         "hash value is not an integer") != REDIS_OK)
+        {
             decrRefCount(current);
             return;
         }
         decrRefCount(current);
-    } else {
-        // field-value å¯¹ä¸å­˜åœ¨ï¼Œè®¾ç½®å€¼ä¸º 0
+    }
+    else
+    {
+        // field-value ¶Ô²»´æÔÚ£¬ÉèÖÃÖµÎª 0
         value = 0;
     }
 
-    // æ£€æŸ¥å€¼æ˜¯å¦æº¢å‡º
+    // ¼ì²éÖµÊÇ·ñÒç³ö
     oldvalue = value;
     if ((incr < 0 && oldvalue < 0 && incr < (LLONG_MIN-oldvalue)) ||
-        (incr > 0 && oldvalue > 0 && incr > (LLONG_MAX-oldvalue))) {
+            (incr > 0 && oldvalue > 0 && incr > (LLONG_MAX-oldvalue)))
+    {
         addReplyError(c,"increment or decrement would overflow");
         return;
     }
 
-    // è®¡ç®—å’Œ
+    // ¼ÆËãºÍ
     value += incr;
 
-    // å°†å’Œä¿å­˜åˆ° sds
+    // ½«ºÍ±£´æµ½ sds
     new = createStringObjectFromLongLong(value);
 
-    // å¯¹ field è¿›è¡Œç¼–ç 
+    // ¶Ô field ½øĞĞ±àÂë
     hashTypeTryObjectEncoding(o,&c->argv[2],NULL);
 
-    // è®¾ç½® field-value å¯¹
+    // ÉèÖÃ field-value ¶Ô
     hashTypeSet(o,c->argv[2],new);
 
-    // è®¡æ•°å‡ä¸€ï¼ˆ hashTypeSet ä¼šå¤„ç† field å’Œ value çš„è®¡æ•°ï¼‰
+    // ¼ÆÊı¼õÒ»£¨ hashTypeSet »á´¦Àí field ºÍ value µÄ¼ÆÊı£©
     decrRefCount(new);
 
     addReplyLongLong(c,value);
@@ -845,36 +963,41 @@ void hincrbyCommand(redisClient *c) {
 }
 
 /*
- * HINCRBYFLOAT å‘½ä»¤çš„å®ç°
+ * HINCRBYFLOAT ÃüÁîµÄÊµÏÖ
  *
  * T = O(N)
  */
-void hincrbyfloatCommand(redisClient *c) {
+void hincrbyfloatCommand(redisClient *c)
+{
     double long value, incr;
     robj *o, *current, *new, *aux;
 
-    // å–å‡ºå¢é‡
+    // È¡³öÔöÁ¿
     if (getLongDoubleFromObjectOrReply(c,c->argv[3],&incr,NULL) != REDIS_OK) return;
 
-    // æ£€æŸ¥å¯¹è±¡å­˜åœ¨æ€§å’Œç±»å‹
+    // ¼ì²é¶ÔÏó´æÔÚĞÔºÍÀàĞÍ
     if ((o = hashTypeLookupWriteOrCreate(c,c->argv[1])) == NULL) return;
 
-    // å–å‡ºå½“å‰å€¼ï¼ŒO(N)
-    if ((current = hashTypeGetObject(o,c->argv[2])) != NULL) {
-        // å¦‚æœå€¼ä¸èƒ½è¢«è¡¨ç¤ºä¸ºæµ®ç‚¹æ•°ï¼Œé‚£ä¹ˆç›´æ¥å¤±è´¥
+    // È¡³öµ±Ç°Öµ£¬O(N)
+    if ((current = hashTypeGetObject(o,c->argv[2])) != NULL)
+    {
+        // Èç¹ûÖµ²»ÄÜ±»±íÊ¾Îª¸¡µãÊı£¬ÄÇÃ´Ö±½ÓÊ§°Ü
         if (getLongDoubleFromObjectOrReply(c,current,&value,
-            "hash value is not a valid float") != REDIS_OK) {
+                                           "hash value is not a valid float") != REDIS_OK)
+        {
             decrRefCount(current);
             return;
         }
         decrRefCount(current);
-    } else {
+    }
+    else
+    {
         value = 0;
     }
 
-    // è®¡ç®—æ–°å€¼
+    // ¼ÆËãĞÂÖµ
     value += incr;
-    // æ›´æ–°æ–°å€¼
+    // ¸üĞÂĞÂÖµ
     new = createStringObjectFromLongDouble(value);
     hashTypeTryObjectEncoding(o,&c->argv[2],NULL);
     hashTypeSet(o,c->argv[2],new);
@@ -894,123 +1017,148 @@ void hincrbyfloatCommand(redisClient *c) {
 }
 
 /*
- * å°† hash é‡Œ field çš„å€¼æ·»åŠ åˆ°å›å¤ä¸­
- * ç”¨ä½œå‘½ä»¤çš„è¿”å›æ‰‹æ®µ
+ * ½« hash Àï field µÄÖµÌí¼Óµ½»Ø¸´ÖĞ
+ * ÓÃ×÷ÃüÁîµÄ·µ»ØÊÖ¶Î
  *
  * T = O(N)
  */
-static void addHashFieldToReply(redisClient *c, robj *o, robj *field) {
+static void addHashFieldToReply(redisClient *c, robj *o, robj *field)
+{
     int ret;
 
-    if (o == NULL) {
+    if (o == NULL)
+    {
         addReply(c, shared.nullbulk);
         return;
     }
 
     // ziplist
-    if (o->encoding == REDIS_ENCODING_ZIPLIST) {
+    if (o->encoding == REDIS_ENCODING_ZIPLIST)
+    {
         unsigned char *vstr = NULL;
         unsigned int vlen = UINT_MAX;
         long long vll = LLONG_MAX;
 
-        // å–å‡ºå€¼ï¼ŒO(N)
+        // È¡³öÖµ£¬O(N)
         ret = hashTypeGetFromZiplist(o, field, &vstr, &vlen, &vll);
-        if (ret < 0) {
+        if (ret < 0)
+        {
             addReply(c, shared.nullbulk);
-        } else {
-            if (vstr) {
+        }
+        else
+        {
+            if (vstr)
+            {
                 addReplyBulkCBuffer(c, vstr, vlen);
-            } else {
+            }
+            else
+            {
                 addReplyBulkLongLong(c, vll);
             }
         }
 
-    // å­—å…¸
-    } else if (o->encoding == REDIS_ENCODING_HT) {
+        // ×Öµä
+    }
+    else if (o->encoding == REDIS_ENCODING_HT)
+    {
         robj *value;
 
-        // å–å‡ºå€¼ï¼ŒO(1)
+        // È¡³öÖµ£¬O(1)
         ret = hashTypeGetFromHashTable(o, field, &value);
-        if (ret < 0) {
+        if (ret < 0)
+        {
             addReply(c, shared.nullbulk);
-        } else {
+        }
+        else
+        {
             addReplyBulk(c, value);
         }
 
-    } else {
+    }
+    else
+    {
         redisPanic("Unknown hash encoding");
     }
 }
 
 /*
- * HGET å‘½ä»¤çš„å®ç°
+ * HGET ÃüÁîµÄÊµÏÖ
  *
  * T = O(1)
  */
-void hgetCommand(redisClient *c) {
+void hgetCommand(redisClient *c)
+{
     robj *o;
 
     if ((o = lookupKeyReadOrReply(c,c->argv[1],shared.nullbulk)) == NULL ||
-        checkType(c,o,REDIS_HASH)) return;
+            checkType(c,o,REDIS_HASH)) return;
 
     addHashFieldToReply(c, o, c->argv[2]);
 }
 
 /*
- * HMGET å‘½ä»¤çš„å®ç°
+ * HMGET ÃüÁîµÄÊµÏÖ
  *
  * T = O(N^2)
  */
-void hmgetCommand(redisClient *c) {
+void hmgetCommand(redisClient *c)
+{
     robj *o;
     int i;
 
     /* Don't abort when the key cannot be found. Non-existing keys are empty
      * hashes, where HMGET should respond with a series of null bulks. */
-    // è·å–æˆ–åˆ›å»ºä¸€ä¸ªå­—å…¸
+    // »ñÈ¡»ò´´½¨Ò»¸ö×Öµä
     o = lookupKeyRead(c->db, c->argv[1]);
-    if (o != NULL && o->type != REDIS_HASH) {
+    if (o != NULL && o->type != REDIS_HASH)
+    {
         addReply(c, shared.wrongtypeerr);
         return;
     }
 
-    // è·å– field çš„å€¼
+    // »ñÈ¡ field µÄÖµ
     addReplyMultiBulkLen(c, c->argc-2);
-    for (i = 2; i < c->argc; i++) {
+    for (i = 2; i < c->argc; i++)
+    {
         addHashFieldToReply(c, o, c->argv[i]);
     }
 }
 
 /*
- * HDEL å‘½ä»¤çš„å®ç°
+ * HDEL ÃüÁîµÄÊµÏÖ
  *
  * T = O(N^2)
  */
-void hdelCommand(redisClient *c) {
+void hdelCommand(redisClient *c)
+{
     robj *o;
     int j, deleted = 0;
 
-    // è·å–æˆ–åˆ›å»ºä¸€ä¸ªå­—å…¸
+    // »ñÈ¡»ò´´½¨Ò»¸ö×Öµä
     if ((o = lookupKeyWriteOrReply(c,c->argv[1],shared.czero)) == NULL ||
-        checkType(c,o,REDIS_HASH)) return;
+            checkType(c,o,REDIS_HASH)) return;
 
-    for (j = 2; j < c->argc; j++) {
-        // åˆ é™¤
-        if (hashTypeDelete(o,c->argv[j])) {
-            // è®¡æ•°
+    for (j = 2; j < c->argc; j++)
+    {
+        // É¾³ı
+        if (hashTypeDelete(o,c->argv[j]))
+        {
+            // ¼ÆÊı
             deleted++;
 
-            // å¦‚æœ hash å·²ç»ä¸ºç©ºï¼Œé‚£ä¹ˆåˆ é™¤å®ƒ
-            if (hashTypeLength(o) == 0) {
+            // Èç¹û hash ÒÑ¾­Îª¿Õ£¬ÄÇÃ´É¾³ıËü
+            if (hashTypeLength(o) == 0)
+            {
                 dbDelete(c->db,c->argv[1]);
                 break;
             }
         }
     }
 
-    // å¦‚æœè‡³å°‘åˆ é™¤äº†ä¸€ä¸ª field-value å¯¹
-    // é‚£ä¹ˆé€šçŸ¥ db é”®å·²è¢«ä¿®æ”¹
-    if (deleted) {
+    // Èç¹ûÖÁÉÙÉ¾³ıÁËÒ»¸ö field-value ¶Ô
+    // ÄÇÃ´Í¨Öª db ¼üÒÑ±»ĞŞ¸Ä
+    if (deleted)
+    {
         signalModifiedKey(c->db,c->argv[1]);
         server.dirty += deleted;
     }
@@ -1019,135 +1167,153 @@ void hdelCommand(redisClient *c) {
 }
 
 /*
- * HLEN å‘½ä»¤çš„å®ç°
+ * HLEN ÃüÁîµÄÊµÏÖ
  *
  * T = O(1)
  */
-void hlenCommand(redisClient *c) {
+void hlenCommand(redisClient *c)
+{
     robj *o;
     if ((o = lookupKeyReadOrReply(c,c->argv[1],shared.czero)) == NULL ||
-        checkType(c,o,REDIS_HASH)) return;
+            checkType(c,o,REDIS_HASH)) return;
 
     addReplyLongLong(c,hashTypeLength(o));
 }
 
 /*
- * å–å‡ºå½“å‰ hash èŠ‚ç‚¹çš„ field æˆ–è€…  value ã€‚
+ * È¡³öµ±Ç° hash ½ÚµãµÄ field »òÕß  value ¡£
  *
  * T = O(1)
  */
-static void addHashIteratorCursorToReply(redisClient *c, hashTypeIterator *hi, int what) {
-    if (hi->encoding == REDIS_ENCODING_ZIPLIST) {
+static void addHashIteratorCursorToReply(redisClient *c, hashTypeIterator *hi, int what)
+{
+    if (hi->encoding == REDIS_ENCODING_ZIPLIST)
+    {
         unsigned char *vstr = NULL;
         unsigned int vlen = UINT_MAX;
         long long vll = LLONG_MAX;
 
-        // ä» ziplist çš„èŠ‚ç‚¹ä¸­å–å‡º field æ‰€å¯¹åº”çš„å€¼
+        // ´Ó ziplist µÄ½ÚµãÖĞÈ¡³ö field Ëù¶ÔÓ¦µÄÖµ
         // O(1)
         hashTypeCurrentFromZiplist(hi, what, &vstr, &vlen, &vll);
-        if (vstr) {
+        if (vstr)
+        {
             addReplyBulkCBuffer(c, vstr, vlen);
-        } else {
+        }
+        else
+        {
             addReplyBulkLongLong(c, vll);
         }
 
-    } else if (hi->encoding == REDIS_ENCODING_HT) {
+    }
+    else if (hi->encoding == REDIS_ENCODING_HT)
+    {
         robj *value;
 
-        // ä»å­—å…¸ä¸­å–å‡º field çš„å€¼
+        // ´Ó×ÖµäÖĞÈ¡³ö field µÄÖµ
         // O(1)
         hashTypeCurrentFromHashTable(hi, what, &value);
         addReplyBulk(c, value);
 
-    } else {
+    }
+    else
+    {
         redisPanic("Unknown hash encoding");
     }
 }
 
 /*
- * GETALL ç­‰å‘½ä»¤çš„åº•å±‚å®ç°
+ * GETALL µÈÃüÁîµÄµ×²ãÊµÏÖ
  *
  * T = O(N)
  */
-void genericHgetallCommand(redisClient *c, int flags) {
+void genericHgetallCommand(redisClient *c, int flags)
+{
     robj *o;
     hashTypeIterator *hi;
     int multiplier = 0;
     int length, count = 0;
 
-    // åˆ›å»ºæˆ–æŸ¥æ‰¾ hash
+    // ´´½¨»ò²éÕÒ hash
     if ((o = lookupKeyReadOrReply(c,c->argv[1],shared.emptymultibulk)) == NULL
-        || checkType(c,o,REDIS_HASH)) return;
+            || checkType(c,o,REDIS_HASH)) return;
 
-    // é€‰æ‹©è¯¥è¿”å›é‚£äº›å†…å®¹
+    // Ñ¡Ôñ¸Ã·µ»ØÄÇĞ©ÄÚÈİ
     if (flags & REDIS_HASH_KEY) multiplier++;
     if (flags & REDIS_HASH_VALUE) multiplier++;
 
-    // æ ¹æ®è¦è¿”å›çš„å†…å®¹ï¼Œè®¾ç½®è¦è·å–çš„å…ƒç´ çš„æ•°é‡
+    // ¸ù¾İÒª·µ»ØµÄÄÚÈİ£¬ÉèÖÃÒª»ñÈ¡µÄÔªËØµÄÊıÁ¿
     // O(1)
     length = hashTypeLength(o) * multiplier;
     addReplyMultiBulkLen(c, length);
 
-    // å¼€å§‹è¿­ä»£
+    // ¿ªÊ¼µü´ú
     // O(N)
     hi = hashTypeInitIterator(o);
-    while (hashTypeNext(hi) != REDIS_ERR) {
-        if (flags & REDIS_HASH_KEY) {
+    while (hashTypeNext(hi) != REDIS_ERR)
+    {
+        if (flags & REDIS_HASH_KEY)
+        {
             addHashIteratorCursorToReply(c, hi, REDIS_HASH_KEY);
             count++;
         }
-        if (flags & REDIS_HASH_VALUE) {
+        if (flags & REDIS_HASH_VALUE)
+        {
             addHashIteratorCursorToReply(c, hi, REDIS_HASH_VALUE);
             count++;
         }
     }
 
-    // é‡Šæ”¾è¿­ä»£å™¨
+    // ÊÍ·Åµü´úÆ÷
     hashTypeReleaseIterator(hi);
 
     redisAssert(count == length);
 }
 
 /*
- * HKEYS å‘½ä»¤çš„å®ç°
+ * HKEYS ÃüÁîµÄÊµÏÖ
  *
  * T = O(N)
  */
-void hkeysCommand(redisClient *c) {
-    // å€¼å–å‡ºé”®
+void hkeysCommand(redisClient *c)
+{
+    // ÖµÈ¡³ö¼ü
     genericHgetallCommand(c,REDIS_HASH_KEY);
 }
 
 /*
- * HVALS å‘½ä»¤çš„å®ç°
+ * HVALS ÃüÁîµÄÊµÏÖ
  *
  * T = O(N)
  */
-void hvalsCommand(redisClient *c) {
-    // åªå–å‡ºå€¼
+void hvalsCommand(redisClient *c)
+{
+    // Ö»È¡³öÖµ
     genericHgetallCommand(c,REDIS_HASH_VALUE);
 }
 
 /*
- * HGETALL å‘½ä»¤çš„å®ç°
+ * HGETALL ÃüÁîµÄÊµÏÖ
  */
-void hgetallCommand(redisClient *c) {
-    // å–å‡ºé”®å’Œå€¼
+void hgetallCommand(redisClient *c)
+{
+    // È¡³ö¼üºÍÖµ
     genericHgetallCommand(c,REDIS_HASH_KEY|REDIS_HASH_VALUE);
 }
 
 /*
- * HEXISTS å‘½ä»¤çš„å®ç°
+ * HEXISTS ÃüÁîµÄÊµÏÖ
  *
- * å¤æ‚åº¦ï¼šO(N)
+ * ¸´ÔÓ¶È£ºO(N)
  */
-void hexistsCommand(redisClient *c) {
+void hexistsCommand(redisClient *c)
+{
     robj *o;
 
-    // å–å‡ºå¯¹è±¡
+    // È¡³ö¶ÔÏó
     if ((o = lookupKeyReadOrReply(c,c->argv[1],shared.czero)) == NULL ||
-        checkType(c,o,REDIS_HASH)) return;
+            checkType(c,o,REDIS_HASH)) return;
 
-    // æµ‹è¯•ç»™å®šåŸŸæ˜¯å¦å­˜åœ¨
+    // ²âÊÔ¸ø¶¨ÓòÊÇ·ñ´æÔÚ
     addReply(c, hashTypeExists(o,c->argv[2]) ? shared.cone : shared.czero);
 }
