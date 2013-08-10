@@ -65,10 +65,12 @@ void sha1hex(char *digest, char *script, size_t len);
  * error string.
  */
 
-char *redisProtocolToLuaType(lua_State *lua, char* reply) {
+char *redisProtocolToLuaType(lua_State *lua, char* reply)
+{
     char *p = reply;
 
-    switch(*p) {
+    switch(*p)
+    {
     case ':':
         p = redisProtocolToLuaType_Int(lua,reply);
         break;
@@ -88,7 +90,8 @@ char *redisProtocolToLuaType(lua_State *lua, char* reply) {
     return p;
 }
 
-char *redisProtocolToLuaType_Int(lua_State *lua, char *reply) {
+char *redisProtocolToLuaType_Int(lua_State *lua, char *reply)
+{
     char *p = strchr(reply+1,'\r');
     long long value;
 
@@ -97,21 +100,26 @@ char *redisProtocolToLuaType_Int(lua_State *lua, char *reply) {
     return p+2;
 }
 
-char *redisProtocolToLuaType_Bulk(lua_State *lua, char *reply) {
+char *redisProtocolToLuaType_Bulk(lua_State *lua, char *reply)
+{
     char *p = strchr(reply+1,'\r');
     long long bulklen;
 
     string2ll(reply+1,p-reply-1,&bulklen);
-    if (bulklen == -1) {
+    if (bulklen == -1)
+    {
         lua_pushboolean(lua,0);
         return p+2;
-    } else {
+    }
+    else
+    {
         lua_pushlstring(lua,p+2,bulklen);
         return p+2+bulklen+2;
     }
 }
 
-char *redisProtocolToLuaType_Status(lua_State *lua, char *reply) {
+char *redisProtocolToLuaType_Status(lua_State *lua, char *reply)
+{
     char *p = strchr(reply+1,'\r');
 
     lua_newtable(lua);
@@ -121,7 +129,8 @@ char *redisProtocolToLuaType_Status(lua_State *lua, char *reply) {
     return p+2;
 }
 
-char *redisProtocolToLuaType_Error(lua_State *lua, char *reply) {
+char *redisProtocolToLuaType_Error(lua_State *lua, char *reply)
+{
     char *p = strchr(reply+1,'\r');
 
     lua_newtable(lua);
@@ -131,19 +140,22 @@ char *redisProtocolToLuaType_Error(lua_State *lua, char *reply) {
     return p+2;
 }
 
-char *redisProtocolToLuaType_MultiBulk(lua_State *lua, char *reply) {
+char *redisProtocolToLuaType_MultiBulk(lua_State *lua, char *reply)
+{
     char *p = strchr(reply+1,'\r');
     long long mbulklen;
     int j = 0;
 
     string2ll(reply+1,p-reply-1,&mbulklen);
     p += 2;
-    if (mbulklen == -1) {
+    if (mbulklen == -1)
+    {
         lua_pushboolean(lua,0);
         return p;
     }
     lua_newtable(lua);
-    for (j = 0; j < mbulklen; j++) {
+    for (j = 0; j < mbulklen; j++)
+    {
         lua_pushnumber(lua,j+1);
         p = redisProtocolToLuaType(lua,p);
         lua_settable(lua,-3);
@@ -151,7 +163,8 @@ char *redisProtocolToLuaType_MultiBulk(lua_State *lua, char *reply) {
     return p;
 }
 
-void luaPushError(lua_State *lua, char *error) {
+void luaPushError(lua_State *lua, char *error)
+{
     lua_newtable(lua);
     lua_pushstring(lua,"err");
     lua_pushstring(lua, error);
@@ -165,17 +178,19 @@ void luaPushError(lua_State *lua, char *error) {
  * 对栈中的数组进行排序，从而让 KEYS 、 SMEMBERS 这样的命令的输出变得确定性。
  *
  * The array is sorted using table.sort itself, and assuming all the
- * list elements are strings. 
+ * list elements are strings.
  *
  * 排序使用 table.sort 函数，并假设所有列表元素均为字符串
  */
-void luaSortArray(lua_State *lua) {
+void luaSortArray(lua_State *lua)
+{
     /* Initial Stack: array */
     lua_getglobal(lua,"table");
     lua_pushstring(lua,"sort");
     lua_gettable(lua,-2);       /* Stack: array, table, table.sort */
     lua_pushvalue(lua,-3);      /* Stack: array, table, table.sort, array */
-    if (lua_pcall(lua,1,0,0)) {
+    if (lua_pcall(lua,1,0,0))
+    {
         /* Stack: array, table, error */
 
         /* We are not interested in the error, we assume that the problem is
@@ -197,7 +212,8 @@ void luaSortArray(lua_State *lua) {
 /*
  * 用于在 Lua 环境中执行 Redis 命令
  */
-int luaRedisGenericCommand(lua_State *lua, int raise_error) {
+int luaRedisGenericCommand(lua_State *lua, int raise_error)
+{
     int j, argc = lua_gettop(lua);
     struct redisCommand *cmd;
     robj **argv;
@@ -207,34 +223,38 @@ int luaRedisGenericCommand(lua_State *lua, int raise_error) {
 
     /* Require at least one argument */
     // 参数检查
-    if (argc == 0) {
+    if (argc == 0)
+    {
         luaPushError(lua,
-            "Please specify at least one argument for redis.call()");
+                     "Please specify at least one argument for redis.call()");
         return 1;
     }
 
     /* Build the arguments vector */
     // 构建参数数组
     argv = zmalloc(sizeof(robj*)*argc);
-    for (j = 0; j < argc; j++) {
+    for (j = 0; j < argc; j++)
+    {
         if (!lua_isstring(lua,j+1)) break;
         argv[j] = createStringObject((char*)lua_tostring(lua,j+1),
                                      lua_strlen(lua,j+1));
     }
-    
+
     /* Check if one of the arguments passed by the Lua script
      * is not a string or an integer (lua_isstring() return true for
      * integers as well). */
     // 参数只能是字符串或者整数
-    if (j != argc) {
+    if (j != argc)
+    {
         j--;
-        while (j >= 0) {
+        while (j >= 0)
+        {
             decrRefCount(argv[j]);
             j--;
         }
         zfree(argv);
         luaPushError(lua,
-            "Lua redis() command arguments must be strings or integers");
+                     "Lua redis() command arguments must be strings or integers");
         return 1;
     }
 
@@ -247,11 +267,11 @@ int luaRedisGenericCommand(lua_State *lua, int raise_error) {
     // 查找命令实现函数
     cmd = lookupCommand(argv[0]->ptr);
     if (!cmd || ((cmd->arity > 0 && cmd->arity != argc) ||
-                   (argc < -cmd->arity)))
+                 (argc < -cmd->arity)))
     {
         if (cmd)
             luaPushError(lua,
-                "Wrong number of args calling Redis command From Lua script");
+                         "Wrong number of args calling Redis command From Lua script");
         else
             luaPushError(lua,"Unknown Redis command called from Lua script");
         goto cleanup;
@@ -259,7 +279,8 @@ int luaRedisGenericCommand(lua_State *lua, int raise_error) {
 
     /* There are commands that are not allowed inside scripts. */
     // 只能执行被允许在 Lua 脚本中执行的函数
-    if (cmd->flags & REDIS_CMD_NOSCRIPT) {
+    if (cmd->flags & REDIS_CMD_NOSCRIPT)
+    {
         luaPushError(lua, "This Redis command is not allowed from scripts");
         goto cleanup;
     }
@@ -267,21 +288,25 @@ int luaRedisGenericCommand(lua_State *lua, int raise_error) {
     /* Write commands are forbidden against read-only slaves, or if a
      * command marked as non-deterministic was already called in the context
      * of this script. */
-    if (cmd->flags & REDIS_CMD_WRITE) {
-        if (server.lua_random_dirty) {
+    if (cmd->flags & REDIS_CMD_WRITE)
+    {
+        if (server.lua_random_dirty)
+        {
             // 不能在执行过随机命令之后执行写命令
             luaPushError(lua,
-                "Write commands not allowed after non deterministic commands");
+                         "Write commands not allowed after non deterministic commands");
             goto cleanup;
-        } else if (server.masterhost && server.repl_slave_ro &&
-                   !(server.lua_caller->flags & REDIS_MASTER))
+        }
+        else if (server.masterhost && server.repl_slave_ro &&
+                 !(server.lua_caller->flags & REDIS_MASTER))
         {
             // 不能在附属节点执行
             luaPushError(lua, shared.roslaveerr->ptr);
             goto cleanup;
-        } else if (server.stop_writes_on_bgsave_err &&
-                   server.saveparamslen > 0 &&
-                   server.lastbgsave_status == REDIS_ERR)
+        }
+        else if (server.stop_writes_on_bgsave_err &&
+                 server.saveparamslen > 0 &&
+                 server.lastbgsave_status == REDIS_ERR)
         {
             // 不能在 Redis 已出错的环境下执行
             luaPushError(lua, shared.bgsaveerr->ptr);
@@ -295,9 +320,10 @@ int luaRedisGenericCommand(lua_State *lua, int raise_error) {
      * in the middle. */
     // 如果是第一次执行写操作，并且遭遇内存超过，那么退出
     if (server.maxmemory && server.lua_write_dirty == 0 &&
-        (cmd->flags & REDIS_CMD_DENYOOM))
+            (cmd->flags & REDIS_CMD_DENYOOM))
     {
-        if (freeMemoryIfNeeded() == REDIS_ERR) {
+        if (freeMemoryIfNeeded() == REDIS_ERR)
+        {
             luaPushError(lua, shared.oomerr->ptr);
             goto cleanup;
         }
@@ -318,11 +344,13 @@ int luaRedisGenericCommand(lua_State *lua, int raise_error) {
      * output buffers. */
     // 取出回复
     reply = sdsempty();
-    if (c->bufpos) {
+    if (c->bufpos)
+    {
         reply = sdscatlen(reply,c->buf,c->bufpos);
         c->bufpos = 0;
     }
-    while(listLength(c->reply)) {
+    while(listLength(c->reply))
+    {
         robj *o = listNodeValue(listFirst(c->reply));
 
         reply = sdscatlen(reply,o->ptr,sdslen(o->ptr));
@@ -335,8 +363,9 @@ int luaRedisGenericCommand(lua_State *lua, int raise_error) {
      * reply as expected. */
     // 看是否需要执行排序
     if ((cmd->flags & REDIS_CMD_SORT_FOR_SCRIPT) &&
-        (reply[0] == '*' && reply[1] != '-')) {
-            luaSortArray(lua);
+            (reply[0] == '*' && reply[1] != '-'))
+    {
+        luaSortArray(lua);
     }
     sdsfree(reply);
     c->reply_bytes = 0;
@@ -348,7 +377,8 @@ cleanup:
         decrRefCount(c->argv[j]);
     zfree(c->argv);
 
-    if (raise_error) {
+    if (raise_error)
+    {
         /* If we are here we should have an error in the stack, in the
          * form of a table with an "err" field. Extract the string to
          * return the plain error. */
@@ -359,23 +389,27 @@ cleanup:
     return 1;
 }
 
-int luaRedisCallCommand(lua_State *lua) {
+int luaRedisCallCommand(lua_State *lua)
+{
     return luaRedisGenericCommand(lua,1);
 }
 
-int luaRedisPCallCommand(lua_State *lua) {
+int luaRedisPCallCommand(lua_State *lua)
+{
     return luaRedisGenericCommand(lua,0);
 }
 
 /* This adds redis.sha1hex(string) to Lua scripts using the same hashing
  * function used for sha1ing lua scripts. */
-int luaRedisSha1hexCommand(lua_State *lua) {
+int luaRedisSha1hexCommand(lua_State *lua)
+{
     int argc = lua_gettop(lua);
     char digest[41];
     size_t len;
     char *s;
 
-    if (argc != 1) {
+    if (argc != 1)
+    {
         luaPushError(lua, "wrong number of arguments");
         return 1;
     }
@@ -393,8 +427,10 @@ int luaRedisSha1hexCommand(lua_State *lua) {
  * return redis.error_reply("ERR Some Error")
  * return redis.status_reply("ERR Some Error")
  */
-int luaRedisReturnSingleFieldTable(lua_State *lua, char *field) {
-    if (lua_gettop(lua) != 1 || lua_type(lua,-1) != LUA_TSTRING) {
+int luaRedisReturnSingleFieldTable(lua_State *lua, char *field)
+{
+    if (lua_gettop(lua) != 1 || lua_type(lua,-1) != LUA_TSTRING)
+    {
         luaPushError(lua, "wrong number or type of arguments");
         return 1;
     }
@@ -406,40 +442,49 @@ int luaRedisReturnSingleFieldTable(lua_State *lua, char *field) {
     return 1;
 }
 
-int luaRedisErrorReplyCommand(lua_State *lua) {
+int luaRedisErrorReplyCommand(lua_State *lua)
+{
     return luaRedisReturnSingleFieldTable(lua,"err");
 }
 
-int luaRedisStatusReplyCommand(lua_State *lua) {
+int luaRedisStatusReplyCommand(lua_State *lua)
+{
     return luaRedisReturnSingleFieldTable(lua,"ok");
 }
 
-int luaLogCommand(lua_State *lua) {
+int luaLogCommand(lua_State *lua)
+{
     int j, argc = lua_gettop(lua);
     int level;
     sds log;
 
-    if (argc < 2) {
+    if (argc < 2)
+    {
         luaPushError(lua, "redis.log() requires two arguments or more.");
         return 1;
-    } else if (!lua_isnumber(lua,-argc)) {
+    }
+    else if (!lua_isnumber(lua,-argc))
+    {
         luaPushError(lua, "First argument must be a number (log level).");
         return 1;
     }
     level = lua_tonumber(lua,-argc);
-    if (level < REDIS_DEBUG || level > REDIS_WARNING) {
+    if (level < REDIS_DEBUG || level > REDIS_WARNING)
+    {
         luaPushError(lua, "Invalid debug level.");
         return 1;
     }
 
     /* Glue together all the arguments */
     log = sdsempty();
-    for (j = 1; j < argc; j++) {
+    for (j = 1; j < argc; j++)
+    {
         size_t len;
         char *s;
 
         s = (char*)lua_tolstring(lua,(-argc)+j,&len);
-        if (s) {
+        if (s)
+        {
             if (j != 1) log = sdscatlen(log," ",1);
             log = sdscatlen(log,s,len);
         }
@@ -452,14 +497,16 @@ int luaLogCommand(lua_State *lua) {
 /*
  * 脚本超时钩子
  */
-void luaMaskCountHook(lua_State *lua, lua_Debug *ar) {
+void luaMaskCountHook(lua_State *lua, lua_Debug *ar)
+{
     long long elapsed;
     REDIS_NOTUSED(ar);
     REDIS_NOTUSED(lua);
 
     // 计算已执行时间
     elapsed = (ustime()/1000) - server.lua_time_start;
-    if (elapsed >= server.lua_time_limit && server.lua_timedout == 0) {
+    if (elapsed >= server.lua_time_limit && server.lua_timedout == 0)
+    {
         redisLog(REDIS_WARNING,"Lua slow script detected: still in execution after %lld milliseconds. You can try killing the script using the SCRIPT KILL command.",elapsed);
         // 已超时
         server.lua_timedout = 1;
@@ -468,14 +515,15 @@ void luaMaskCountHook(lua_State *lua, lua_Debug *ar) {
          * we need to mask the client executing the script from the event loop.
          * If we don't do that the client may disconnect and could no longer be
          * here when the EVAL command will return. */
-         // 当脚本运行超时时，将正在执行的客户端从读事件中移除
-         // 并允许其他客户端执行 SCRIPT KILL 或者 SHUTDOWN NOSAVE
-         aeDeleteFileEvent(server.el, server.lua_caller->fd, AE_READABLE);
+        // 当脚本运行超时时，将正在执行的客户端从读事件中移除
+        // 并允许其他客户端执行 SCRIPT KILL 或者 SHUTDOWN NOSAVE
+        aeDeleteFileEvent(server.el, server.lua_caller->fd, AE_READABLE);
     }
     if (server.lua_timedout)
         // 在脚本上下文中，启动文件事件处理（等待 SCRIPT KILL 或 SHUTDOWN NOSAVE）
         aeProcessEvents(server.el, AE_FILE_EVENTS|AE_DONT_WAIT);
-    if (server.lua_kill) {
+    if (server.lua_kill)
+    {
         // 杀死脚本
         redisLog(REDIS_WARNING,"Lua script killed by user with SCRIPT KILL.");
         lua_pushstring(lua,"Script killed by user with SCRIPT KILL...");
@@ -486,10 +534,11 @@ void luaMaskCountHook(lua_State *lua, lua_Debug *ar) {
 /*
  * 将指定函数以指定名字载入到 Lua 环境，并调用
  */
-void luaLoadLib(lua_State *lua, const char *libname, lua_CFunction luafunc) {
-  lua_pushcfunction(lua, luafunc);
-  lua_pushstring(lua, libname);
-  lua_call(lua, 1, 0);
+void luaLoadLib(lua_State *lua, const char *libname, lua_CFunction luafunc)
+{
+    lua_pushcfunction(lua, luafunc);
+    lua_pushstring(lua, libname);
+    lua_call(lua, 1, 0);
 }
 
 LUALIB_API int (luaopen_cjson) (lua_State *L);
@@ -499,7 +548,8 @@ LUALIB_API int (luaopen_cmsgpack) (lua_State *L);
 /*
  * 将指定的库载入到 Lua 环境中
  */
-void luaLoadLibraries(lua_State *lua) {
+void luaLoadLibraries(lua_State *lua)
+{
     // 基础库
     luaLoadLib(lua, "", luaopen_base);
     // table 库
@@ -509,7 +559,7 @@ void luaLoadLibraries(lua_State *lua) {
     // 数学库
     luaLoadLib(lua, LUA_MATHLIBNAME, luaopen_math);
     // debug 库
-    luaLoadLib(lua, LUA_DBLIBNAME, luaopen_debug); 
+    luaLoadLib(lua, LUA_DBLIBNAME, luaopen_debug);
     // cjson 库
     luaLoadLib(lua, "cjson", luaopen_cjson);
     // struct 库
@@ -524,11 +574,12 @@ void luaLoadLibraries(lua_State *lua) {
 }
 
 /* Remove a functions that we don't want to expose to the Redis scripting
- * environment. 
+ * environment.
  *
  * 移除所有不想暴露给 Redis 脚本的函数
  */
-void luaRemoveUnsupportedFunctions(lua_State *lua) {
+void luaRemoveUnsupportedFunctions(lua_State *lua)
+{
     // 屏蔽 loadfile
     lua_pushnil(lua);
     lua_setglobal(lua,"loadfile");
@@ -539,7 +590,8 @@ void luaRemoveUnsupportedFunctions(lua_State *lua) {
  *
  * It should be the last to be called in the scripting engine initialization
  * sequence, because it may interact with creation of globals. */
-void scriptingEnableGlobalsProtection(lua_State *lua) {
+void scriptingEnableGlobalsProtection(lua_State *lua)
+{
     char *s[32];
     sds code = sdsempty();
     int j = 0;
@@ -580,9 +632,10 @@ void scriptingEnableGlobalsProtection(lua_State *lua) {
  *
  * 这个函数也可以在 scriptingRelease() 执行之后使用，用于对脚本环境进行重置。
  *
- * See scriptingReset() for more information. 
+ * See scriptingReset() for more information.
  */
-void scriptingInit(void) {
+void scriptingInit(void)
+{
     // 创建一个新的 lua 环境
     lua_State *lua = lua_open();
 
@@ -595,7 +648,7 @@ void scriptingInit(void) {
     /* Initialize a dictionary we use to map SHAs to scripts.
      * 创建一个字典，用于将 SHA 校验码映射到脚本
      * This is useful for replication, as we need to replicate EVALSHA
-     * as EVAL, so we need to remember the associated script. 
+     * as EVAL, so we need to remember the associated script.
      * 因为 Redis 目前复制脚本的方法是将 EVALSHA 转换成 EVAL 来进行的，
      * 所以程序需要保存和 SHA 校验值相对应的脚本。
      */
@@ -670,7 +723,7 @@ void scriptingInit(void) {
     lua_setglobal(lua,"math");
 
     /* Add a helper funciton that we use to sort the multi bulk output of non
-     * deterministic commands, when containing 'false' elements. 
+     * deterministic commands, when containing 'false' elements.
      * 用于对不确定性多个回复的输出进行排序
      */
     {
@@ -687,17 +740,18 @@ void scriptingInit(void) {
      * inside the Lua interpreter.
      * 创建一个无网络连接的伪客户端，用于执行 Lua 脚本中的命令
      * Note: there is no need to create it again when this function is called
-     * by scriptingReset(). 
+     * by scriptingReset().
      */
-    if (server.lua_client == NULL) {
+    if (server.lua_client == NULL)
+    {
         server.lua_client = createClient(-1);
         server.lua_client->flags |= REDIS_LUA_CLIENT;
     }
 
     /* Lua beginners ofter don't use "local", this is likely to introduce
      * subtle bugs in their code. To prevent problems we protect accesses
-     * to global variables. 
-     * 
+     * to global variables.
+     *
      * 为了避免全局变量被意外地修改，保护全局变量。
      */
     scriptingEnableGlobalsProtection(lua);
@@ -708,20 +762,22 @@ void scriptingInit(void) {
 
 /* Release resources related to Lua scripting.
  * 释放 Lua 脚本的相关资源
- * This function is used in order to reset the scripting environment. 
+ * This function is used in order to reset the scripting environment.
  * 用于初始化脚本环境
  */
-void scriptingRelease(void) {
+void scriptingRelease(void)
+{
     // 释放记录脚本的字典
     dictRelease(server.lua_scripts);
     // 关闭 Lua 环境
     lua_close(server.lua);
 }
 
-/* 
+/*
  * 重置脚本环境
  */
-void scriptingReset(void) {
+void scriptingReset(void)
+{
     // 释放环境
     scriptingRelease();
     // 新键环境
@@ -736,7 +792,8 @@ void scriptingReset(void) {
  *
  * 'digest' should point to a 41 bytes buffer: 40 for SHA1 converted into an
  * hexadecimal number, plus 1 byte for null term. */
-void sha1hex(char *digest, char *script, size_t len) {
+void sha1hex(char *digest, char *script, size_t len)
+{
     SHA1_CTX ctx;
     unsigned char hash[20];
     char *cset = "0123456789abcdef";
@@ -746,17 +803,20 @@ void sha1hex(char *digest, char *script, size_t len) {
     SHA1Update(&ctx,(unsigned char*)script,len);
     SHA1Final(hash,&ctx);
 
-    for (j = 0; j < 20; j++) {
+    for (j = 0; j < 20; j++)
+    {
         digest[j*2] = cset[((hash[j]&0xF0)>>4)];
         digest[j*2+1] = cset[(hash[j]&0xF)];
     }
     digest[40] = '\0';
 }
 
-void luaReplyToRedisReply(redisClient *c, lua_State *lua) {
+void luaReplyToRedisReply(redisClient *c, lua_State *lua)
+{
     int t = lua_type(lua,-1);
 
-    switch(t) {
+    switch(t)
+    {
     case LUA_TSTRING:
         addReplyBulkCBuffer(c,(char*)lua_tostring(lua,-1),lua_strlen(lua,-1));
         break;
@@ -773,7 +833,8 @@ void luaReplyToRedisReply(redisClient *c, lua_State *lua) {
         lua_pushstring(lua,"err");
         lua_gettable(lua,-2);
         t = lua_type(lua,-1);
-        if (t == LUA_TSTRING) {
+        if (t == LUA_TSTRING)
+        {
             sds err = sdsnew(lua_tostring(lua,-1));
             sdsmapchars(err,"\r\n","  ",2);
             addReplySds(c,sdscatprintf(sdsempty(),"-%s\r\n",err));
@@ -786,22 +847,27 @@ void luaReplyToRedisReply(redisClient *c, lua_State *lua) {
         lua_pushstring(lua,"ok");
         lua_gettable(lua,-2);
         t = lua_type(lua,-1);
-        if (t == LUA_TSTRING) {
+        if (t == LUA_TSTRING)
+        {
             sds ok = sdsnew(lua_tostring(lua,-1));
             sdsmapchars(ok,"\r\n","  ",2);
             addReplySds(c,sdscatprintf(sdsempty(),"+%s\r\n",ok));
             sdsfree(ok);
             lua_pop(lua,1);
-        } else {
+        }
+        else
+        {
             void *replylen = addDeferredMultiBulkLength(c);
             int j = 1, mbulklen = 0;
 
             lua_pop(lua,1); /* Discard the 'ok' field value we popped */
-            while(1) {
+            while(1)
+            {
                 lua_pushnumber(lua,j++);
                 lua_gettable(lua,-2);
                 t = lua_type(lua,-1);
-                if (t == LUA_TNIL) {
+                if (t == LUA_TNIL)
+                {
                     lua_pop(lua,1);
                     break;
                 }
@@ -820,11 +886,13 @@ void luaReplyToRedisReply(redisClient *c, lua_State *lua) {
 /* Set an array of Redis String Objects as a Lua array (table) stored into a
  * global variable. */
 // 创建一个数组，并将它设置为给定名字的全局变量
-void luaSetGlobalArray(lua_State *lua, char *var, robj **elev, int elec) {
+void luaSetGlobalArray(lua_State *lua, char *var, robj **elev, int elec)
+{
     int j;
 
     lua_newtable(lua);
-    for (j = 0; j < elec; j++) {
+    for (j = 0; j < elec; j++)
+    {
         lua_pushlstring(lua,(char*)elev[j]->ptr,sdslen(elev[j]->ptr));
         lua_rawseti(lua,-2,j+1);
     }
@@ -846,11 +914,12 @@ void luaSetGlobalArray(lua_State *lua, char *var, robj **elev, int elec) {
  * 创建成功返回 REDIS_OK ，并清除 Lua 栈中的所有资料。
  *
  * On error REDIS_ERR is returned and an appropriate error is set in the
- * client context. 
+ * client context.
  */
-int luaCreateFunction(redisClient *c, lua_State *lua, char *funcname, robj *body) {
+int luaCreateFunction(redisClient *c, lua_State *lua, char *funcname, robj *body)
+{
     sds funcdef = sdsempty();
-    
+
     // 函数定义
     funcdef = sdscat(funcdef,"function ");
     funcdef = sdscatlen(funcdef,funcname,42);
@@ -859,11 +928,12 @@ int luaCreateFunction(redisClient *c, lua_State *lua, char *funcname, robj *body
     funcdef = sdscatlen(funcdef," end",4);
 
     // 将函数定义载入到 Lua 中（并编译），但不执行该定义
-    if (luaL_loadbuffer(lua,funcdef,sdslen(funcdef),"@user_script")) {
+    if (luaL_loadbuffer(lua,funcdef,sdslen(funcdef),"@user_script"))
+    {
 
         // 如果编译出错，那么返回错误
         addReplyErrorFormat(c,"Error compiling script (new function): %s\n",
-            lua_tostring(lua,-1));
+                            lua_tostring(lua,-1));
         lua_pop(lua,1);
         sdsfree(funcdef);
         return REDIS_ERR;
@@ -871,17 +941,18 @@ int luaCreateFunction(redisClient *c, lua_State *lua, char *funcname, robj *body
     sdsfree(funcdef);
 
     // 定义函数
-    if (lua_pcall(lua,0,0,0)) {
+    if (lua_pcall(lua,0,0,0))
+    {
         addReplyErrorFormat(c,"Error running script (new function): %s\n",
-            lua_tostring(lua,-1));
+                            lua_tostring(lua,-1));
         lua_pop(lua,1);
         return REDIS_ERR;
     }
 
     /* We also save a SHA1 -> Original script map in a dictionary
      * so that we can replicate / write in the AOF all the
-     * EVALSHA commands as EVAL using the original script. 
-     * 
+     * EVALSHA commands as EVAL using the original script.
+     *
      * 创建一个从 SHA1 映射到原始脚本的字典，
      * 从而使得脚本可以用于复制，以及写入到 AOF 文件
      */
@@ -897,14 +968,15 @@ int luaCreateFunction(redisClient *c, lua_State *lua, char *funcname, robj *body
     return REDIS_OK;
 }
 
-void evalGenericCommand(redisClient *c, int evalsha) {
+void evalGenericCommand(redisClient *c, int evalsha)
+{
     lua_State *lua = server.lua;
     char funcname[43];
     long long numkeys;
     int delhook = 0;
 
     /* We want the same PRNG sequence at every call so that our PRNG is
-     * not affected by external state. 
+     * not affected by external state.
      *
      * 在每次执行 EVAL 时重置随机 seed ，从而保证可以生成相同的随机序列。
      */
@@ -917,7 +989,7 @@ void evalGenericCommand(redisClient *c, int evalsha) {
      * deterministic sequences).
      *
      * Thanks to this flag we'll raise an error every time a write command
-     * is called after a random command was used. 
+     * is called after a random command was used.
      *
      * 用两个变量，对命令进行检查
      * 确保在调用随机命令之后，再调用写命令将出现错误
@@ -930,7 +1002,8 @@ void evalGenericCommand(redisClient *c, int evalsha) {
     if (getLongLongFromObjectOrReply(c,c->argv[2],&numkeys,NULL) != REDIS_OK)
         return;
     // 对键的正确性做一个快速检查
-    if (numkeys > (c->argc - 3)) {
+    if (numkeys > (c->argc - 3))
+    {
         addReplyError(c,"Number of keys can't be greater than number of args");
         return;
     }
@@ -940,11 +1013,14 @@ void evalGenericCommand(redisClient *c, int evalsha) {
     // 组合出函数的名字，例如 f_282297a0228f48cd3fc6a55de6316f31422f5d17
     funcname[0] = 'f';
     funcname[1] = '_';
-    if (!evalsha) {
+    if (!evalsha)
+    {
         /* Hash the code if this is an EVAL call */
         // 如果执行的是 EVAL 命令，那么计算脚本的 SHA1 校验和
         sha1hex(funcname+2,c->argv[1]->ptr,sdslen(c->argv[1]->ptr));
-    } else {
+    }
+    else
+    {
         // 如果执行的是 EVALSHA 命令，直接使用传入的 SHA1 值
         /* We already have the SHA if it is a EVALSHA */
         int j;
@@ -958,7 +1034,8 @@ void evalGenericCommand(redisClient *c, int evalsha) {
     /* Try to lookup the Lua function */
     // 按名查找函数
     lua_getglobal(lua, funcname);
-    if (lua_isnil(lua,1)) {
+    if (lua_isnil(lua,1))
+    {
 
         // 没找到脚本相应的脚本
 
@@ -966,7 +1043,8 @@ void evalGenericCommand(redisClient *c, int evalsha) {
         /* Function not defined... let's define it if we have the
          * body of the funciton. If this is an EVALSHA call we can just
          * return an error. */
-        if (evalsha) {
+        if (evalsha)
+        {
             // 如果执行的是 EVALSHA ，返回脚本未找到错误
             addReply(c, shared.noscripterr);
             return;
@@ -987,14 +1065,14 @@ void evalGenericCommand(redisClient *c, int evalsha) {
     /* Select the right DB in the context of the Lua client */
     // 为 Lua 所属的（伪）客户端设置数据库
     selectDb(server.lua_client,c->db->id);
-    
+
     /* Set an hook in order to be able to stop the script execution if it
      * is running for too much time.
      *
      * 设置一个钩子，用于在运行时间过长时停止脚本的运作。
      *
      * We set the hook only if the time limit is enabled as the hook will
-     * make the Lua script execution slower. 
+     * make the Lua script execution slower.
      *
      * 只在开启了时间限制选项时使用钩子，因为它会拖慢脚本的运行速度。
      */
@@ -1005,7 +1083,8 @@ void evalGenericCommand(redisClient *c, int evalsha) {
     // 是否杀死脚本
     server.lua_kill = 0;
     // 只在开启时间限制时使用钩子
-    if (server.lua_time_limit > 0 && server.masterhost == NULL) {
+    if (server.lua_time_limit > 0 && server.masterhost == NULL)
+    {
         lua_sethook(lua,luaMaskCountHook,LUA_MASKCOUNT,100000);
         delhook = 1;
     }
@@ -1014,7 +1093,8 @@ void evalGenericCommand(redisClient *c, int evalsha) {
      * already defined, we can call it. We have zero arguments and expect
      * a single return value. */
     // 执行脚本（所属的函数）
-    if (lua_pcall(lua,0,1,0)) {
+    if (lua_pcall(lua,0,1,0))
+    {
 
         // 以下是脚本执行出错的代码。。。
 
@@ -1022,7 +1102,8 @@ void evalGenericCommand(redisClient *c, int evalsha) {
         if (delhook) lua_sethook(lua,luaMaskCountHook,0,0); /* Disable hook */
 
         // 脚本执行已超时
-        if (server.lua_timedout) {
+        if (server.lua_timedout)
+        {
             // 清除超时 FLAG
             server.lua_timedout = 0;
             /* Restore the readable handler that was unregistered when the
@@ -1037,7 +1118,7 @@ void evalGenericCommand(redisClient *c, int evalsha) {
         // 更新目标数据库
         selectDb(c,server.lua_client->db->id); /* set DB ID from Lua client */
         addReplyErrorFormat(c,"Error running script (call to %s): %s\n",
-            funcname, lua_tostring(lua,-1));
+                            funcname, lua_tostring(lua,-1));
         // 弹出函数
         lua_pop(lua,1);
         // 执行完整的废料回首循环（full garbage-collection cycle）
@@ -1079,25 +1160,29 @@ void evalGenericCommand(redisClient *c, int evalsha) {
      * 2) Remember what slave already received a given script, and replicate
      *    the EVALSHA against this slaves when possible.
      */
-    // 如果执行的是 EVALSHA 命令 
-    if (evalsha) {
+    // 如果执行的是 EVALSHA 命令
+    if (evalsha)
+    {
         // 取出脚本代码体（body）
         robj *script = dictFetchValue(server.lua_scripts,c->argv[1]->ptr);
 
         redisAssertWithInfo(c,NULL,script != NULL);
         // 重写客户端命令为 EVAL
         rewriteClientCommandArgument(c,0,
-            resetRefCount(createStringObject("EVAL",4)));
+                                     resetRefCount(createStringObject("EVAL",4)));
         rewriteClientCommandArgument(c,1,script);
     }
 }
 
-void evalCommand(redisClient *c) {
+void evalCommand(redisClient *c)
+{
     evalGenericCommand(c,0);
 }
 
-void evalShaCommand(redisClient *c) {
-    if (sdslen(c->argv[1]->ptr) != 40) {
+void evalShaCommand(redisClient *c)
+{
+    if (sdslen(c->argv[1]->ptr) != 40)
+    {
         /* We know that a match is not possible if the provided SHA is
          * not the right length. So we return an error ASAP, this way
          * evalGenericCommand() can be implemented without string length
@@ -1114,59 +1199,73 @@ void evalShaCommand(redisClient *c) {
 
 /* The following implementation is the one shipped with Lua itself but with
  * rand() replaced by redisLrand48(). */
-int redis_math_random (lua_State *L) {
-  /* the `%' avoids the (rare) case of r==1, and is needed also because on
-     some systems (SunOS!) `rand()' may return a value larger than RAND_MAX */
-  lua_Number r = (lua_Number)(redisLrand48()%REDIS_LRAND48_MAX) /
-                                (lua_Number)REDIS_LRAND48_MAX;
-  switch (lua_gettop(L)) {  /* check number of arguments */
-    case 0: {  /* no arguments */
-      lua_pushnumber(L, r);  /* Number between 0 and 1 */
-      break;
+int redis_math_random (lua_State *L)
+{
+    /* the `%' avoids the (rare) case of r==1, and is needed also because on
+       some systems (SunOS!) `rand()' may return a value larger than RAND_MAX */
+    lua_Number r = (lua_Number)(redisLrand48()%REDIS_LRAND48_MAX) /
+                   (lua_Number)REDIS_LRAND48_MAX;
+    switch (lua_gettop(L))    /* check number of arguments */
+    {
+    case 0:    /* no arguments */
+    {
+        lua_pushnumber(L, r);  /* Number between 0 and 1 */
+        break;
     }
-    case 1: {  /* only upper limit */
-      int u = luaL_checkint(L, 1);
-      luaL_argcheck(L, 1<=u, 1, "interval is empty");
-      lua_pushnumber(L, floor(r*u)+1);  /* int between 1 and `u' */
-      break;
+    case 1:    /* only upper limit */
+    {
+        int u = luaL_checkint(L, 1);
+        luaL_argcheck(L, 1<=u, 1, "interval is empty");
+        lua_pushnumber(L, floor(r*u)+1);  /* int between 1 and `u' */
+        break;
     }
-    case 2: {  /* lower and upper limits */
-      int l = luaL_checkint(L, 1);
-      int u = luaL_checkint(L, 2);
-      luaL_argcheck(L, l<=u, 2, "interval is empty");
-      lua_pushnumber(L, floor(r*(u-l+1))+l);  /* int between `l' and `u' */
-      break;
+    case 2:    /* lower and upper limits */
+    {
+        int l = luaL_checkint(L, 1);
+        int u = luaL_checkint(L, 2);
+        luaL_argcheck(L, l<=u, 2, "interval is empty");
+        lua_pushnumber(L, floor(r*(u-l+1))+l);  /* int between `l' and `u' */
+        break;
     }
-    default: return luaL_error(L, "wrong number of arguments");
-  }
-  return 1;
+    default:
+        return luaL_error(L, "wrong number of arguments");
+    }
+    return 1;
 }
 
-int redis_math_randomseed (lua_State *L) {
-  redisSrand48(luaL_checkint(L, 1));
-  return 0;
+int redis_math_randomseed (lua_State *L)
+{
+    redisSrand48(luaL_checkint(L, 1));
+    return 0;
 }
 
 /* ---------------------------------------------------------------------------
  * SCRIPT command for script environment introspection and control
  * ------------------------------------------------------------------------- */
 
-void scriptCommand(redisClient *c) {
-    if (c->argc == 2 && !strcasecmp(c->argv[1]->ptr,"flush")) {
+void scriptCommand(redisClient *c)
+{
+    if (c->argc == 2 && !strcasecmp(c->argv[1]->ptr,"flush"))
+    {
         scriptingReset();
         addReply(c,shared.ok);
         server.dirty++; /* Replicating this command is a good idea. */
-    } else if (c->argc >= 2 && !strcasecmp(c->argv[1]->ptr,"exists")) {
+    }
+    else if (c->argc >= 2 && !strcasecmp(c->argv[1]->ptr,"exists"))
+    {
         int j;
 
         addReplyMultiBulkLen(c, c->argc-2);
-        for (j = 2; j < c->argc; j++) {
+        for (j = 2; j < c->argc; j++)
+        {
             if (dictFind(server.lua_scripts,c->argv[j]->ptr))
                 addReply(c,shared.cone);
             else
                 addReply(c,shared.czero);
         }
-    } else if (c->argc == 3 && !strcasecmp(c->argv[1]->ptr,"load")) {
+    }
+    else if (c->argc == 3 && !strcasecmp(c->argv[1]->ptr,"load"))
+    {
         char funcname[43];
         sds sha;
 
@@ -1177,10 +1276,12 @@ void scriptCommand(redisClient *c) {
         sha1hex(funcname+2,c->argv[2]->ptr,sdslen(c->argv[2]->ptr));
         sha = sdsnewlen(funcname+2,40);
         // 根据 SHA1 值，在字典中查找脚本
-        if (dictFind(server.lua_scripts,sha) == NULL) {
+        if (dictFind(server.lua_scripts,sha) == NULL)
+        {
             // 如果脚本未定义，在 Lua 中创建新函数
             if (luaCreateFunction(c,server.lua,funcname,c->argv[2])
-                    == REDIS_ERR) {
+                    == REDIS_ERR)
+            {
                 sdsfree(sha);
                 return;
             }
@@ -1188,16 +1289,25 @@ void scriptCommand(redisClient *c) {
         // 返回脚本的 SHA1 值
         addReplyBulkCBuffer(c,funcname+2,40);
         sdsfree(sha);
-    } else if (c->argc == 2 && !strcasecmp(c->argv[1]->ptr,"kill")) {
-        if (server.lua_caller == NULL) {
+    }
+    else if (c->argc == 2 && !strcasecmp(c->argv[1]->ptr,"kill"))
+    {
+        if (server.lua_caller == NULL)
+        {
             addReplySds(c,sdsnew("-NOTBUSY No scripts in execution right now.\r\n"));
-        } else if (server.lua_write_dirty) {
+        }
+        else if (server.lua_write_dirty)
+        {
             addReplySds(c,sdsnew("-UNKILLABLE Sorry the script already executed write commands against the dataset. You can either wait the script termination or kill the server in an hard way using the SHUTDOWN NOSAVE command.\r\n"));
-        } else {
+        }
+        else
+        {
             server.lua_kill = 1;
             addReply(c,shared.ok);
         }
-    } else {
+    }
+    else
+    {
         addReplyError(c, "Unknown SCRIPT subcommand or wrong # of args.");
     }
 }

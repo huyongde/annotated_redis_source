@@ -20,19 +20,19 @@
  * Every thread wait for new jobs in its queue, and process every job
  * sequentially.
  *
- * ç”¨ä¸€ä¸ªç»“æ„è¡¨ç¤ºè¦æ‰§è¡Œçš„å·¥ä½œï¼Œè€Œæ¯ä¸ªç±»å‹çš„å·¥ä½œæœ‰ä¸€ä¸ªé˜Ÿåˆ—å’Œçº¿ç¨‹ï¼Œ
- * æ¯ä¸ªçº¿ç¨‹éƒ½é¡ºåºåœ°å¤„ç†çº¿ç¨‹ä¸­çš„å·¥ä½œã€‚
+ * ÓÃÒ»¸ö½á¹¹±íÊ¾ÒªÖ´ĞĞµÄ¹¤×÷£¬¶øÃ¿¸öÀàĞÍµÄ¹¤×÷ÓĞÒ»¸ö¶ÓÁĞºÍÏß³Ì£¬
+ * Ã¿¸öÏß³Ì¶¼Ë³ĞòµØ´¦ÀíÏß³ÌÖĞµÄ¹¤×÷¡£
  *
  * Jobs of the same type are guaranteed to be processed from the least
  * recently inserted to the most recently inserted (older jobs processed
  * first).
  *
- * åŒä¸€ç±»å‹çš„å·¥ä½œæŒ‰ FIFO çš„é¡ºåºæ‰§è¡Œã€‚
+ * Í¬Ò»ÀàĞÍµÄ¹¤×÷°´ FIFO µÄË³ĞòÖ´ĞĞ¡£
  *
  * Currently there is no way for the creator of the job to be notified about
  * the completion of the operation, this will only be added when/if needed.
  *
- * ç›®å‰è¿˜æ²¡æœ‰åŠæ³•é€šçŸ¥ä»»åŠ¡çš„æ‰§è¡Œè€…äº‹åŠ¡å®Œæˆã€‚
+ * Ä¿Ç°»¹Ã»ÓĞ°ì·¨Í¨ÖªÈÎÎñµÄÖ´ĞĞÕßÊÂÎñÍê³É¡£
  *
  * ----------------------------------------------------------------------------
  *
@@ -68,11 +68,11 @@
 #include "redis.h"
 #include "bio.h"
 
-// å·¥ä½œçº¿ç¨‹
+// ¹¤×÷Ïß³Ì
 static pthread_t bio_threads[REDIS_BIO_NUM_OPS];
 static pthread_mutex_t bio_mutex[REDIS_BIO_NUM_OPS];
 static pthread_cond_t bio_condvar[REDIS_BIO_NUM_OPS];
-// å­˜æ”¾å·¥ä½œçš„é˜Ÿåˆ—
+// ´æ·Å¹¤×÷µÄ¶ÓÁĞ
 static list *bio_jobs[REDIS_BIO_NUM_OPS];
 /* The following array is used to hold the number of pending jobs for every
  * OP type. This allows us to export the bioPendingJobsOfType() API that is
@@ -80,18 +80,19 @@ static list *bio_jobs[REDIS_BIO_NUM_OPS];
  * objects shared with the background thread. The main thread will just wait
  * that there are no longer jobs of this type to be executed before performing
  * the sensible operation. This data is also useful for reporting. */
-// è®°å½•æ¯ç§ç±»å‹ job é˜Ÿåˆ—é‡Œæœ‰å¤šå°‘å…±ç»„ç­‰å¾…æ‰§è¡Œ
+// ¼ÇÂ¼Ã¿ÖÖÀàĞÍ job ¶ÓÁĞÀïÓĞ¶àÉÙ¹²×éµÈ´ıÖ´ĞĞ
 static unsigned long long bio_pending[REDIS_BIO_NUM_OPS];
 
 /* This structure represents a background Job. It is only used locally to this
  * file as the API deos not expose the internals at all. */
 /*
- * è¡¨ç¤ºåå°ä»»åŠ¡çš„æ•°æ®ç»“æ„
+ * ±íÊ¾ºóÌ¨ÈÎÎñµÄÊı¾İ½á¹¹
  */
-struct bio_job {
-    // ä»»åŠ¡åˆ›å»ºæ—¶çš„æ—¶é—´
+struct bio_job
+{
+    // ÈÎÎñ´´½¨Ê±µÄÊ±¼ä
     time_t time; /* Time at which the job was created. */
-    // ä»»åŠ¡çš„å‚æ•°ï¼Œå¦‚æœéœ€è¦å¤šäºä¸‰ä¸ªæ—¶ï¼Œå¯ä»¥ä¼ é€’æ•°ç»„æˆ–è€…ç»“æ„
+    // ÈÎÎñµÄ²ÎÊı£¬Èç¹ûĞèÒª¶àÓÚÈı¸öÊ±£¬¿ÉÒÔ´«µİÊı×é»òÕß½á¹¹
     /* Job specific arguments pointers. If we need to pass more than three
      * arguments we can just pass a pointer to a structure or alike. */
     void *arg1, *arg2, *arg3;
@@ -104,16 +105,18 @@ void *bioProcessBackgroundJobs(void *arg);
 #define REDIS_THREAD_STACK_SIZE (1024*1024*4)
 
 /* Initialize the background system, spawning the thread. */
-// åˆå§‹åŒ–åå°ä»»åŠ¡ç³»ç»Ÿï¼Œç”Ÿæˆçº¿ç¨‹
-void bioInit(void) {
+// ³õÊ¼»¯ºóÌ¨ÈÎÎñÏµÍ³£¬Éú³ÉÏß³Ì
+void bioInit(void)
+{
     pthread_attr_t attr;
     pthread_t thread;
     size_t stacksize;
     int j;
 
     /* Initialization of state vars and objects */
-    // åˆå§‹åŒ–
-    for (j = 0; j < REDIS_BIO_NUM_OPS; j++) {
+    // ³õÊ¼»¯
+    for (j = 0; j < REDIS_BIO_NUM_OPS; j++)
+    {
         pthread_mutex_init(&bio_mutex[j],NULL);
         pthread_cond_init(&bio_condvar[j],NULL);
         bio_jobs[j] = listCreate();
@@ -130,9 +133,11 @@ void bioInit(void) {
     /* Ready to spawn our threads. We use the single argument the thread
      * function accepts in order to pass the job ID the thread is
      * responsible of. */
-    for (j = 0; j < REDIS_BIO_NUM_OPS; j++) {
+    for (j = 0; j < REDIS_BIO_NUM_OPS; j++)
+    {
         void *arg = (void*)(unsigned long) j;
-        if (pthread_create(&thread,&attr,bioProcessBackgroundJobs,arg) != 0) {
+        if (pthread_create(&thread,&attr,bioProcessBackgroundJobs,arg) != 0)
+        {
             redisLog(REDIS_WARNING,"Fatal: Can't initialize Background Jobs.");
             exit(1);
         }
@@ -141,9 +146,10 @@ void bioInit(void) {
 }
 
 /*
- * åˆ›å»ºåå°ä»»åŠ¡
+ * ´´½¨ºóÌ¨ÈÎÎñ
  */
-void bioCreateBackgroundJob(int type, void *arg1, void *arg2, void *arg3) {
+void bioCreateBackgroundJob(int type, void *arg1, void *arg2, void *arg3)
+{
     struct bio_job *job = zmalloc(sizeof(*job));
 
     job->time = time(NULL);
@@ -158,9 +164,10 @@ void bioCreateBackgroundJob(int type, void *arg1, void *arg2, void *arg3) {
 }
 
 /*
- * å¤„ç†åå°ä»»åŠ¡
+ * ´¦ÀíºóÌ¨ÈÎÎñ
  */
-void *bioProcessBackgroundJobs(void *arg) {
+void *bioProcessBackgroundJobs(void *arg)
+{
     struct bio_job *job;
     unsigned long type = (unsigned long) arg;
     sigset_t sigset;
@@ -177,18 +184,20 @@ void *bioProcessBackgroundJobs(void *arg) {
     sigaddset(&sigset, SIGALRM);
     if (pthread_sigmask(SIG_BLOCK, &sigset, NULL))
         redisLog(REDIS_WARNING,
-            "Warning: can't mask SIGALRM in bio.c thread: %s", strerror(errno));
+                 "Warning: can't mask SIGALRM in bio.c thread: %s", strerror(errno));
 
-    while(1) {
+    while(1)
+    {
         listNode *ln;
 
         /* The loop always starts with the lock hold. */
-        if (listLength(bio_jobs[type]) == 0) {
+        if (listLength(bio_jobs[type]) == 0)
+        {
             pthread_cond_wait(&bio_condvar[type],&bio_mutex[type]);
             continue;
         }
         /* Pop the job from the queue. */
-        // å–å‡ºï¼ˆä½†ä¸åˆ é™¤ï¼‰é˜Ÿåˆ—ä¸­çš„é¦–ä¸ªä»»åŠ¡
+        // È¡³ö£¨µ«²»É¾³ı£©¶ÓÁĞÖĞµÄÊ×¸öÈÎÎñ
         ln = listFirst(bio_jobs[type]);
         job = ln->value;
         /* It is now possible to unlock the background system as we know have
@@ -196,12 +205,17 @@ void *bioProcessBackgroundJobs(void *arg) {
         pthread_mutex_unlock(&bio_mutex[type]);
 
         /* Process the job accordingly to its type. */
-        // æ‰§è¡Œä»»åŠ¡
-        if (type == REDIS_BIO_CLOSE_FILE) {
+        // Ö´ĞĞÈÎÎñ
+        if (type == REDIS_BIO_CLOSE_FILE)
+        {
             close((long)job->arg1);
-        } else if (type == REDIS_BIO_AOF_FSYNC) {
+        }
+        else if (type == REDIS_BIO_AOF_FSYNC)
+        {
             aof_fsync((long)job->arg1);
-        } else {
+        }
+        else
+        {
             redisPanic("Wrong job type in bioProcessBackgroundJobs().");
         }
         zfree(job);
@@ -209,7 +223,7 @@ void *bioProcessBackgroundJobs(void *arg) {
         /* Lock again before reiterating the loop, if there are no longer
          * jobs to process we'll block again in pthread_cond_wait(). */
         pthread_mutex_lock(&bio_mutex[type]);
-        // å°†ä»»åŠ¡ä»é˜Ÿåˆ—ä¸­åˆ é™¤ï¼Œå¹¶å‡å°‘ä»»åŠ¡è®¡æ•°å™¨
+        // ½«ÈÎÎñ´Ó¶ÓÁĞÖĞÉ¾³ı£¬²¢¼õÉÙÈÎÎñ¼ÆÊıÆ÷
         listDelNode(bio_jobs[type],ln);
         bio_pending[type]--;
     }
@@ -217,9 +231,10 @@ void *bioProcessBackgroundJobs(void *arg) {
 
 /* Return the number of pending jobs of the specified type. */
 /*
- * è¿”å›ç»™å®šç±»å‹å·¥ä½œçš„ç­‰å¾…ä»»åŠ¡æ•°é‡
+ * ·µ»Ø¸ø¶¨ÀàĞÍ¹¤×÷µÄµÈ´ıÈÎÎñÊıÁ¿
  */
-unsigned long long bioPendingJobsOfType(int type) {
+unsigned long long bioPendingJobsOfType(int type)
+{
     unsigned long long val;
     pthread_mutex_lock(&bio_mutex[type]);
     val = bio_pending[type];
@@ -232,20 +247,26 @@ unsigned long long bioPendingJobsOfType(int type) {
  * Currently Redis does this only on crash (for instance on SIGSEGV) in order
  * to perform a fast memory check without other threads messing with memory. */
 /*
- * ä¸è¿›è¡Œæ¸…ç†ï¼Œç›´æ¥æ€æ­»è¿›ç¨‹ï¼Œåªåœ¨å‡ºç°ä¸¥é‡é”™è¯¯æ—¶ä½¿ç”¨
+ * ²»½øĞĞÇåÀí£¬Ö±½ÓÉ±ËÀ½ø³Ì£¬Ö»ÔÚ³öÏÖÑÏÖØ´íÎóÊ±Ê¹ÓÃ
  */
-void bioKillThreads(void) {
+void bioKillThreads(void)
+{
     int err, j;
 
-    for (j = 0; j < REDIS_BIO_NUM_OPS; j++) {
-        if (pthread_cancel(bio_threads[j]) == 0) {
-            if ((err = pthread_join(bio_threads[j],NULL)) != 0) {
+    for (j = 0; j < REDIS_BIO_NUM_OPS; j++)
+    {
+        if (pthread_cancel(bio_threads[j]) == 0)
+        {
+            if ((err = pthread_join(bio_threads[j],NULL)) != 0)
+            {
                 redisLog(REDIS_WARNING,
-                    "Bio thread for job type #%d can be joined: %s",
-                        j, strerror(err));
-            } else {
+                         "Bio thread for job type #%d can be joined: %s",
+                         j, strerror(err));
+            }
+            else
+            {
                 redisLog(REDIS_WARNING,
-                    "Bio thread for job type #%d terminated",j);
+                         "Bio thread for job type #%d terminated",j);
             }
         }
     }

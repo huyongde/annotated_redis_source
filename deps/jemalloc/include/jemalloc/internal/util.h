@@ -91,15 +91,15 @@ void	malloc_write(const char *s);
  * point math.
  */
 int	malloc_vsnprintf(char *str, size_t size, const char *format,
-    va_list ap);
+                     va_list ap);
 int	malloc_snprintf(char *str, size_t size, const char *format, ...)
-    JEMALLOC_ATTR(format(printf, 3, 4));
+JEMALLOC_ATTR(format(printf, 3, 4));
 void	malloc_vcprintf(void (*write_cb)(void *, const char *), void *cbopaque,
-    const char *format, va_list ap);
+                        const char *format, va_list ap);
 void malloc_cprintf(void (*write)(void *, const char *), void *cbopaque,
-    const char *format, ...) JEMALLOC_ATTR(format(printf, 3, 4));
+                    const char *format, ...) JEMALLOC_ATTR(format(printf, 3, 4));
 void	malloc_printf(const char *format, ...)
-    JEMALLOC_ATTR(format(printf, 1, 2));
+JEMALLOC_ATTR(format(printf, 1, 2));
 
 #endif /* JEMALLOC_H_EXTERNS */
 /******************************************************************************/
@@ -118,17 +118,17 @@ JEMALLOC_INLINE size_t
 pow2_ceil(size_t x)
 {
 
-	x--;
-	x |= x >> 1;
-	x |= x >> 2;
-	x |= x >> 4;
-	x |= x >> 8;
-	x |= x >> 16;
+    x--;
+    x |= x >> 1;
+    x |= x >> 2;
+    x |= x >> 4;
+    x |= x >> 8;
+    x |= x >> 16;
 #if (LG_SIZEOF_PTR == 3)
-	x |= x >> 32;
+    x |= x >> 32;
 #endif
-	x++;
-	return (x);
+    x++;
+    return (x);
 }
 
 /* Sets error code */
@@ -137,9 +137,9 @@ set_errno(int errnum)
 {
 
 #ifdef _WIN32
-	SetLastError(errnum);
+    SetLastError(errnum);
 #else
-	errno = errnum;
+    errno = errnum;
 #endif
 }
 
@@ -149,9 +149,9 @@ get_errno(void)
 {
 
 #ifdef _WIN32
-	return (GetLastError());
+    return (GetLastError());
 #else
-	return (errno);
+    return (errno);
 #endif
 }
 #endif

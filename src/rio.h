@@ -36,41 +36,45 @@
 #include <stdint.h>
 #include "sds.h"
 
-struct _rio {
+struct _rio
+{
     /* Backend functions.
-     * åŽç«¯å‡½æ•°
+     * ºó¶Ëº¯Êý
      * Since this functions do not tolerate short writes or reads the return
-     * å› ä¸ºè¿™äº›å‡½æ•°ä¸è¿”å›ž short count 
+     * ÒòÎªÕâÐ©º¯Êý²»·µ»Ø short count
      * value is simplified to: zero on error, non zero on complete success.
-     * å¦‚æžœå€¼ä¸º 0 ï¼Œé‚£ä¹ˆå‘ç”Ÿé”™è¯¯ï¼Œä¸ä¸º 0 åˆ™æ— é”™è¯¯
+     * Èç¹ûÖµÎª 0 £¬ÄÇÃ´·¢Éú´íÎó£¬²»Îª 0 ÔòÎÞ´íÎó
      */
     size_t (*read)(struct _rio *, void *buf, size_t len);
     size_t (*write)(struct _rio *, const void *buf, size_t len);
     off_t (*tell)(struct _rio *);
     /* The update_cksum method if not NULL is used to compute the checksum of all the
-     * data that was read or written so far. 
-     * å¦‚æžœ update_cksum å‡½æ•°ä¸ä¸ºç©ºï¼Œé‚£ä¹ˆç”¨å®ƒè®¡ç®—æ‰€æœ‰å·²å†™å…¥æˆ–è¯»å–çš„æ•°æ®çš„æ ¡éªŒå€¼ã€‚
+     * data that was read or written so far.
+     * Èç¹û update_cksum º¯Êý²»Îª¿Õ£¬ÄÇÃ´ÓÃËü¼ÆËãËùÓÐÒÑÐ´Èë»ò¶ÁÈ¡µÄÊý¾ÝµÄÐ£ÑéÖµ¡£
      * The method should be designed so that
      * can be called with the current checksum, and the buf and len fields pointing
-     * to the new block of data to add to the checksum computation. 
-     * å‡½æ•°è®¾è®¡ä¸ºå¯ä»¥ä½¿ç”¨å½“å‰çš„æ ¡éªŒå’Œè°ƒç”¨ï¼Œè€Œ buf å’Œ len åˆ™æŒ‡å‘è¦è®¡ç®—æ ¡éªŒå’Œçš„æ–°å—ã€‚
+     * to the new block of data to add to the checksum computation.
+     * º¯ÊýÉè¼ÆÎª¿ÉÒÔÊ¹ÓÃµ±Ç°µÄÐ£ÑéºÍµ÷ÓÃ£¬¶ø buf ºÍ len ÔòÖ¸ÏòÒª¼ÆËãÐ£ÑéºÍµÄÐÂ¿é¡£
      */
     void (*update_cksum)(struct _rio *, const void *buf, size_t len);
 
     /* The current checksum */
-    // å½“å‰æ ¡éªŒå’Œ
+    // µ±Ç°Ð£ÑéºÍ
     uint64_t cksum;
 
     /* Backend-specific vars. */
-    // åŽç«¯å˜é‡
-    union {
-        // å¤„ç†å­—èŠ‚/å­—ç¬¦ä¸²æ—¶ä½¿ç”¨
-        struct {
+    // ºó¶Ë±äÁ¿
+    union
+    {
+        // ´¦Àí×Ö½Ú/×Ö·û´®Ê±Ê¹ÓÃ
+        struct
+        {
             sds ptr;
             off_t pos;
         } buffer;
-        // å¤„ç†æ–‡ä»¶æ—¶ä½¿ç”¨
-        struct {
+        // ´¦ÀíÎÄ¼þÊ±Ê¹ÓÃ
+        struct
+        {
             FILE *fp;
         } file;
     } io;
@@ -83,26 +87,29 @@ typedef struct _rio rio;
  * if needed. */
 
 /*
- * å†™å…¥å‡½æ•°
+ * Ð´Èëº¯Êý
  *
- * å†™å…¥æˆåŠŸè¿”å›ž 1 ï¼Œå¦åˆ™è¿”å›ž 0 ã€‚
+ * Ð´Èë³É¹¦·µ»Ø 1 £¬·ñÔò·µ»Ø 0 ¡£
  */
-static inline size_t rioWrite(rio *r, const void *buf, size_t len) {
-    // æ›´æ–°æ ¡éªŒå’Œ
+static inline size_t rioWrite(rio *r, const void *buf, size_t len)
+{
+    // ¸üÐÂÐ£ÑéºÍ
     if (r->update_cksum) r->update_cksum(r,buf,len);
-    // å†™å…¥æ•°æ®
+    // Ð´ÈëÊý¾Ý
     return r->write(r,buf,len);
 }
 
 /*
- * è¯»å–å‡½æ•°
+ * ¶ÁÈ¡º¯Êý
  *
- * è¯»å–æˆåŠŸè¿”å›ž 1 ï¼Œå¦åˆ™è¿”å›ž 0 ã€‚
+ * ¶ÁÈ¡³É¹¦·µ»Ø 1 £¬·ñÔò·µ»Ø 0 ¡£
  */
-static inline size_t rioRead(rio *r, void *buf, size_t len) {
-    // è¯»å–æˆåŠŸ
-    if (r->read(r,buf,len) == 1) {
-        // æ›´æ–°æ ¡éªŒå’Œï¼Œå¹¶è¿”å›ž 1 
+static inline size_t rioRead(rio *r, void *buf, size_t len)
+{
+    // ¶ÁÈ¡³É¹¦
+    if (r->read(r,buf,len) == 1)
+    {
+        // ¸üÐÂÐ£ÑéºÍ£¬²¢·µ»Ø 1
         if (r->update_cksum) r->update_cksum(r,buf,len);
         return 1;
     }
@@ -110,9 +117,10 @@ static inline size_t rioRead(rio *r, void *buf, size_t len) {
 }
 
 /*
- * è¿”å›žå½“å‰çš„åç§»é‡
+ * ·µ»Øµ±Ç°µÄÆ«ÒÆÁ¿
  */
-static inline off_t rioTell(rio *r) {
+static inline off_t rioTell(rio *r)
+{
     return r->tell(r);
 }
 

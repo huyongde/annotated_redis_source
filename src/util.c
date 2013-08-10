@@ -42,20 +42,24 @@
 
 /* Glob-style pattern matching. */
 int stringmatchlen(const char *pattern, int patternLen,
-        const char *string, int stringLen, int nocase)
+                   const char *string, int stringLen, int nocase)
 {
-    while(patternLen) {
-        switch(pattern[0]) {
+    while(patternLen)
+    {
+        switch(pattern[0])
+        {
         case '*':
-            while (pattern[1] == '*') {
+            while (pattern[1] == '*')
+            {
                 pattern++;
                 patternLen--;
             }
             if (patternLen == 1)
                 return 1; /* match */
-            while(stringLen) {
+            while(stringLen)
+            {
                 if (stringmatchlen(pattern+1, patternLen-1,
-                            string, stringLen, nocase))
+                                   string, stringLen, nocase))
                     return 1; /* match */
                 string++;
                 stringLen--;
@@ -75,33 +79,44 @@ int stringmatchlen(const char *pattern, int patternLen,
             pattern++;
             patternLen--;
             not = pattern[0] == '^';
-            if (not) {
+            if (not)
+            {
                 pattern++;
                 patternLen--;
             }
             match = 0;
-            while(1) {
-                if (pattern[0] == '\\') {
+            while(1)
+            {
+                if (pattern[0] == '\\')
+                {
                     pattern++;
                     patternLen--;
                     if (pattern[0] == string[0])
                         match = 1;
-                } else if (pattern[0] == ']') {
+                }
+                else if (pattern[0] == ']')
+                {
                     break;
-                } else if (patternLen == 0) {
+                }
+                else if (patternLen == 0)
+                {
                     pattern--;
                     patternLen++;
                     break;
-                } else if (pattern[1] == '-' && patternLen >= 3) {
+                }
+                else if (pattern[1] == '-' && patternLen >= 3)
+                {
                     int start = pattern[0];
                     int end = pattern[2];
                     int c = string[0];
-                    if (start > end) {
+                    if (start > end)
+                    {
                         int t = start;
                         start = end;
                         end = t;
                     }
-                    if (nocase) {
+                    if (nocase)
+                    {
                         start = tolower(start);
                         end = tolower(end);
                         c = tolower(c);
@@ -110,11 +125,16 @@ int stringmatchlen(const char *pattern, int patternLen,
                     patternLen -= 2;
                     if (c >= start && c <= end)
                         match = 1;
-                } else {
-                    if (!nocase) {
+                }
+                else
+                {
+                    if (!nocase)
+                    {
                         if (pattern[0] == string[0])
                             match = 1;
-                    } else {
+                    }
+                    else
+                    {
                         if (tolower((int)pattern[0]) == tolower((int)string[0]))
                             match = 1;
                     }
@@ -131,16 +151,20 @@ int stringmatchlen(const char *pattern, int patternLen,
             break;
         }
         case '\\':
-            if (patternLen >= 2) {
+            if (patternLen >= 2)
+            {
                 pattern++;
                 patternLen--;
             }
             /* fall through */
         default:
-            if (!nocase) {
+            if (!nocase)
+            {
                 if (pattern[0] != string[0])
                     return 0; /* no match */
-            } else {
+            }
+            else
+            {
                 if (tolower((int)pattern[0]) != tolower((int)string[0]))
                     return 0; /* no match */
             }
@@ -150,8 +174,10 @@ int stringmatchlen(const char *pattern, int patternLen,
         }
         pattern++;
         patternLen--;
-        if (stringLen == 0) {
-            while(*pattern == '*') {
+        if (stringLen == 0)
+        {
+            while(*pattern == '*')
+            {
                 pattern++;
                 patternLen--;
             }
@@ -163,7 +189,8 @@ int stringmatchlen(const char *pattern, int patternLen,
     return 0;
 }
 
-int stringmatch(const char *pattern, const char *string, int nocase) {
+int stringmatch(const char *pattern, const char *string, int nocase)
+{
     return stringmatchlen(pattern,strlen(pattern),string,strlen(string),nocase);
 }
 
@@ -173,7 +200,8 @@ int stringmatch(const char *pattern, const char *string, int nocase) {
  *
  * On parsing error, if *err is not NULL, it's set to 1, otherwise it's
  * set to 0 */
-long long memtoll(const char *p, int *err) {
+long long memtoll(const char *p, int *err)
+{
     const char *u;
     char buf[128];
     long mul; /* unit multiplier */
@@ -185,26 +213,42 @@ long long memtoll(const char *p, int *err) {
     u = p;
     if (*u == '-') u++;
     while(*u && isdigit(*u)) u++;
-    if (*u == '\0' || !strcasecmp(u,"b")) {
+    if (*u == '\0' || !strcasecmp(u,"b"))
+    {
         mul = 1;
-    } else if (!strcasecmp(u,"k")) {
+    }
+    else if (!strcasecmp(u,"k"))
+    {
         mul = 1000;
-    } else if (!strcasecmp(u,"kb")) {
+    }
+    else if (!strcasecmp(u,"kb"))
+    {
         mul = 1024;
-    } else if (!strcasecmp(u,"m")) {
+    }
+    else if (!strcasecmp(u,"m"))
+    {
         mul = 1000*1000;
-    } else if (!strcasecmp(u,"mb")) {
+    }
+    else if (!strcasecmp(u,"mb"))
+    {
         mul = 1024*1024;
-    } else if (!strcasecmp(u,"g")) {
+    }
+    else if (!strcasecmp(u,"g"))
+    {
         mul = 1000L*1000*1000;
-    } else if (!strcasecmp(u,"gb")) {
+    }
+    else if (!strcasecmp(u,"gb"))
+    {
         mul = 1024L*1024*1024;
-    } else {
+    }
+    else
+    {
         if (err) *err = 1;
         mul = 1;
     }
     digits = u-p;
-    if (digits >= sizeof(buf)) {
+    if (digits >= sizeof(buf))
+    {
         if (err) *err = 1;
         return LLONG_MAX;
     }
@@ -217,7 +261,8 @@ long long memtoll(const char *p, int *err) {
 /* Convert a long long into a string. Returns the number of
  * characters needed to represent the number, that can be shorter if passed
  * buffer length is not enough to store the whole number. */
-int ll2string(char *s, size_t len, long long value) {
+int ll2string(char *s, size_t len, long long value)
+{
     char buf[32], *p;
     unsigned long long v;
     size_t l;
@@ -225,10 +270,12 @@ int ll2string(char *s, size_t len, long long value) {
     if (len == 0) return 0;
     v = (value < 0) ? -value : value;
     p = buf+31; /* point to the last character */
-    do {
+    do
+    {
         *p-- = '0'+(v%10);
         v /= 10;
-    } while(v);
+    }
+    while(v);
     if (value < 0) *p-- = '-';
     p++;
     l = 32-(p-buf);
@@ -247,7 +294,8 @@ int ll2string(char *s, size_t len, long long value) {
  *  转换成功返回 1 ，失败返回 0 。
  *  转换成功时，将 value 的值设为转换所得的 long long 值。
  */
-int string2ll(const char *s, size_t slen, long long *value) {
+int string2ll(const char *s, size_t slen, long long *value)
+{
     const char *p = s;
     size_t plen = 0;
     int negative = 0;
@@ -258,16 +306,19 @@ int string2ll(const char *s, size_t slen, long long *value) {
         return 0;
 
     /* Special case: first and only digit is 0. */
-    // 值为 0 
-    if (slen == 1 && p[0] == '0') {
+    // 值为 0
+    if (slen == 1 && p[0] == '0')
+    {
         if (value != NULL) *value = 0;
         return 1;
     }
 
     // 值为负数
-    if (p[0] == '-') {
+    if (p[0] == '-')
+    {
         negative = 1;
-        p++; plen++;
+        p++;
+        plen++;
 
         /* Abort on only a negative sign. */
         // 只有负号，停止
@@ -276,19 +327,26 @@ int string2ll(const char *s, size_t slen, long long *value) {
     }
 
     /* First digit should be 1-9, otherwise the string should just be 0. */
-    // 第一个数字必须不为 0 ，否则值为 0 
-    if (p[0] >= '1' && p[0] <= '9') {
+    // 第一个数字必须不为 0 ，否则值为 0
+    if (p[0] >= '1' && p[0] <= '9')
+    {
         v = p[0]-'0';
-        p++; plen++;
-    } else if (p[0] == '0' && slen == 1) {
+        p++;
+        plen++;
+    }
+    else if (p[0] == '0' && slen == 1)
+    {
         *value = 0;
         return 1;
-    } else {
+    }
+    else
+    {
         return 0;
     }
 
     // 遍历整个字符串
-    while (plen < slen && p[0] >= '0' && p[0] <= '9') {
+    while (plen < slen && p[0] >= '0' && p[0] <= '9')
+    {
         // 如果 v * 10 > ULLONG_MAX
         // 那么值溢出
         if (v > (ULLONG_MAX / 10)) /* Overflow. */
@@ -301,7 +359,8 @@ int string2ll(const char *s, size_t slen, long long *value) {
             return 0;
         v += p[0]-'0';
 
-        p++; plen++;
+        p++;
+        plen++;
     }
 
     /* Return if not all bytes were used. */
@@ -310,11 +369,14 @@ int string2ll(const char *s, size_t slen, long long *value) {
         return 0;
 
     // 处理返回值的负数情况
-    if (negative) {
+    if (negative)
+    {
         if (v > ((unsigned long long)(-(LLONG_MIN+1))+1)) /* Overflow. */
             return 0;
         if (value != NULL) *value = -v;
-    } else {
+    }
+    else
+    {
         if (v > LLONG_MAX) /* Overflow. */
             return 0;
         if (value != NULL) *value = v;
@@ -326,7 +388,8 @@ int string2ll(const char *s, size_t slen, long long *value) {
 /* Convert a string into a long. Returns 1 if the string could be parsed into a
  * (non-overflowing) long, 0 otherwise. The value will be set to the parsed
  * value when appropriate. */
-int string2l(const char *s, size_t slen, long *lval) {
+int string2l(const char *s, size_t slen, long *lval)
+{
     long long llval;
 
     if (!string2ll(s,slen,&llval))
@@ -341,21 +404,29 @@ int string2l(const char *s, size_t slen, long *lval) {
 
 /* Convert a double to a string representation. Returns the number of bytes
  * required. The representation should always be parsable by stdtod(3). */
-int d2string(char *buf, size_t len, double value) {
-    if (isnan(value)) {
+int d2string(char *buf, size_t len, double value)
+{
+    if (isnan(value))
+    {
         len = snprintf(buf,len,"nan");
-    } else if (isinf(value)) {
+    }
+    else if (isinf(value))
+    {
         if (value < 0)
             len = snprintf(buf,len,"-inf");
         else
             len = snprintf(buf,len,"inf");
-    } else if (value == 0) {
+    }
+    else if (value == 0)
+    {
         /* See: http://en.wikipedia.org/wiki/Signed_zero, "Comparisons". */
         if (1.0/value < 0)
             len = snprintf(buf,len,"-0");
         else
             len = snprintf(buf,len,"0");
-    } else {
+    }
+    else
+    {
 #if (DBL_MANT_DIG >= 52) && (LLONG_MAX == 0x7fffffffffffffffLL)
         /* Check if the float is in a safe range to be casted into a
          * long long. We are assuming that long long is 64 bit here.
@@ -382,12 +453,14 @@ int d2string(char *buf, size_t len, double value) {
  * given execution of Redis, so that if you are talking with an instance
  * having run_id == A, and you reconnect and it has run_id == B, you can be
  * sure that it is either a different instance or it was restarted. */
-void getRandomHexChars(char *p, unsigned int len) {
+void getRandomHexChars(char *p, unsigned int len)
+{
     FILE *fp = fopen("/dev/urandom","r");
     char *charset = "0123456789abcdef";
     unsigned int j;
 
-    if (fp == NULL || fread(p,len,1,fp) == 0) {
+    if (fp == NULL || fread(p,len,1,fp) == 0)
+    {
         /* If we can't read from /dev/urandom, do some reasonable effort
          * in order to create some entropy, since this function is used to
          * generate run_id and cluster instance IDs */
@@ -398,17 +471,20 @@ void getRandomHexChars(char *p, unsigned int len) {
 
         /* Use time and PID to fill the initial array. */
         gettimeofday(&tv,NULL);
-        if (l >= sizeof(tv.tv_usec)) {
+        if (l >= sizeof(tv.tv_usec))
+        {
             memcpy(x,&tv.tv_usec,sizeof(tv.tv_usec));
             l -= sizeof(tv.tv_usec);
             x += sizeof(tv.tv_usec);
         }
-        if (l >= sizeof(tv.tv_sec)) {
+        if (l >= sizeof(tv.tv_sec))
+        {
             memcpy(x,&tv.tv_sec,sizeof(tv.tv_sec));
             l -= sizeof(tv.tv_sec);
             x += sizeof(tv.tv_sec);
         }
-        if (l >= sizeof(pid)) {
+        if (l >= sizeof(pid))
+        {
             memcpy(x,&pid,sizeof(pid));
             l -= sizeof(pid);
             x += sizeof(pid);
@@ -427,7 +503,8 @@ void getRandomHexChars(char *p, unsigned int len) {
 #ifdef UTIL_TEST_MAIN
 #include <assert.h>
 
-void test_string2ll(void) {
+void test_string2ll(void)
+{
     char buf[32];
     long long v;
 
@@ -482,7 +559,8 @@ void test_string2ll(void) {
     assert(string2ll(buf,strlen(buf),&v) == 0);
 }
 
-void test_string2l(void) {
+void test_string2l(void)
+{
     char buf[32];
     long v;
 
@@ -531,7 +609,8 @@ void test_string2l(void) {
 #endif
 }
 
-int main(int argc, char **argv) {
+int main(int argc, char **argv)
+{
     test_string2ll();
     test_string2l();
     return 0;

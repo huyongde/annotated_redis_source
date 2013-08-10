@@ -34,68 +34,71 @@
 /* Node, List, and Iterator are the only data structures used currently. */
 
 /*
- * é“¾è¡¨èŠ‚ç‚¹
+ * Á´±í½Úµã
  */
-typedef struct listNode {
+typedef struct listNode
+{
 
-    // å‰é©±èŠ‚ç‚¹
+    // Ç°Çı½Úµã
     struct listNode *prev;
 
-    // åç»§èŠ‚ç‚¹
+    // ºó¼Ì½Úµã
     struct listNode *next;
 
-    // å€¼
+    // Öµ
     void *value;
 
 } listNode;
 
 /*
- * é“¾è¡¨è¿­ä»£å™¨
+ * Á´±íµü´úÆ÷
  */
-typedef struct listIter {
+typedef struct listIter
+{
 
-    // ä¸‹ä¸€èŠ‚ç‚¹
+    // ÏÂÒ»½Úµã
     listNode *next;
 
-    // è¿­ä»£æ–¹å‘
+    // µü´ú·½Ïò
     int direction;
 
 } listIter;
 
 /*
- * é“¾è¡¨
+ * Á´±í
  */
-typedef struct list {
+typedef struct list
+{
 
-    // è¡¨å¤´æŒ‡é’ˆ
+    // ±íÍ·Ö¸Õë
     listNode *head;
 
-    // è¡¨å°¾æŒ‡é’ˆ
+    // ±íÎ²Ö¸Õë
     listNode *tail;
 
-    // èŠ‚ç‚¹æ•°é‡
+    // ½ÚµãÊıÁ¿
     unsigned long len;
 
-    // å¤åˆ¶å‡½æ•°
+    // ¸´ÖÆº¯Êı
     void *(*dup)(void *ptr);
-    // é‡Šæ”¾å‡½æ•°
+    // ÊÍ·Åº¯Êı
     void (*free)(void *ptr);
-    // æ¯”å¯¹å‡½æ•°
+    // ±È¶Ôº¯Êı
     int (*match)(void *ptr, void *key);
 } list;
 
 /* Functions implemented as macros */
-// è¿”å›é“¾è¡¨çš„èŠ‚ç‚¹æ•°é‡
+// ·µ»ØÁ´±íµÄ½ÚµãÊıÁ¿
 #define listLength(l) ((l)->len)
-// è¿”å›é“¾è¡¨çš„è¡¨å¤´èŠ‚ç‚¹
+// ·µ»ØÁ´±íµÄ±íÍ·½Úµã
 #define listFirst(l) ((l)->head)
-// è¿”å›é“¾è¡¨çš„è¡¨å°¾èŠ‚ç‚¹
+// ·µ»ØÁ´±íµÄ±íÎ²½Úµã
 #define listLast(l) ((l)->tail)
-// è¿”å›ç»™å®šèŠ‚ç‚¹çš„å‰ä¸€ä¸ªèŠ‚ç‚¹
+// ·µ»Ø¸ø¶¨½ÚµãµÄÇ°Ò»¸ö½Úµã
 #define listPrevNode(n) ((n)->prev)
-// è¿”å›ç»™å®šèŠ‚ç‚¹çš„åä¸€ä¸ªèŠ‚ç‚¹
+// ·µ»Ø¸ø¶¨½ÚµãµÄºóÒ»¸ö½Úµã
 #define listNextNode(n) ((n)->next)
-// è¿”å›ç»™å®šèŠ‚ç‚¹çš„å€¼
+// ·µ»Ø¸ø¶¨½ÚµãµÄÖµ
 #define listNodeValue(n) ((n)->value)
 
 #define listSetDupMethod(l,m) ((l)->dup = (m))

@@ -64,11 +64,13 @@ int anetNonBlock(char *err, int fd)
     /* Set the socket nonblocking.
      * Note that fcntl(2) for F_GETFL and F_SETFL can't be
      * interrupted by a signal. */
-    if ((flags = fcntl(fd, F_GETFL)) == -1) {
+    if ((flags = fcntl(fd, F_GETFL)) == -1)
+    {
         anetSetError(err, "fcntl(F_GETFL): %s", strerror(errno));
         return ANET_ERR;
     }
-    if (fcntl(fd, F_SETFL, flags | O_NONBLOCK) == -1) {
+    if (fcntl(fd, F_SETFL, flags | O_NONBLOCK) == -1)
+    {
         anetSetError(err, "fcntl(F_SETFL,O_NONBLOCK): %s", strerror(errno));
         return ANET_ERR;
     }
@@ -99,7 +101,8 @@ int anetSetSendBuffer(char *err, int fd, int buffsize)
 int anetTcpKeepAlive(char *err, int fd)
 {
     int yes = 1;
-    if (setsockopt(fd, SOL_SOCKET, SO_KEEPALIVE, &yes, sizeof(yes)) == -1) {
+    if (setsockopt(fd, SOL_SOCKET, SO_KEEPALIVE, &yes, sizeof(yes)) == -1)
+    {
         anetSetError(err, "setsockopt SO_KEEPALIVE: %s", strerror(errno));
         return ANET_ERR;
     }
@@ -111,11 +114,13 @@ int anetResolve(char *err, char *host, char *ipbuf)
     struct sockaddr_in sa;
 
     sa.sin_family = AF_INET;
-    if (inet_aton(host, &sa.sin_addr) == 0) {
+    if (inet_aton(host, &sa.sin_addr) == 0)
+    {
         struct hostent *he;
 
         he = gethostbyname(host);
-        if (he == NULL) {
+        if (he == NULL)
+        {
             anetSetError(err, "can't resolve: %s", host);
             return ANET_ERR;
         }
@@ -125,16 +130,19 @@ int anetResolve(char *err, char *host, char *ipbuf)
     return ANET_OK;
 }
 
-static int anetCreateSocket(char *err, int domain) {
+static int anetCreateSocket(char *err, int domain)
+{
     int s, on = 1;
-    if ((s = socket(domain, SOCK_STREAM, 0)) == -1) {
+    if ((s = socket(domain, SOCK_STREAM, 0)) == -1)
+    {
         anetSetError(err, "creating socket: %s", strerror(errno));
         return ANET_ERR;
     }
 
     /* Make sure connection-intensive things like the redis benckmark
      * will be able to close/open sockets a zillion of times */
-    if (setsockopt(s, SOL_SOCKET, SO_REUSEADDR, &on, sizeof(on)) == -1) {
+    if (setsockopt(s, SOL_SOCKET, SO_REUSEADDR, &on, sizeof(on)) == -1)
+    {
         anetSetError(err, "setsockopt SO_REUSEADDR: %s", strerror(errno));
         return ANET_ERR;
     }
@@ -153,24 +161,28 @@ static int anetTcpGenericConnect(char *err, char *addr, int port, int flags)
 
     sa.sin_family = AF_INET;
     sa.sin_port = htons(port);
-    if (inet_aton(addr, &sa.sin_addr) == 0) {
+    if (inet_aton(addr, &sa.sin_addr) == 0)
+    {
         struct hostent *he;
 
         he = gethostbyname(addr);
-        if (he == NULL) {
+        if (he == NULL)
+        {
             anetSetError(err, "can't resolve: %s", addr);
             close(s);
             return ANET_ERR;
         }
         memcpy(&sa.sin_addr, he->h_addr, sizeof(struct in_addr));
     }
-    if (flags & ANET_CONNECT_NONBLOCK) {
+    if (flags & ANET_CONNECT_NONBLOCK)
+    {
         if (anetNonBlock(err,s) != ANET_OK)
             return ANET_ERR;
     }
-    if (connect(s, (struct sockaddr*)&sa, sizeof(sa)) == -1) {
+    if (connect(s, (struct sockaddr*)&sa, sizeof(sa)) == -1)
+    {
         if (errno == EINPROGRESS &&
-            flags & ANET_CONNECT_NONBLOCK)
+                flags & ANET_CONNECT_NONBLOCK)
             return s;
 
         anetSetError(err, "connect: %s", strerror(errno));
@@ -200,13 +212,15 @@ int anetUnixGenericConnect(char *err, char *path, int flags)
 
     sa.sun_family = AF_LOCAL;
     strncpy(sa.sun_path,path,sizeof(sa.sun_path)-1);
-    if (flags & ANET_CONNECT_NONBLOCK) {
+    if (flags & ANET_CONNECT_NONBLOCK)
+    {
         if (anetNonBlock(err,s) != ANET_OK)
             return ANET_ERR;
     }
-    if (connect(s,(struct sockaddr*)&sa,sizeof(sa)) == -1) {
+    if (connect(s,(struct sockaddr*)&sa,sizeof(sa)) == -1)
+    {
         if (errno == EINPROGRESS &&
-            flags & ANET_CONNECT_NONBLOCK)
+                flags & ANET_CONNECT_NONBLOCK)
             return s;
 
         anetSetError(err, "connect: %s", strerror(errno));
@@ -231,7 +245,8 @@ int anetUnixNonBlockConnect(char *err, char *path)
 int anetRead(int fd, char *buf, int count)
 {
     int nread, totlen = 0;
-    while(totlen != count) {
+    while(totlen != count)
+    {
         nread = read(fd,buf,count-totlen);
         if (nread == 0) return totlen;
         if (nread == -1) return -1;
@@ -246,7 +261,8 @@ int anetRead(int fd, char *buf, int count)
 int anetWrite(int fd, char *buf, int count)
 {
     int nwritten, totlen = 0;
-    while(totlen != count) {
+    while(totlen != count)
+    {
         nwritten = write(fd,buf,count-totlen);
         if (nwritten == 0) return totlen;
         if (nwritten == -1) return -1;
@@ -256,8 +272,10 @@ int anetWrite(int fd, char *buf, int count)
     return totlen;
 }
 
-static int anetListen(char *err, int s, struct sockaddr *sa, socklen_t len) {
-    if (bind(s,sa,len) == -1) {
+static int anetListen(char *err, int s, struct sockaddr *sa, socklen_t len)
+{
+    if (bind(s,sa,len) == -1)
+    {
         anetSetError(err, "bind: %s", strerror(errno));
         close(s);
         return ANET_ERR;
@@ -266,7 +284,8 @@ static int anetListen(char *err, int s, struct sockaddr *sa, socklen_t len) {
     /* Use a backlog of 512 entries. We pass 511 to the listen() call because
      * the kernel does: backlogsize = roundup_pow_of_two(backlogsize + 1);
      * which will thus give us a backlog of 512 entries */
-    if (listen(s, 511) == -1) {
+    if (listen(s, 511) == -1)
+    {
         anetSetError(err, "listen: %s", strerror(errno));
         close(s);
         return ANET_ERR;
@@ -286,7 +305,8 @@ int anetTcpServer(char *err, int port, char *bindaddr)
     sa.sin_family = AF_INET;
     sa.sin_port = htons(port);
     sa.sin_addr.s_addr = htonl(INADDR_ANY);
-    if (bindaddr && inet_aton(bindaddr, &sa.sin_addr) == 0) {
+    if (bindaddr && inet_aton(bindaddr, &sa.sin_addr) == 0)
+    {
         anetSetError(err, "invalid bind address");
         close(s);
         return ANET_ERR;
@@ -314,14 +334,18 @@ int anetUnixServer(char *err, char *path, mode_t perm)
     return s;
 }
 
-static int anetGenericAccept(char *err, int s, struct sockaddr *sa, socklen_t *len) {
+static int anetGenericAccept(char *err, int s, struct sockaddr *sa, socklen_t *len)
+{
     int fd;
-    while(1) {
+    while(1)
+    {
         fd = accept(s,sa,len);
-        if (fd == -1) {
+        if (fd == -1)
+        {
             if (errno == EINTR)
                 continue;
-            else {
+            else
+            {
                 anetSetError(err, "accept: %s", strerror(errno));
                 return ANET_ERR;
             }
@@ -331,7 +355,8 @@ static int anetGenericAccept(char *err, int s, struct sockaddr *sa, socklen_t *l
     return fd;
 }
 
-int anetTcpAccept(char *err, int s, char *ip, int *port) {
+int anetTcpAccept(char *err, int s, char *ip, int *port)
+{
     int fd;
     struct sockaddr_in sa;
     socklen_t salen = sizeof(sa);
@@ -343,7 +368,8 @@ int anetTcpAccept(char *err, int s, char *ip, int *port) {
     return fd;
 }
 
-int anetUnixAccept(char *err, int s) {
+int anetUnixAccept(char *err, int s)
+{
     int fd;
     struct sockaddr_un sa;
     socklen_t salen = sizeof(sa);
@@ -353,11 +379,13 @@ int anetUnixAccept(char *err, int s) {
     return fd;
 }
 
-int anetPeerToString(int fd, char *ip, int *port) {
+int anetPeerToString(int fd, char *ip, int *port)
+{
     struct sockaddr_in sa;
     socklen_t salen = sizeof(sa);
 
-    if (getpeername(fd,(struct sockaddr*)&sa,&salen) == -1) {
+    if (getpeername(fd,(struct sockaddr*)&sa,&salen) == -1)
+    {
         *port = 0;
         ip[0] = '?';
         ip[1] = '\0';
@@ -368,11 +396,13 @@ int anetPeerToString(int fd, char *ip, int *port) {
     return 0;
 }
 
-int anetSockName(int fd, char *ip, int *port) {
+int anetSockName(int fd, char *ip, int *port)
+{
     struct sockaddr_in sa;
     socklen_t salen = sizeof(sa);
 
-    if (getsockname(fd,(struct sockaddr*)&sa,&salen) == -1) {
+    if (getsockname(fd,(struct sockaddr*)&sa,&salen) == -1)
+    {
         *port = 0;
         ip[0] = '?';
         ip[1] = '\0';

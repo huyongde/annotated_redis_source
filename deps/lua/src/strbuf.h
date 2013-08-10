@@ -31,7 +31,8 @@
  * Dynamic: True if created via strbuf_new()
  */
 
-typedef struct {
+typedef struct
+{
     char *buf;
     int size;
     int length;

@@ -39,7 +39,7 @@
 #define __DICT_H
 
 /*
- * æ“ä½œè¿”å›çŠ¶æ€
+ * ²Ù×÷·µ»Ø×´Ì¬
  */
 #define DICT_OK 0
 #define DICT_ERR 1
@@ -48,109 +48,115 @@
 #define DICT_NOTUSED(V) ((void) V)
 
 /*
- * å“ˆå¸Œè¡¨èŠ‚ç‚¹
+ * ¹şÏ£±í½Úµã
  */
-typedef struct dictEntry {
+typedef struct dictEntry
+{
 
-    // é”®
+    // ¼ü
     void *key;
 
-    // å€¼
-    union {
+    // Öµ
+    union
+    {
         void *val;
         uint64_t u64;
         int64_t s64;
     } v;
 
-    // é“¾å¾€åç»§èŠ‚ç‚¹
-    struct dictEntry *next; 
+    // Á´Íùºó¼Ì½Úµã
+    struct dictEntry *next;
 
 } dictEntry;
 
 /*
- * ç‰¹å®šäºç±»å‹çš„ä¸€ç°‡å¤„ç†å‡½æ•°
+ * ÌØ¶¨ÓÚÀàĞÍµÄÒ»´Ø´¦Àíº¯Êı
  */
-typedef struct dictType {
-    // è®¡ç®—é”®çš„å“ˆå¸Œå€¼å‡½æ•°
+typedef struct dictType
+{
+    // ¼ÆËã¼üµÄ¹şÏ£Öµº¯Êı
     unsigned int (*hashFunction)(const void *key);
-    // å¤åˆ¶é”®çš„å‡½æ•°
+    // ¸´ÖÆ¼üµÄº¯Êı
     void *(*keyDup)(void *privdata, const void *key);
-    // å¤åˆ¶å€¼çš„å‡½æ•°
+    // ¸´ÖÆÖµµÄº¯Êı
     void *(*valDup)(void *privdata, const void *obj);
-    // å¯¹æ¯”ä¸¤ä¸ªé”®çš„å‡½æ•°
+    // ¶Ô±ÈÁ½¸ö¼üµÄº¯Êı
     int (*keyCompare)(void *privdata, const void *key1, const void *key2);
-    // é”®çš„é‡Šæ„å‡½æ•°
+    // ¼üµÄÊÍ¹¹º¯Êı
     void (*keyDestructor)(void *privdata, void *key);
-    // å€¼çš„é‡Šæ„å‡½æ•°
+    // ÖµµÄÊÍ¹¹º¯Êı
     void (*valDestructor)(void *privdata, void *obj);
 } dictType;
 
 /*
- * å“ˆå¸Œè¡¨
+ * ¹şÏ£±í
  */
-typedef struct dictht {
+typedef struct dictht
+{
 
-    // å“ˆå¸Œè¡¨èŠ‚ç‚¹æŒ‡é’ˆæ•°ç»„ï¼ˆä¿—ç§°æ¡¶ï¼Œbucketï¼‰
-    dictEntry **table;      
+    // ¹şÏ£±í½ÚµãÖ¸ÕëÊı×é£¨Ë×³ÆÍ°£¬bucket£©
+    dictEntry **table;
 
-    // æŒ‡é’ˆæ•°ç»„çš„å¤§å°
-    unsigned long size;     
+    // Ö¸ÕëÊı×éµÄ´óĞ¡
+    unsigned long size;
 
-    // æŒ‡é’ˆæ•°ç»„çš„é•¿åº¦æ©ç ï¼Œç”¨äºè®¡ç®—ç´¢å¼•å€¼
-    unsigned long sizemask; 
+    // Ö¸ÕëÊı×éµÄ³¤¶ÈÑÚÂë£¬ÓÃÓÚ¼ÆËãË÷ÒıÖµ
+    unsigned long sizemask;
 
-    // å“ˆå¸Œè¡¨ç°æœ‰çš„èŠ‚ç‚¹æ•°é‡
-    unsigned long used;     
+    // ¹şÏ£±íÏÖÓĞµÄ½ÚµãÊıÁ¿
+    unsigned long used;
 
 } dictht;
 
 /*
- * å­—å…¸
+ * ×Öµä
  *
- * æ¯ä¸ªå­—å…¸ä½¿ç”¨ä¸¤ä¸ªå“ˆå¸Œè¡¨ï¼Œç”¨äºå®ç°æ¸è¿›å¼ rehash
+ * Ã¿¸ö×ÖµäÊ¹ÓÃÁ½¸ö¹şÏ£±í£¬ÓÃÓÚÊµÏÖ½¥½øÊ½ rehash
  */
-typedef struct dict {
+typedef struct dict
+{
 
-    // ç‰¹å®šäºç±»å‹çš„å¤„ç†å‡½æ•°
+    // ÌØ¶¨ÓÚÀàĞÍµÄ´¦Àíº¯Êı
     dictType *type;
 
-    // ç±»å‹å¤„ç†å‡½æ•°çš„ç§æœ‰æ•°æ®
+    // ÀàĞÍ´¦Àíº¯ÊıµÄË½ÓĞÊı¾İ
     void *privdata;
 
-    // å“ˆå¸Œè¡¨ï¼ˆ2ä¸ªï¼‰
-    dictht ht[2];       
+    // ¹şÏ£±í£¨2¸ö£©
+    dictht ht[2];
 
-    // è®°å½• rehash è¿›åº¦çš„æ ‡å¿—ï¼Œå€¼ä¸º-1 è¡¨ç¤º rehash æœªè¿›è¡Œ
+    // ¼ÇÂ¼ rehash ½ø¶ÈµÄ±êÖ¾£¬ÖµÎª-1 ±íÊ¾ rehash Î´½øĞĞ
     int rehashidx;
 
-    // å½“å‰æ­£åœ¨è¿ä½œçš„å®‰å…¨è¿­ä»£å™¨æ•°é‡
-    int iterators;      
+    // µ±Ç°ÕıÔÚÔË×÷µÄ°²È«µü´úÆ÷ÊıÁ¿
+    int iterators;
 
 } dict;
 
 /*
- * å­—å…¸è¿­ä»£å™¨
+ * ×Öµäµü´úÆ÷
  *
- * å¦‚æœ safe å±æ€§çš„å€¼ä¸º 1 ï¼Œé‚£ä¹ˆè¡¨ç¤ºè¿™ä¸ªè¿­ä»£å™¨æ˜¯ä¸€ä¸ªå®‰å…¨è¿­ä»£å™¨ã€‚
- * å½“å®‰å…¨è¿­ä»£å™¨æ­£åœ¨è¿­ä»£ä¸€ä¸ªå­—å…¸æ—¶ï¼Œè¯¥å­—å…¸ä»ç„¶å¯ä»¥è°ƒç”¨ dictAdd ã€ dictFind å’Œå…¶ä»–å‡½æ•°ã€‚
+ * Èç¹û safe ÊôĞÔµÄÖµÎª 1 £¬ÄÇÃ´±íÊ¾Õâ¸öµü´úÆ÷ÊÇÒ»¸ö°²È«µü´úÆ÷¡£
+ * µ±°²È«µü´úÆ÷ÕıÔÚµü´úÒ»¸ö×ÖµäÊ±£¬¸Ã×ÖµäÈÔÈ»¿ÉÒÔµ÷ÓÃ dictAdd ¡¢ dictFind ºÍÆäËûº¯Êı¡£
  *
- * å¦‚æœ safe å±æ€§çš„å€¼ä¸º 0 ï¼Œé‚£ä¹ˆè¡¨ç¤ºè¿™ä¸æ˜¯ä¸€ä¸ªå®‰å…¨è¿­ä»£å™¨ã€‚
- * å¦‚æœæ­£åœ¨è¿ä½œçš„è¿­ä»£å™¨æ˜¯ä¸å®‰å…¨è¿­ä»£å™¨ï¼Œé‚£ä¹ˆå®ƒåªå¯ä»¥å¯¹å­—å…¸è°ƒç”¨ dictNext å‡½æ•°ã€‚
+ * Èç¹û safe ÊôĞÔµÄÖµÎª 0 £¬ÄÇÃ´±íÊ¾Õâ²»ÊÇÒ»¸ö°²È«µü´úÆ÷¡£
+ * Èç¹ûÕıÔÚÔË×÷µÄµü´úÆ÷ÊÇ²»°²È«µü´úÆ÷£¬ÄÇÃ´ËüÖ»¿ÉÒÔ¶Ô×Öµäµ÷ÓÃ dictNext º¯Êı¡£
  */
-typedef struct dictIterator {
+typedef struct dictIterator
+{
 
-    // æ­£åœ¨è¿­ä»£çš„å­—å…¸
-    dict *d;                
+    // ÕıÔÚµü´úµÄ×Öµä
+    dict *d;
 
-    int table,              // æ­£åœ¨è¿­ä»£çš„å“ˆå¸Œè¡¨çš„å·ç ï¼ˆ0 æˆ–è€… 1ï¼‰
-        index,              // æ­£åœ¨è¿­ä»£çš„å“ˆå¸Œè¡¨æ•°ç»„çš„ç´¢å¼•
-        safe;               // æ˜¯å¦å®‰å…¨ï¼Ÿ
+    int table,              // ÕıÔÚµü´úµÄ¹şÏ£±íµÄºÅÂë£¨0 »òÕß 1£©
+        index,              // ÕıÔÚµü´úµÄ¹şÏ£±íÊı×éµÄË÷Òı
+        safe;               // ÊÇ·ñ°²È«£¿
 
-    dictEntry *entry,       // å½“å‰å“ˆå¸ŒèŠ‚ç‚¹
-              *nextEntry;   // å½“å‰å“ˆå¸ŒèŠ‚ç‚¹çš„åç»§èŠ‚ç‚¹
+    dictEntry *entry,       // µ±Ç°¹şÏ£½Úµã
+              *nextEntry;   // µ±Ç°¹şÏ£½ÚµãµÄºó¼Ì½Úµã
 } dictIterator;
 
-// æ‰€æœ‰å“ˆå¸Œè¡¨çš„èµ·å§‹å¤§å°
+// ËùÓĞ¹şÏ£±íµÄÆğÊ¼´óĞ¡
 #define DICT_HT_INITIAL_SIZE     4
 
 /* ------------------------------- Macros ------------------------------------*/

@@ -31,14 +31,16 @@
 
 #include <string.h>
 
-typedef struct aeApiState {
+typedef struct aeApiState
+{
     fd_set rfds, wfds;
     /* We need to have a copy of the fd sets as it's not safe to reuse
      * FD sets after select(). */
     fd_set _rfds, _wfds;
 } aeApiState;
 
-static int aeApiCreate(aeEventLoop *eventLoop) {
+static int aeApiCreate(aeEventLoop *eventLoop)
+{
     aeApiState *state = zmalloc(sizeof(aeApiState));
 
     if (!state) return -1;
@@ -48,11 +50,13 @@ static int aeApiCreate(aeEventLoop *eventLoop) {
     return 0;
 }
 
-static void aeApiFree(aeEventLoop *eventLoop) {
+static void aeApiFree(aeEventLoop *eventLoop)
+{
     zfree(eventLoop->apidata);
 }
 
-static int aeApiAddEvent(aeEventLoop *eventLoop, int fd, int mask) {
+static int aeApiAddEvent(aeEventLoop *eventLoop, int fd, int mask)
+{
     aeApiState *state = eventLoop->apidata;
 
     if (mask & AE_READABLE) FD_SET(fd,&state->rfds);
@@ -60,14 +64,16 @@ static int aeApiAddEvent(aeEventLoop *eventLoop, int fd, int mask) {
     return 0;
 }
 
-static void aeApiDelEvent(aeEventLoop *eventLoop, int fd, int mask) {
+static void aeApiDelEvent(aeEventLoop *eventLoop, int fd, int mask)
+{
     aeApiState *state = eventLoop->apidata;
 
     if (mask & AE_READABLE) FD_CLR(fd,&state->rfds);
     if (mask & AE_WRITABLE) FD_CLR(fd,&state->wfds);
 }
 
-static int aeApiPoll(aeEventLoop *eventLoop, struct timeval *tvp) {
+static int aeApiPoll(aeEventLoop *eventLoop, struct timeval *tvp)
+{
     aeApiState *state = eventLoop->apidata;
     int retval, j, numevents = 0;
 
@@ -75,9 +81,11 @@ static int aeApiPoll(aeEventLoop *eventLoop, struct timeval *tvp) {
     memcpy(&state->_wfds,&state->wfds,sizeof(fd_set));
 
     retval = select(eventLoop->maxfd+1,
-                &state->_rfds,&state->_wfds,NULL,tvp);
-    if (retval > 0) {
-        for (j = 0; j <= eventLoop->maxfd; j++) {
+                    &state->_rfds,&state->_wfds,NULL,tvp);
+    if (retval > 0)
+    {
+        for (j = 0; j <= eventLoop->maxfd; j++)
+        {
             int mask = 0;
             aeFileEvent *fe = &eventLoop->events[j];
 
@@ -94,6 +102,7 @@ static int aeApiPoll(aeEventLoop *eventLoop, struct timeval *tvp) {
     return numevents;
 }
 
-static char *aeApiName(void) {
+static char *aeApiName(void)
+{
     return "select";
 }

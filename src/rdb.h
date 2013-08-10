@@ -39,7 +39,7 @@
 /* The current RDB version. When the format changes in a way that is no longer
  * backward compatible this number gets incremented. */
 /*
- * RDB çš„ç‰ˆæœ¬ï¼Œå½“æ–°ç‰ˆæœ¬ä¸å‘å°±ç‰ˆæœ¬å…¼å®¹æ—¶ï¼Œå¢žä¸€
+ * RDB µÄ°æ±¾£¬µ±ÐÂ°æ±¾²»Ïò¾Í°æ±¾¼æÈÝÊ±£¬ÔöÒ»
  */
 #define REDIS_RDB_VERSION 6
 
@@ -47,19 +47,19 @@
  * keys requires a lot of space, so we check the most significant 2 bits of
  * the first byte to interpreter the length:
  *
- * é€šè¿‡è¯»å–ç¬¬ä¸€å­—èŠ‚çš„æœ€é«˜ 2 ä½æ¥åˆ¤æ–­é•¿åº¦
+ * Í¨¹ý¶ÁÈ¡µÚÒ»×Ö½ÚµÄ×î¸ß 2 Î»À´ÅÐ¶Ï³¤¶È
  *
  * 00|000000 => if the two MSB are 00 the len is the 6 bits of this byte
- *              é•¿åº¦ç¼–ç åœ¨è¿™ä¸€å­—èŠ‚çš„å…¶ä½™ 6 ä½ä¸­
+ *              ³¤¶È±àÂëÔÚÕâÒ»×Ö½ÚµÄÆäÓà 6 Î»ÖÐ
  * 01|000000 00000000 =>  01, the len is 14 byes, 6 bits + 8 bits of next byte
- *                        é•¿åº¦ä¸º 14 ä½ï¼Œå½“å‰å­—èŠ‚ 6 ä½ï¼ŒåŠ ä¸Šä¸‹ä¸ªå­—èŠ‚ 8 ä½
+ *                        ³¤¶ÈÎª 14 Î»£¬µ±Ç°×Ö½Ú 6 Î»£¬¼ÓÉÏÏÂ¸ö×Ö½Ú 8 Î»
  * 10|000000 [32 bit integer] => if it's 01, a full 32 bit len will follow
- *                               é•¿åº¦ç”±åŽè·Ÿçš„ 32 ä½ä¿å­˜
+ *                               ³¤¶ÈÓÉºó¸úµÄ 32 Î»±£´æ
  * 11|000000 this means: specially encoded object will follow. The six bits
  *           number specify the kind of object that follows.
  *           See the REDIS_RDB_ENC_* defines.
- *           åŽè·Ÿä¸€ä¸ªç‰¹æ®Šç¼–ç çš„å¯¹è±¡ã€‚å­—èŠ‚ä¸­çš„ 6 ä½æŒ‡å®šå¯¹è±¡çš„ç±»åž‹ã€‚
- *           æŸ¥çœ‹ REDIS_RDB_ENC_* å®šä¹‰èŽ·å¾—æ›´å¤šæ¶ˆæ¯
+ *           ºó¸úÒ»¸öÌØÊâ±àÂëµÄ¶ÔÏó¡£×Ö½ÚÖÐµÄ 6 Î»Ö¸¶¨¶ÔÏóµÄÀàÐÍ¡£
+ *           ²é¿´ REDIS_RDB_ENC_* ¶¨Òå»ñµÃ¸ü¶àÏûÏ¢
  *
  * Lenghts up to 63 are stored using a single byte, most DB keys, and may
  * values, will fit inside. */
@@ -73,7 +73,7 @@
  * set, the remaining two bits specify a special encoding for the object
  * accordingly to the following defines:
  *
- * æœ€é«˜ä½ 2 ä½ä¹‹åŽçš„ 2 ä½æŒ‡å®šäº†å¯¹è±¡çš„ç‰¹æ®Šç¼–ç 
+ * ×î¸ßÎ» 2 Î»Ö®ºóµÄ 2 Î»Ö¸¶¨ÁË¶ÔÏóµÄÌØÊâ±àÂë
  */
 #define REDIS_RDB_ENC_INT8 0        /* 8 bit signed integer */
 #define REDIS_RDB_ENC_INT16 1       /* 16 bit signed integer */
@@ -83,7 +83,7 @@
 /* Dup object types to RDB object types. Only reason is readability (are we
  * dealing with RDB types or with in-memory object types?).
  *
- * å¯¹è±¡ç±»åž‹åœ¨ RDB æ–‡ä»¶ä¸­çš„ç±»åž‹
+ * ¶ÔÏóÀàÐÍÔÚ RDB ÎÄ¼þÖÐµÄÀàÐÍ
  */
 #define REDIS_RDB_TYPE_STRING 0
 #define REDIS_RDB_TYPE_LIST   1
@@ -93,7 +93,7 @@
 
 /* Object types for encoded objects. */
 /*
- * ç¼–ç å¯¹è±¡çš„æ–¹å¼
+ * ±àÂë¶ÔÏóµÄ·½Ê½
  */
 #define REDIS_RDB_TYPE_HASH_ZIPMAP    9
 #define REDIS_RDB_TYPE_LIST_ZIPLIST  10
@@ -103,18 +103,18 @@
 
 /* Test if a type is an object type. */
 /*
- * æ£€æŸ¥ç»™å®šç±»åž‹æ˜¯å¦å¯¹è±¡
+ * ¼ì²é¸ø¶¨ÀàÐÍÊÇ·ñ¶ÔÏó
  */
 #define rdbIsObjectType(t) ((t >= 0 && t <= 4) || (t >= 9 && t <= 13))
 
 /* Special RDB opcodes (saved/loaded with rdbSaveType/rdbLoadType). */
 /*
- * ç‰¹æ®Šæ ‡è¯†ç¬¦
+ * ÌØÊâ±êÊ¶·û
  */
-#define REDIS_RDB_OPCODE_EXPIRETIME_MS 252  // ä»¥ MS è®¡ç®—çš„è¿‡æœŸæ—¶é—´
-#define REDIS_RDB_OPCODE_EXPIRETIME 253     // ä»¥ç§’è®¡ç®—çš„è¿‡æœŸæ—¶é—´
-#define REDIS_RDB_OPCODE_SELECTDB   254     // é€‰æ‹©æ•°æ®åº“
-#define REDIS_RDB_OPCODE_EOF        255     // ç»“å°¾
+#define REDIS_RDB_OPCODE_EXPIRETIME_MS 252  // ÒÔ MS ¼ÆËãµÄ¹ýÆÚÊ±¼ä
+#define REDIS_RDB_OPCODE_EXPIRETIME 253     // ÒÔÃë¼ÆËãµÄ¹ýÆÚÊ±¼ä
+#define REDIS_RDB_OPCODE_SELECTDB   254     // Ñ¡ÔñÊý¾Ý¿â
+#define REDIS_RDB_OPCODE_EOF        255     // ½áÎ²
 
 int rdbSaveType(rio *rdb, unsigned char type);
 int rdbLoadType(rio *rdb);

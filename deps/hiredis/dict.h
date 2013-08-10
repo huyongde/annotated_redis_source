@@ -42,13 +42,15 @@
 /* Unused arguments generate annoying warnings... */
 #define DICT_NOTUSED(V) ((void) V)
 
-typedef struct dictEntry {
+typedef struct dictEntry
+{
     void *key;
     void *val;
     struct dictEntry *next;
 } dictEntry;
 
-typedef struct dictType {
+typedef struct dictType
+{
     unsigned int (*hashFunction)(const void *key);
     void *(*keyDup)(void *privdata, const void *key);
     void *(*valDup)(void *privdata, const void *obj);
@@ -57,7 +59,8 @@ typedef struct dictType {
     void (*valDestructor)(void *privdata, void *obj);
 } dictType;
 
-typedef struct dict {
+typedef struct dict
+{
     dictEntry **table;
     dictType *type;
     unsigned long size;
@@ -66,7 +69,8 @@ typedef struct dict {
     void *privdata;
 } dict;
 
-typedef struct dictIterator {
+typedef struct dictIterator
+{
     dict *ht;
     int index;
     dictEntry *entry, *nextEntry;

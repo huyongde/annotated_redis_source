@@ -49,7 +49,8 @@
  * "add" digests relative to unordered elements.
  *
  * So digest(a,b,c,d) will be the same of digest(b,a,c,d) */
-void xorDigest(unsigned char *digest, void *ptr, size_t len) {
+void xorDigest(unsigned char *digest, void *ptr, size_t len)
+{
     SHA1_CTX ctx;
     unsigned char hash[20], *s = ptr;
     int j;
@@ -62,7 +63,8 @@ void xorDigest(unsigned char *digest, void *ptr, size_t len) {
         digest[j] ^= hash[j];
 }
 
-void xorObjectDigest(unsigned char *digest, robj *o) {
+void xorObjectDigest(unsigned char *digest, robj *o)
+{
     o = getDecodedObject(o);
     xorDigest(digest,o->ptr,sdslen(o->ptr));
     decrRefCount(o);
@@ -82,7 +84,8 @@ void xorObjectDigest(unsigned char *digest, robj *o) {
  * Also note that mixdigest("foo") followed by mixdigest("bar")
  * will lead to a different digest compared to "fo", "obar".
  */
-void mixDigest(unsigned char *digest, void *ptr, size_t len) {
+void mixDigest(unsigned char *digest, void *ptr, size_t len)
+{
     SHA1_CTX ctx;
     char *s = ptr;
 
@@ -92,7 +95,8 @@ void mixDigest(unsigned char *digest, void *ptr, size_t len) {
     SHA1Final(digest,&ctx);
 }
 
-void mixObjectDigest(unsigned char *digest, robj *o) {
+void mixObjectDigest(unsigned char *digest, robj *o)
+{
     o = getDecodedObject(o);
     mixDigest(digest,o->ptr,sdslen(o->ptr));
     decrRefCount(o);
@@ -104,7 +108,8 @@ void mixObjectDigest(unsigned char *digest, robj *o) {
  * the result. For list instead we use a feedback entering the output digest
  * as input in order to ensure that a different ordered list will result in
  * a different digest. */
-void computeDatasetDigest(unsigned char *final) {
+void computeDatasetDigest(unsigned char *final)
+{
     unsigned char digest[20];
     char buf[128];
     dictIterator *di = NULL;
@@ -114,7 +119,8 @@ void computeDatasetDigest(unsigned char *final) {
 
     memset(final,0,20); /* Start with a clean result */
 
-    for (j = 0; j < server.dbnum; j++) {
+    for (j = 0; j < server.dbnum; j++)
+    {
         redisDb *db = server.db+j;
 
         if (dictSize(db->dict) == 0) continue;
@@ -126,7 +132,8 @@ void computeDatasetDigest(unsigned char *final) {
         mixDigest(final,&aux,sizeof(aux));
 
         /* Iterate this DB writing every entry */
-        while((de = dictNext(di)) != NULL) {
+        while((de = dictNext(di)) != NULL)
+        {
             sds key;
             robj *keyobj, *o;
             long long expiretime;
@@ -144,29 +151,39 @@ void computeDatasetDigest(unsigned char *final) {
             expiretime = getExpire(db,keyobj);
 
             /* Save the key and associated value */
-            if (o->type == REDIS_STRING) {
+            if (o->type == REDIS_STRING)
+            {
                 mixObjectDigest(digest,o);
-            } else if (o->type == REDIS_LIST) {
+            }
+            else if (o->type == REDIS_LIST)
+            {
                 listTypeIterator *li = listTypeInitIterator(o,0,REDIS_TAIL);
                 listTypeEntry entry;
-                while(listTypeNext(li,&entry)) {
+                while(listTypeNext(li,&entry))
+                {
                     robj *eleobj = listTypeGet(&entry);
                     mixObjectDigest(digest,eleobj);
                     decrRefCount(eleobj);
                 }
                 listTypeReleaseIterator(li);
-            } else if (o->type == REDIS_SET) {
+            }
+            else if (o->type == REDIS_SET)
+            {
                 setTypeIterator *si = setTypeInitIterator(o);
                 robj *ele;
-                while((ele = setTypeNextObject(si)) != NULL) {
+                while((ele = setTypeNextObject(si)) != NULL)
+                {
                     xorObjectDigest(digest,ele);
                     decrRefCount(ele);
                 }
                 setTypeReleaseIterator(si);
-            } else if (o->type == REDIS_ZSET) {
+            }
+            else if (o->type == REDIS_ZSET)
+            {
                 unsigned char eledigest[20];
 
-                if (o->encoding == REDIS_ENCODING_ZIPLIST) {
+                if (o->encoding == REDIS_ENCODING_ZIPLIST)
+                {
                     unsigned char *zl = o->ptr;
                     unsigned char *eptr, *sptr;
                     unsigned char *vstr;
@@ -179,14 +196,18 @@ void computeDatasetDigest(unsigned char *final) {
                     sptr = ziplistNext(zl,eptr);
                     redisAssert(sptr != NULL);
 
-                    while (eptr != NULL) {
+                    while (eptr != NULL)
+                    {
                         redisAssert(ziplistGet(eptr,&vstr,&vlen,&vll));
                         score = zzlGetScore(sptr);
 
                         memset(eledigest,0,20);
-                        if (vstr != NULL) {
+                        if (vstr != NULL)
+                        {
                             mixDigest(eledigest,vstr,vlen);
-                        } else {
+                        }
+                        else
+                        {
                             ll2string(buf,sizeof(buf),vll);
                             mixDigest(eledigest,buf,strlen(buf));
                         }
@@ -196,12 +217,15 @@ void computeDatasetDigest(unsigned char *final) {
                         xorDigest(digest,eledigest,20);
                         zzlNext(zl,&eptr,&sptr);
                     }
-                } else if (o->encoding == REDIS_ENCODING_SKIPLIST) {
+                }
+                else if (o->encoding == REDIS_ENCODING_SKIPLIST)
+                {
                     zset *zs = o->ptr;
                     dictIterator *di = dictGetIterator(zs->dict);
                     dictEntry *de;
 
-                    while((de = dictNext(di)) != NULL) {
+                    while((de = dictNext(di)) != NULL)
+                    {
                         robj *eleobj = dictGetKey(de);
                         double *score = dictGetVal(de);
 
@@ -212,15 +236,20 @@ void computeDatasetDigest(unsigned char *final) {
                         xorDigest(digest,eledigest,20);
                     }
                     dictReleaseIterator(di);
-                } else {
+                }
+                else
+                {
                     redisPanic("Unknown sorted set encoding");
                 }
-            } else if (o->type == REDIS_HASH) {
+            }
+            else if (o->type == REDIS_HASH)
+            {
                 hashTypeIterator *hi;
                 robj *obj;
 
                 hi = hashTypeInitIterator(o);
-                while (hashTypeNext(hi) != REDIS_ERR) {
+                while (hashTypeNext(hi) != REDIS_ERR)
+                {
                     unsigned char eledigest[20];
 
                     memset(eledigest,0,20);
@@ -233,7 +262,9 @@ void computeDatasetDigest(unsigned char *final) {
                     xorDigest(digest,eledigest,20);
                 }
                 hashTypeReleaseIterator(hi);
-            } else {
+            }
+            else
+            {
                 redisPanic("Unknown object type");
             }
             /* If the key has an expire, add it to the mix */
@@ -246,43 +277,59 @@ void computeDatasetDigest(unsigned char *final) {
     }
 }
 
-void debugCommand(redisClient *c) {
-    if (!strcasecmp(c->argv[1]->ptr,"segfault")) {
+void debugCommand(redisClient *c)
+{
+    if (!strcasecmp(c->argv[1]->ptr,"segfault"))
+    {
         *((char*)-1) = 'x';
-    } else if (!strcasecmp(c->argv[1]->ptr,"oom")) {
+    }
+    else if (!strcasecmp(c->argv[1]->ptr,"oom"))
+    {
         void *ptr = zmalloc(ULONG_MAX); /* Should trigger an out of memory. */
         zfree(ptr);
         addReply(c,shared.ok);
-    } else if (!strcasecmp(c->argv[1]->ptr,"assert")) {
+    }
+    else if (!strcasecmp(c->argv[1]->ptr,"assert"))
+    {
         if (c->argc >= 3) c->argv[2] = tryObjectEncoding(c->argv[2]);
         redisAssertWithInfo(c,c->argv[0],1 == 2);
-    } else if (!strcasecmp(c->argv[1]->ptr,"reload")) {
-        if (rdbSave(server.rdb_filename) != REDIS_OK) {
+    }
+    else if (!strcasecmp(c->argv[1]->ptr,"reload"))
+    {
+        if (rdbSave(server.rdb_filename) != REDIS_OK)
+        {
             addReply(c,shared.err);
             return;
         }
         emptyDb();
-        if (rdbLoad(server.rdb_filename) != REDIS_OK) {
+        if (rdbLoad(server.rdb_filename) != REDIS_OK)
+        {
             addReplyError(c,"Error trying to load the RDB dump");
             return;
         }
         redisLog(REDIS_WARNING,"DB reloaded by DEBUG RELOAD");
         addReply(c,shared.ok);
-    } else if (!strcasecmp(c->argv[1]->ptr,"loadaof")) {
+    }
+    else if (!strcasecmp(c->argv[1]->ptr,"loadaof"))
+    {
         emptyDb();
-        if (loadAppendOnlyFile(server.aof_filename) != REDIS_OK) {
+        if (loadAppendOnlyFile(server.aof_filename) != REDIS_OK)
+        {
             addReply(c,shared.err);
             return;
         }
         server.dirty = 0; /* Prevent AOF / replication */
         redisLog(REDIS_WARNING,"Append Only File loaded by DEBUG LOADAOF");
         addReply(c,shared.ok);
-    } else if (!strcasecmp(c->argv[1]->ptr,"object") && c->argc == 3) {
+    }
+    else if (!strcasecmp(c->argv[1]->ptr,"object") && c->argc == 3)
+    {
         dictEntry *de;
         robj *val;
         char *strenc;
 
-        if ((de = dictFind(c->db->dict,c->argv[2]->ptr)) == NULL) {
+        if ((de = dictFind(c->db->dict,c->argv[2]->ptr)) == NULL)
+        {
             addReply(c,shared.nokeyerr);
             return;
         }
@@ -290,23 +337,27 @@ void debugCommand(redisClient *c) {
         strenc = strEncoding(val->encoding);
 
         addReplyStatusFormat(c,
-            "Value at:%p refcount:%d "
-            "encoding:%s serializedlength:%lld "
-            "lru:%d lru_seconds_idle:%lu",
-            (void*)val, val->refcount,
-            strenc, (long long) rdbSavedObjectLen(val),
-            val->lru, estimateObjectIdleTime(val));
-    } else if (!strcasecmp(c->argv[1]->ptr,"populate") && c->argc == 3) {
+                             "Value at:%p refcount:%d "
+                             "encoding:%s serializedlength:%lld "
+                             "lru:%d lru_seconds_idle:%lu",
+                             (void*)val, val->refcount,
+                             strenc, (long long) rdbSavedObjectLen(val),
+                             val->lru, estimateObjectIdleTime(val));
+    }
+    else if (!strcasecmp(c->argv[1]->ptr,"populate") && c->argc == 3)
+    {
         long keys, j;
         robj *key, *val;
         char buf[128];
 
         if (getLongFromObjectOrReply(c, c->argv[2], &keys, NULL) != REDIS_OK)
             return;
-        for (j = 0; j < keys; j++) {
+        for (j = 0; j < keys; j++)
+        {
             snprintf(buf,sizeof(buf),"key:%lu",j);
             key = createStringObject(buf,strlen(buf));
-            if (lookupKeyRead(c->db,key) != NULL) {
+            if (lookupKeyRead(c->db,key) != NULL)
+            {
                 decrRefCount(key);
                 continue;
             }
@@ -316,7 +367,9 @@ void debugCommand(redisClient *c) {
             decrRefCount(key);
         }
         addReply(c,shared.ok);
-    } else if (!strcasecmp(c->argv[1]->ptr,"digest") && c->argc == 2) {
+    }
+    else if (!strcasecmp(c->argv[1]->ptr,"digest") && c->argc == 2)
+    {
         unsigned char digest[20];
         sds d = sdsempty();
         int j;
@@ -326,21 +379,26 @@ void debugCommand(redisClient *c) {
             d = sdscatprintf(d, "%02x",digest[j]);
         addReplyStatus(c,d);
         sdsfree(d);
-    } else if (!strcasecmp(c->argv[1]->ptr,"sleep") && c->argc == 3) {
+    }
+    else if (!strcasecmp(c->argv[1]->ptr,"sleep") && c->argc == 3)
+    {
         double dtime = strtod(c->argv[2]->ptr,NULL);
         long long utime = dtime*1000000;
 
         usleep(utime);
         addReply(c,shared.ok);
-    } else {
+    }
+    else
+    {
         addReplyError(c,
-            "Syntax error, try DEBUG [SEGFAULT|OBJECT <key>|SWAPIN <key>|SWAPOUT <key>|RELOAD]");
+                      "Syntax error, try DEBUG [SEGFAULT|OBJECT <key>|SWAPIN <key>|SWAPOUT <key>|RELOAD]");
     }
 }
 
 /* =========================== Crash handling  ============================== */
 
-void _redisAssert(char *estr, char *file, int line) {
+void _redisAssert(char *estr, char *file, int line)
+{
     bugReportStart();
     redisLog(REDIS_WARNING,"=== ASSERTION FAILED ===");
     redisLog(REDIS_WARNING,"==> %s:%d '%s' is not true",file,line,estr);
@@ -353,7 +411,8 @@ void _redisAssert(char *estr, char *file, int line) {
     *((char*)-1) = 'x';
 }
 
-void _redisAssertPrintClientInfo(redisClient *c) {
+void _redisAssertPrintClientInfo(redisClient *c)
+{
     int j;
 
     bugReportStart();
@@ -361,58 +420,74 @@ void _redisAssertPrintClientInfo(redisClient *c) {
     redisLog(REDIS_WARNING,"client->flags = %d", c->flags);
     redisLog(REDIS_WARNING,"client->fd = %d", c->fd);
     redisLog(REDIS_WARNING,"client->argc = %d", c->argc);
-    for (j=0; j < c->argc; j++) {
+    for (j=0; j < c->argc; j++)
+    {
         char buf[128];
         char *arg;
 
         if (c->argv[j]->type == REDIS_STRING &&
-            c->argv[j]->encoding == REDIS_ENCODING_RAW)
+                c->argv[j]->encoding == REDIS_ENCODING_RAW)
         {
             arg = (char*) c->argv[j]->ptr;
-        } else {
+        }
+        else
+        {
             snprintf(buf,sizeof(buf),"Object type: %d, encoding: %d",
-                c->argv[j]->type, c->argv[j]->encoding);
+                     c->argv[j]->type, c->argv[j]->encoding);
             arg = buf;
         }
         redisLog(REDIS_WARNING,"client->argv[%d] = \"%s\" (refcount: %d)",
-            j, arg, c->argv[j]->refcount);
+                 j, arg, c->argv[j]->refcount);
     }
 }
 
-void redisLogObjectDebugInfo(robj *o) {
+void redisLogObjectDebugInfo(robj *o)
+{
     redisLog(REDIS_WARNING,"Object type: %d", o->type);
     redisLog(REDIS_WARNING,"Object encoding: %d", o->encoding);
     redisLog(REDIS_WARNING,"Object refcount: %d", o->refcount);
-    if (o->type == REDIS_STRING && o->encoding == REDIS_ENCODING_RAW) {
+    if (o->type == REDIS_STRING && o->encoding == REDIS_ENCODING_RAW)
+    {
         redisLog(REDIS_WARNING,"Object raw string len: %d", sdslen(o->ptr));
         if (sdslen(o->ptr) < 4096)
             redisLog(REDIS_WARNING,"Object raw string content: \"%s\"", (char*)o->ptr);
-    } else if (o->type == REDIS_LIST) {
+    }
+    else if (o->type == REDIS_LIST)
+    {
         redisLog(REDIS_WARNING,"List length: %d", (int) listTypeLength(o));
-    } else if (o->type == REDIS_SET) {
+    }
+    else if (o->type == REDIS_SET)
+    {
         redisLog(REDIS_WARNING,"Set size: %d", (int) setTypeSize(o));
-    } else if (o->type == REDIS_HASH) {
+    }
+    else if (o->type == REDIS_HASH)
+    {
         redisLog(REDIS_WARNING,"Hash size: %d", (int) hashTypeLength(o));
-    } else if (o->type == REDIS_ZSET) {
+    }
+    else if (o->type == REDIS_ZSET)
+    {
         redisLog(REDIS_WARNING,"Sorted set size: %d", (int) zsetLength(o));
         if (o->encoding == REDIS_ENCODING_SKIPLIST)
             redisLog(REDIS_WARNING,"Skiplist level: %d", (int) ((zset*)o->ptr)->zsl->level);
     }
 }
 
-void _redisAssertPrintObject(robj *o) {
+void _redisAssertPrintObject(robj *o)
+{
     bugReportStart();
     redisLog(REDIS_WARNING,"=== ASSERTION FAILED OBJECT CONTEXT ===");
     redisLogObjectDebugInfo(o);
 }
 
-void _redisAssertWithInfo(redisClient *c, robj *o, char *estr, char *file, int line) {
+void _redisAssertWithInfo(redisClient *c, robj *o, char *estr, char *file, int line)
+{
     if (c) _redisAssertPrintClientInfo(c);
     if (o) _redisAssertPrintObject(o);
     _redisAssert(estr,file,line);
 }
 
-void _redisPanic(char *msg, char *file, int line) {
+void _redisPanic(char *msg, char *file, int line)
+{
     bugReportStart();
     redisLog(REDIS_WARNING,"------------------------------------------------");
     redisLog(REDIS_WARNING,"!!! Software Failure. Press left mouse button to continue");
@@ -424,49 +499,54 @@ void _redisPanic(char *msg, char *file, int line) {
     *((char*)-1) = 'x';
 }
 
-void bugReportStart(void) {
-    if (server.bug_report_start == 0) {
+void bugReportStart(void)
+{
+    if (server.bug_report_start == 0)
+    {
         redisLog(REDIS_WARNING,
-            "\n\n=== REDIS BUG REPORT START: Cut & paste starting from here ===");
+                 "\n\n=== REDIS BUG REPORT START: Cut & paste starting from here ===");
         server.bug_report_start = 1;
     }
 }
 
 #ifdef HAVE_BACKTRACE
-static void *getMcontextEip(ucontext_t *uc) {
+static void *getMcontextEip(ucontext_t *uc)
+{
 #if defined(__APPLE__) && !defined(MAC_OS_X_VERSION_10_6)
     /* OSX < 10.6 */
-    #if defined(__x86_64__)
+#if defined(__x86_64__)
     return (void*) uc->uc_mcontext->__ss.__rip;
-    #elif defined(__i386__)
+#elif defined(__i386__)
     return (void*) uc->uc_mcontext->__ss.__eip;
-    #else
+#else
     return (void*) uc->uc_mcontext->__ss.__srr0;
-    #endif
+#endif
 #elif defined(__APPLE__) && defined(MAC_OS_X_VERSION_10_6)
     /* OSX >= 10.6 */
-    #if defined(_STRUCT_X86_THREAD_STATE64) && !defined(__i386__)
+#if defined(_STRUCT_X86_THREAD_STATE64) && !defined(__i386__)
     return (void*) uc->uc_mcontext->__ss.__rip;
-    #else
+#else
     return (void*) uc->uc_mcontext->__ss.__eip;
-    #endif
+#endif
 #elif defined(__linux__)
     /* Linux */
-    #if defined(__i386__)
+#if defined(__i386__)
     return (void*) uc->uc_mcontext.gregs[14]; /* Linux 32 */
-    #elif defined(__X86_64__) || defined(__x86_64__)
+#elif defined(__X86_64__) || defined(__x86_64__)
     return (void*) uc->uc_mcontext.gregs[16]; /* Linux 64 */
-    #elif defined(__ia64__) /* Linux IA64 */
+#elif defined(__ia64__) /* Linux IA64 */
     return (void*) uc->uc_mcontext.sc_ip;
-    #endif
+#endif
 #else
     return NULL;
 #endif
 }
 
-void logStackContent(void **sp) {
+void logStackContent(void **sp)
+{
     int i;
-    for (i = 15; i >= 0; i--) {
+    for (i = 15; i >= 0; i--)
+    {
         if (sizeof(long) == 4)
             redisLog(REDIS_WARNING, "(%08lx) -> %08lx", sp+i, sp[i]);
         else
@@ -474,145 +554,147 @@ void logStackContent(void **sp) {
     }
 }
 
-void logRegisters(ucontext_t *uc) {
+void logRegisters(ucontext_t *uc)
+{
     redisLog(REDIS_WARNING, "--- REGISTERS");
 
-/* OSX */
+    /* OSX */
 #if defined(__APPLE__) && defined(MAC_OS_X_VERSION_10_6)
-  /* OSX AMD64 */
-    #if defined(_STRUCT_X86_THREAD_STATE64) && !defined(__i386__)
+    /* OSX AMD64 */
+#if defined(_STRUCT_X86_THREAD_STATE64) && !defined(__i386__)
     redisLog(REDIS_WARNING,
-    "\n"
-    "RAX:%016lx RBX:%016lx\nRCX:%016lx RDX:%016lx\n"
-    "RDI:%016lx RSI:%016lx\nRBP:%016lx RSP:%016lx\n"
-    "R8 :%016lx R9 :%016lx\nR10:%016lx R11:%016lx\n"
-    "R12:%016lx R13:%016lx\nR14:%016lx R15:%016lx\n"
-    "RIP:%016lx EFL:%016lx\nCS :%016lx FS:%016lx  GS:%016lx",
-        uc->uc_mcontext->__ss.__rax,
-        uc->uc_mcontext->__ss.__rbx,
-        uc->uc_mcontext->__ss.__rcx,
-        uc->uc_mcontext->__ss.__rdx,
-        uc->uc_mcontext->__ss.__rdi,
-        uc->uc_mcontext->__ss.__rsi,
-        uc->uc_mcontext->__ss.__rbp,
-        uc->uc_mcontext->__ss.__rsp,
-        uc->uc_mcontext->__ss.__r8,
-        uc->uc_mcontext->__ss.__r9,
-        uc->uc_mcontext->__ss.__r10,
-        uc->uc_mcontext->__ss.__r11,
-        uc->uc_mcontext->__ss.__r12,
-        uc->uc_mcontext->__ss.__r13,
-        uc->uc_mcontext->__ss.__r14,
-        uc->uc_mcontext->__ss.__r15,
-        uc->uc_mcontext->__ss.__rip,
-        uc->uc_mcontext->__ss.__rflags,
-        uc->uc_mcontext->__ss.__cs,
-        uc->uc_mcontext->__ss.__fs,
-        uc->uc_mcontext->__ss.__gs
-    );
+             "\n"
+             "RAX:%016lx RBX:%016lx\nRCX:%016lx RDX:%016lx\n"
+             "RDI:%016lx RSI:%016lx\nRBP:%016lx RSP:%016lx\n"
+             "R8 :%016lx R9 :%016lx\nR10:%016lx R11:%016lx\n"
+             "R12:%016lx R13:%016lx\nR14:%016lx R15:%016lx\n"
+             "RIP:%016lx EFL:%016lx\nCS :%016lx FS:%016lx  GS:%016lx",
+             uc->uc_mcontext->__ss.__rax,
+             uc->uc_mcontext->__ss.__rbx,
+             uc->uc_mcontext->__ss.__rcx,
+             uc->uc_mcontext->__ss.__rdx,
+             uc->uc_mcontext->__ss.__rdi,
+             uc->uc_mcontext->__ss.__rsi,
+             uc->uc_mcontext->__ss.__rbp,
+             uc->uc_mcontext->__ss.__rsp,
+             uc->uc_mcontext->__ss.__r8,
+             uc->uc_mcontext->__ss.__r9,
+             uc->uc_mcontext->__ss.__r10,
+             uc->uc_mcontext->__ss.__r11,
+             uc->uc_mcontext->__ss.__r12,
+             uc->uc_mcontext->__ss.__r13,
+             uc->uc_mcontext->__ss.__r14,
+             uc->uc_mcontext->__ss.__r15,
+             uc->uc_mcontext->__ss.__rip,
+             uc->uc_mcontext->__ss.__rflags,
+             uc->uc_mcontext->__ss.__cs,
+             uc->uc_mcontext->__ss.__fs,
+             uc->uc_mcontext->__ss.__gs
+            );
     logStackContent((void**)uc->uc_mcontext->__ss.__rsp);
-    #else
+#else
     /* OSX x86 */
     redisLog(REDIS_WARNING,
-    "\n"
-    "EAX:%08lx EBX:%08lx ECX:%08lx EDX:%08lx\n"
-    "EDI:%08lx ESI:%08lx EBP:%08lx ESP:%08lx\n"
-    "SS:%08lx  EFL:%08lx EIP:%08lx CS :%08lx\n"
-    "DS:%08lx  ES:%08lx  FS :%08lx GS :%08lx",
-        uc->uc_mcontext->__ss.__eax,
-        uc->uc_mcontext->__ss.__ebx,
-        uc->uc_mcontext->__ss.__ecx,
-        uc->uc_mcontext->__ss.__edx,
-        uc->uc_mcontext->__ss.__edi,
-        uc->uc_mcontext->__ss.__esi,
-        uc->uc_mcontext->__ss.__ebp,
-        uc->uc_mcontext->__ss.__esp,
-        uc->uc_mcontext->__ss.__ss,
-        uc->uc_mcontext->__ss.__eflags,
-        uc->uc_mcontext->__ss.__eip,
-        uc->uc_mcontext->__ss.__cs,
-        uc->uc_mcontext->__ss.__ds,
-        uc->uc_mcontext->__ss.__es,
-        uc->uc_mcontext->__ss.__fs,
-        uc->uc_mcontext->__ss.__gs
-    );
+             "\n"
+             "EAX:%08lx EBX:%08lx ECX:%08lx EDX:%08lx\n"
+             "EDI:%08lx ESI:%08lx EBP:%08lx ESP:%08lx\n"
+             "SS:%08lx  EFL:%08lx EIP:%08lx CS :%08lx\n"
+             "DS:%08lx  ES:%08lx  FS :%08lx GS :%08lx",
+             uc->uc_mcontext->__ss.__eax,
+             uc->uc_mcontext->__ss.__ebx,
+             uc->uc_mcontext->__ss.__ecx,
+             uc->uc_mcontext->__ss.__edx,
+             uc->uc_mcontext->__ss.__edi,
+             uc->uc_mcontext->__ss.__esi,
+             uc->uc_mcontext->__ss.__ebp,
+             uc->uc_mcontext->__ss.__esp,
+             uc->uc_mcontext->__ss.__ss,
+             uc->uc_mcontext->__ss.__eflags,
+             uc->uc_mcontext->__ss.__eip,
+             uc->uc_mcontext->__ss.__cs,
+             uc->uc_mcontext->__ss.__ds,
+             uc->uc_mcontext->__ss.__es,
+             uc->uc_mcontext->__ss.__fs,
+             uc->uc_mcontext->__ss.__gs
+            );
     logStackContent((void**)uc->uc_mcontext->__ss.__esp);
-    #endif
-/* Linux */
+#endif
+    /* Linux */
 #elif defined(__linux__)
     /* Linux x86 */
-    #if defined(__i386__)
+#if defined(__i386__)
     redisLog(REDIS_WARNING,
-    "\n"
-    "EAX:%08lx EBX:%08lx ECX:%08lx EDX:%08lx\n"
-    "EDI:%08lx ESI:%08lx EBP:%08lx ESP:%08lx\n"
-    "SS :%08lx EFL:%08lx EIP:%08lx CS:%08lx\n"
-    "DS :%08lx ES :%08lx FS :%08lx GS:%08lx",
-        uc->uc_mcontext.gregs[11],
-        uc->uc_mcontext.gregs[8],
-        uc->uc_mcontext.gregs[10],
-        uc->uc_mcontext.gregs[9],
-        uc->uc_mcontext.gregs[4],
-        uc->uc_mcontext.gregs[5],
-        uc->uc_mcontext.gregs[6],
-        uc->uc_mcontext.gregs[7],
-        uc->uc_mcontext.gregs[18],
-        uc->uc_mcontext.gregs[17],
-        uc->uc_mcontext.gregs[14],
-        uc->uc_mcontext.gregs[15],
-        uc->uc_mcontext.gregs[3],
-        uc->uc_mcontext.gregs[2],
-        uc->uc_mcontext.gregs[1],
-        uc->uc_mcontext.gregs[0]
-    );
+             "\n"
+             "EAX:%08lx EBX:%08lx ECX:%08lx EDX:%08lx\n"
+             "EDI:%08lx ESI:%08lx EBP:%08lx ESP:%08lx\n"
+             "SS :%08lx EFL:%08lx EIP:%08lx CS:%08lx\n"
+             "DS :%08lx ES :%08lx FS :%08lx GS:%08lx",
+             uc->uc_mcontext.gregs[11],
+             uc->uc_mcontext.gregs[8],
+             uc->uc_mcontext.gregs[10],
+             uc->uc_mcontext.gregs[9],
+             uc->uc_mcontext.gregs[4],
+             uc->uc_mcontext.gregs[5],
+             uc->uc_mcontext.gregs[6],
+             uc->uc_mcontext.gregs[7],
+             uc->uc_mcontext.gregs[18],
+             uc->uc_mcontext.gregs[17],
+             uc->uc_mcontext.gregs[14],
+             uc->uc_mcontext.gregs[15],
+             uc->uc_mcontext.gregs[3],
+             uc->uc_mcontext.gregs[2],
+             uc->uc_mcontext.gregs[1],
+             uc->uc_mcontext.gregs[0]
+            );
     logStackContent((void**)uc->uc_mcontext.gregs[7]);
-    #elif defined(__X86_64__) || defined(__x86_64__)
+#elif defined(__X86_64__) || defined(__x86_64__)
     /* Linux AMD64 */
     redisLog(REDIS_WARNING,
-    "\n"
-    "RAX:%016lx RBX:%016lx\nRCX:%016lx RDX:%016lx\n"
-    "RDI:%016lx RSI:%016lx\nRBP:%016lx RSP:%016lx\n"
-    "R8 :%016lx R9 :%016lx\nR10:%016lx R11:%016lx\n"
-    "R12:%016lx R13:%016lx\nR14:%016lx R15:%016lx\n"
-    "RIP:%016lx EFL:%016lx\nCSGSFS:%016lx",
-        uc->uc_mcontext.gregs[13],
-        uc->uc_mcontext.gregs[11],
-        uc->uc_mcontext.gregs[14],
-        uc->uc_mcontext.gregs[12],
-        uc->uc_mcontext.gregs[8],
-        uc->uc_mcontext.gregs[9],
-        uc->uc_mcontext.gregs[10],
-        uc->uc_mcontext.gregs[15],
-        uc->uc_mcontext.gregs[0],
-        uc->uc_mcontext.gregs[1],
-        uc->uc_mcontext.gregs[2],
-        uc->uc_mcontext.gregs[3],
-        uc->uc_mcontext.gregs[4],
-        uc->uc_mcontext.gregs[5],
-        uc->uc_mcontext.gregs[6],
-        uc->uc_mcontext.gregs[7],
-        uc->uc_mcontext.gregs[16],
-        uc->uc_mcontext.gregs[17],
-        uc->uc_mcontext.gregs[18]
-    );
+             "\n"
+             "RAX:%016lx RBX:%016lx\nRCX:%016lx RDX:%016lx\n"
+             "RDI:%016lx RSI:%016lx\nRBP:%016lx RSP:%016lx\n"
+             "R8 :%016lx R9 :%016lx\nR10:%016lx R11:%016lx\n"
+             "R12:%016lx R13:%016lx\nR14:%016lx R15:%016lx\n"
+             "RIP:%016lx EFL:%016lx\nCSGSFS:%016lx",
+             uc->uc_mcontext.gregs[13],
+             uc->uc_mcontext.gregs[11],
+             uc->uc_mcontext.gregs[14],
+             uc->uc_mcontext.gregs[12],
+             uc->uc_mcontext.gregs[8],
+             uc->uc_mcontext.gregs[9],
+             uc->uc_mcontext.gregs[10],
+             uc->uc_mcontext.gregs[15],
+             uc->uc_mcontext.gregs[0],
+             uc->uc_mcontext.gregs[1],
+             uc->uc_mcontext.gregs[2],
+             uc->uc_mcontext.gregs[3],
+             uc->uc_mcontext.gregs[4],
+             uc->uc_mcontext.gregs[5],
+             uc->uc_mcontext.gregs[6],
+             uc->uc_mcontext.gregs[7],
+             uc->uc_mcontext.gregs[16],
+             uc->uc_mcontext.gregs[17],
+             uc->uc_mcontext.gregs[18]
+            );
     logStackContent((void**)uc->uc_mcontext.gregs[15]);
-    #endif
+#endif
 #else
     redisLog(REDIS_WARNING,
-        "  Dumping of registers not supported for this OS/arch");
+             "  Dumping of registers not supported for this OS/arch");
 #endif
 }
 
 /* Logs the stack trace using the backtrace() call. This function is designed
  * to be called from signal handlers safely. */
-void logStackTrace(ucontext_t *uc) {
+void logStackTrace(ucontext_t *uc)
+{
     void *trace[100];
     int trace_size = 0, fd;
 
     /* Open the log file in append mode. */
     fd = server.logfile ?
-        open(server.logfile, O_APPEND|O_CREAT|O_WRONLY, 0644) :
-        STDOUT_FILENO;
+         open(server.logfile, O_APPEND|O_CREAT|O_WRONLY, 0644) :
+         STDOUT_FILENO;
     if (fd == -1) return;
 
     /* Generate the stack trace */
@@ -632,7 +714,8 @@ void logStackTrace(ucontext_t *uc) {
 /* Log information about the "current" client, that is, the client that is
  * currently being served by Redis. May be NULL if Redis is not serving a
  * client right now. */
-void logCurrentClient(void) {
+void logCurrentClient(void)
+{
     if (server.current_client == NULL) return;
 
     redisClient *cc = server.current_client;
@@ -643,7 +726,8 @@ void logCurrentClient(void) {
     client = getClientInfoString(cc);
     redisLog(REDIS_WARNING,"client: %s", client);
     sdsfree(client);
-    for (j = 0; j < cc->argc; j++) {
+    for (j = 0; j < cc->argc; j++)
+    {
         robj *decoded;
 
         decoded = getDecodedObject(cc->argv[j]);
@@ -652,13 +736,15 @@ void logCurrentClient(void) {
     }
     /* Check if the first argument, usually a key, is found inside the
      * selected DB, and if so print info about the associated object. */
-    if (cc->argc >= 1) {
+    if (cc->argc >= 1)
+    {
         robj *val, *key;
         dictEntry *de;
 
         key = getDecodedObject(cc->argv[1]);
         de = dictFind(cc->db->dict, key->ptr);
-        if (de) {
+        if (de)
+        {
             val = dictGetVal(de);
             redisLog(REDIS_WARNING,"key '%s' found in DB containing the following object:", key->ptr);
             redisLogObjectDebugInfo(val);
@@ -672,7 +758,8 @@ void memtest_non_destructive_invert(void *addr, size_t size);
 void memtest_non_destructive_swap(void *addr, size_t size);
 #define MEMTEST_MAX_REGIONS 128
 
-int memtest_test_linux_anonymous_maps(void) {
+int memtest_test_linux_anonymous_maps(void)
+{
     FILE *fp = fopen("/proc/self/maps","r");
     char line[1024];
     size_t start_addr, end_addr, size;
@@ -681,7 +768,8 @@ int memtest_test_linux_anonymous_maps(void) {
     int regions = 0, j;
     uint64_t crc1 = 0, crc2 = 0, crc3 = 0;
 
-    while(fgets(line,sizeof(line),fp) != NULL) {
+    while(fgets(line,sizeof(line),fp) != NULL)
+    {
         char *start, *end, *p = line;
 
         start = p;
@@ -693,8 +781,8 @@ int memtest_test_linux_anonymous_maps(void) {
         if (!p) continue;
         *p++ = '\0';
         if (strstr(p,"stack") ||
-            strstr(p,"vdso") ||
-            strstr(p,"vsyscall")) continue;
+                strstr(p,"vdso") ||
+                strstr(p,"vsyscall")) continue;
         if (!strstr(p,"00:00")) continue;
         if (!strstr(p,"rw")) continue;
 
@@ -710,7 +798,8 @@ int memtest_test_linux_anonymous_maps(void) {
 
     /* Test all the regions as an unique sequential region.
      * 1) Take the CRC64 of the memory region. */
-    for (j = 0; j < regions; j++) {
+    for (j = 0; j < regions; j++)
+    {
         crc1 = crc64(crc1,(void*)start_vect[j],size_vect[j]);
     }
 
@@ -749,7 +838,8 @@ int memtest_test_linux_anonymous_maps(void) {
 }
 #endif
 
-void sigsegvHandler(int sig, siginfo_t *info, void *secret) {
+void sigsegvHandler(int sig, siginfo_t *info, void *secret)
+{
     ucontext_t *uc = (ucontext_t*) secret;
     sds infostring, clients;
     struct sigaction act;
@@ -757,10 +847,10 @@ void sigsegvHandler(int sig, siginfo_t *info, void *secret) {
 
     bugReportStart();
     redisLog(REDIS_WARNING,
-        "    Redis %s crashed by signal: %d", REDIS_VERSION, sig);
+             "    Redis %s crashed by signal: %d", REDIS_VERSION, sig);
     redisLog(REDIS_WARNING,
-        "    Failed assertion: %s (%s:%d)", server.assert_failed,
-                        server.assert_file, server.assert_line);
+             "    Failed assertion: %s (%s:%d)", server.assert_failed,
+             server.assert_file, server.assert_line);
 
     /* Log the stack trace */
     redisLog(REDIS_WARNING, "--- STACK TRACE");
@@ -770,7 +860,7 @@ void sigsegvHandler(int sig, siginfo_t *info, void *secret) {
     redisLog(REDIS_WARNING, "--- INFO OUTPUT");
     infostring = genRedisInfoString("all");
     infostring = sdscatprintf(infostring, "hash_init_value: %u\n",
-        dictGetHashFunctionSeed());
+                              dictGetHashFunctionSeed());
     redisLogRaw(REDIS_WARNING, infostring);
     redisLog(REDIS_WARNING, "--- CLIENT LIST OUTPUT");
     clients = getAllClientsInfoString();
@@ -788,21 +878,24 @@ void sigsegvHandler(int sig, siginfo_t *info, void *secret) {
     /* Test memory */
     redisLog(REDIS_WARNING, "--- FAST MEMORY TEST");
     bioKillThreads();
-    if (memtest_test_linux_anonymous_maps()) {
+    if (memtest_test_linux_anonymous_maps())
+    {
         redisLog(REDIS_WARNING,
-            "!!! MEMORY ERROR DETECTED! Check your memory ASAP !!!");
-    } else {
+                 "!!! MEMORY ERROR DETECTED! Check your memory ASAP !!!");
+    }
+    else
+    {
         redisLog(REDIS_WARNING,
-            "Fast memory test PASSED, however your memory can still be broken. Please run a memory test for several hours if possible.");
+                 "Fast memory test PASSED, however your memory can still be broken. Please run a memory test for several hours if possible.");
     }
 #endif
 
     redisLog(REDIS_WARNING,
-"\n=== REDIS BUG REPORT END. Make sure to include from START to END. ===\n\n"
-"       Please report the crash opening an issue on github:\n\n"
-"           http://github.com/antirez/redis/issues\n\n"
-"  Suspect RAM error? Use redis-server --test-memory to veryfy it.\n\n"
-);
+             "\n=== REDIS BUG REPORT END. Make sure to include from START to END. ===\n\n"
+             "       Please report the crash opening an issue on github:\n\n"
+             "           http://github.com/antirez/redis/issues\n\n"
+             "  Suspect RAM error? Use redis-server --test-memory to veryfy it.\n\n"
+            );
     /* free(messages); Don't call free() with possibly corrupted memory. */
     if (server.daemonize) unlink(server.pidfile);
 
@@ -818,21 +911,24 @@ void sigsegvHandler(int sig, siginfo_t *info, void *secret) {
 
 /* ==================== Logging functions for debugging ===================== */
 
-void redisLogHexDump(int level, char *descr, void *value, size_t len) {
+void redisLogHexDump(int level, char *descr, void *value, size_t len)
+{
     char buf[65], *b;
     unsigned char *v = value;
     char charset[] = "0123456789abcdef";
 
     redisLog(level,"%s (hexdump):", descr);
     b = buf;
-    while(len) {
+    while(len)
+    {
         b[0] = charset[(*v)>>4];
         b[1] = charset[(*v)&0xf];
         b[2] = '\0';
         b += 2;
         len--;
         v++;
-        if (b-buf == 64 || len == 0) {
+        if (b-buf == 64 || len == 0)
+        {
             redisLogRaw(level|REDIS_LOG_RAW,buf);
             b = buf;
         }
@@ -843,7 +939,8 @@ void redisLogHexDump(int level, char *descr, void *value, size_t len) {
 /* =========================== Software Watchdog ============================ */
 #include <sys/time.h>
 
-void watchdogSignalHandler(int sig, siginfo_t *info, void *secret) {
+void watchdogSignalHandler(int sig, siginfo_t *info, void *secret)
+{
 #ifdef HAVE_BACKTRACE
     ucontext_t *uc = (ucontext_t*) secret;
 #endif
@@ -862,7 +959,8 @@ void watchdogSignalHandler(int sig, siginfo_t *info, void *secret) {
 /* Schedule a SIGALRM delivery after the specified period in milliseconds.
  * If a timer is already scheduled, this function will re-schedule it to the
  * specified time. If period is 0 the current timer is disabled. */
-void watchdogScheduleSignal(int period) {
+void watchdogScheduleSignal(int period)
+{
     struct itimerval it;
 
     /* Will stop the timer if period is 0. */
@@ -875,10 +973,12 @@ void watchdogScheduleSignal(int period) {
 }
 
 /* Enable the software watchdog with the specified period in milliseconds. */
-void enableWatchdog(int period) {
+void enableWatchdog(int period)
+{
     int min_period;
 
-    if (server.watchdog_period == 0) {
+    if (server.watchdog_period == 0)
+    {
         struct sigaction act;
 
         /* Watchdog was actually disabled, so we have to setup the signal
@@ -898,7 +998,8 @@ void enableWatchdog(int period) {
 }
 
 /* Disable the software watchdog. */
-void disableWatchdog(void) {
+void disableWatchdog(void)
+{
     struct sigaction act;
     if (server.watchdog_period == 0) return; /* Already disabled. */
     watchdogScheduleSignal(0); /* Stop the current timer. */

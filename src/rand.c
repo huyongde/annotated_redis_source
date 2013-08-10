@@ -68,16 +68,19 @@
 static uint32_t x[3] = { X0, X1, X2 }, a[3] = { A0, A1, A2 }, c = C;
 static void next();
 
-int32_t redisLrand48() {
+int32_t redisLrand48()
+{
     next();
     return (((int32_t)x[2] << (N - 1)) + (x[1] >> 1));
 }
 
-void redisSrand48(int32_t seedval) {
+void redisSrand48(int32_t seedval)
+{
     SEED(X0, LOW(seedval), HIGH(seedval));
 }
 
-static void next() {
+static void next()
+{
     uint32_t p[2], q[2], r[2], carry0, carry1;
 
     MUL(a[0], x[0], p);
@@ -87,7 +90,7 @@ static void next() {
     ADDEQU(p[1], q[0], carry0);
     MUL(a[1], x[0], r);
     x[2] = LOW(carry0 + carry1 + CARRY(p[1], r[0]) + q[1] + r[1] +
-            a[0] * x[2] + a[1] * x[1] + a[2] * x[0]);
+               a[0] * x[2] + a[1] * x[1] + a[2] * x[0]);
     x[1] = LOW(p[1] + r[0]);
     x[0] = LOW(p[0]);
 }

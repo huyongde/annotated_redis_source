@@ -11,59 +11,66 @@ typedef struct ctl_stats_s ctl_stats_t;
 /******************************************************************************/
 #ifdef JEMALLOC_H_STRUCTS
 
-struct ctl_node_s {
-	bool			named;
+struct ctl_node_s
+{
+    bool			named;
 };
 
-struct ctl_named_node_s {
-	struct ctl_node_s	node;
-	const char		*name;
-	/* If (nchildren == 0), this is a terminal node. */
-	unsigned		nchildren;
-	const			ctl_node_t *children;
-	int			(*ctl)(const size_t *, size_t, void *, size_t *,
-	    void *, size_t);
+struct ctl_named_node_s
+{
+    struct ctl_node_s	node;
+    const char		*name;
+    /* If (nchildren == 0), this is a terminal node. */
+    unsigned		nchildren;
+    const			ctl_node_t *children;
+    int			(*ctl)(const size_t *, size_t, void *, size_t *,
+                       void *, size_t);
 };
 
-struct ctl_indexed_node_s {
-	struct ctl_node_s	node;
-	const ctl_named_node_t	*(*index)(const size_t *, size_t, size_t);
+struct ctl_indexed_node_s
+{
+    struct ctl_node_s	node;
+    const ctl_named_node_t	*(*index)(const size_t *, size_t, size_t);
 };
 
-struct ctl_arena_stats_s {
-	bool			initialized;
-	unsigned		nthreads;
-	const char		*dss;
-	size_t			pactive;
-	size_t			pdirty;
-	arena_stats_t		astats;
+struct ctl_arena_stats_s
+{
+    bool			initialized;
+    unsigned		nthreads;
+    const char		*dss;
+    size_t			pactive;
+    size_t			pdirty;
+    arena_stats_t		astats;
 
-	/* Aggregate stats for small size classes, based on bin stats. */
-	size_t			allocated_small;
-	uint64_t		nmalloc_small;
-	uint64_t		ndalloc_small;
-	uint64_t		nrequests_small;
+    /* Aggregate stats for small size classes, based on bin stats. */
+    size_t			allocated_small;
+    uint64_t		nmalloc_small;
+    uint64_t		ndalloc_small;
+    uint64_t		nrequests_small;
 
-	malloc_bin_stats_t	bstats[NBINS];
-	malloc_large_stats_t	*lstats;	/* nlclasses elements. */
+    malloc_bin_stats_t	bstats[NBINS];
+    malloc_large_stats_t	*lstats;	/* nlclasses elements. */
 };
 
-struct ctl_stats_s {
-	size_t			allocated;
-	size_t			active;
-	size_t			mapped;
-	struct {
-		size_t		current;	/* stats_chunks.curchunks */
-		uint64_t	total;		/* stats_chunks.nchunks */
-		size_t		high;		/* stats_chunks.highchunks */
-	} chunks;
-	struct {
-		size_t		allocated;	/* huge_allocated */
-		uint64_t	nmalloc;	/* huge_nmalloc */
-		uint64_t	ndalloc;	/* huge_ndalloc */
-	} huge;
-	unsigned		narenas;
-	ctl_arena_stats_t	*arenas;	/* (narenas + 1) elements. */
+struct ctl_stats_s
+{
+    size_t			allocated;
+    size_t			active;
+    size_t			mapped;
+    struct
+    {
+        size_t		current;	/* stats_chunks.curchunks */
+        uint64_t	total;		/* stats_chunks.nchunks */
+        size_t		high;		/* stats_chunks.highchunks */
+    } chunks;
+    struct
+    {
+        size_t		allocated;	/* huge_allocated */
+        uint64_t	nmalloc;	/* huge_nmalloc */
+        uint64_t	ndalloc;	/* huge_ndalloc */
+    } huge;
+    unsigned		narenas;
+    ctl_arena_stats_t	*arenas;	/* (narenas + 1) elements. */
 };
 
 #endif /* JEMALLOC_H_STRUCTS */
@@ -71,11 +78,11 @@ struct ctl_stats_s {
 #ifdef JEMALLOC_H_EXTERNS
 
 int	ctl_byname(const char *name, void *oldp, size_t *oldlenp, void *newp,
-    size_t newlen);
+               size_t newlen);
 int	ctl_nametomib(const char *name, size_t *mibp, size_t *miblenp);
 
 int	ctl_bymib(const size_t *mib, size_t miblen, void *oldp, size_t *oldlenp,
-    void *newp, size_t newlen);
+              void *newp, size_t newlen);
 bool	ctl_boot(void);
 void	ctl_prefork(void);
 void	ctl_postfork_parent(void);

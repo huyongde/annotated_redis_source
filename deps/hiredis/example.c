@@ -4,14 +4,16 @@
 
 #include "hiredis.h"
 
-int main(void) {
+int main(void)
+{
     unsigned int j;
     redisContext *c;
     redisReply *reply;
 
     struct timeval timeout = { 1, 500000 }; // 1.5 seconds
     c = redisConnectWithTimeout((char*)"127.0.0.2", 6379, timeout);
-    if (c->err) {
+    if (c->err)
+    {
         printf("Connection error: %s\n", c->errstr);
         exit(1);
     }
@@ -47,7 +49,8 @@ int main(void) {
     /* Create a list of numbers, from 0 to 9 */
     reply = redisCommand(c,"DEL mylist");
     freeReplyObject(reply);
-    for (j = 0; j < 10; j++) {
+    for (j = 0; j < 10; j++)
+    {
         char buf[64];
 
         snprintf(buf,64,"%d",j);
@@ -57,8 +60,10 @@ int main(void) {
 
     /* Let's check what we have inside the list */
     reply = redisCommand(c,"LRANGE mylist 0 -1");
-    if (reply->type == REDIS_REPLY_ARRAY) {
-        for (j = 0; j < reply->elements; j++) {
+    if (reply->type == REDIS_REPLY_ARRAY)
+    {
+        for (j = 0; j < reply->elements; j++)
+        {
             printf("%u) %s\n", j, reply->element[j]->str);
         }
     }
